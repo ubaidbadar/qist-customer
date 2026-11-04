@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Qist</string>
+    <string name="admin_description">Keeps this financed phone linked to the shop until it is paid off.</string>
+
+    <!-- Lock screen -->
+    <string name="lock_title">Your phone is locked</string>
+    <string name="lock_amount_due">Amount due</string>
+    <string name="lock_due_date">Due date</string>
+    <string name="lock_overdue_by">Overdue by</string>
+    <string name="lock_retailer">Retailer</string>
+    <string name="lock_payment_message">An installment payment is overdue. Please pay your retailer to unlock your phone.</string>
+    <string name="lock_payment_message_urdu">آپ کی قسط واجب الادا ہے۔ فون کھلوانے کے لیے دکاندار کو ادائیگی کریں۔</string>
+    <string name="lock_payment_footer">Your phone unlocks automatically once your retailer records the payment.</string>
+    <plurals name="lock_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <string name="lock_call_branch">Call retailer</string>
+    <string name="lock_call_branch_description">Call %1$s at %2$s</string>
+    <string name="lock_emergency_call">Emergency call</string>
+
+</resources>

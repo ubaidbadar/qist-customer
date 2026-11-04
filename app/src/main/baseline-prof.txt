@@ -1,0 +1,13 @@
+# Ahead-of-time compile the app's own code on install (Compose and the other AndroidX libraries ship their own
+# profiles). The lock screen is the first thing a locked phone shows after a reboot, and check-ins run in the
+# background, so both should start fast. ProfileInstaller applies this because the app is not on Google Play.
+HSPLpk/qist/device/QistApp;->**(**)**
+HSPLpk/qist/device/AppContainer;->**(**)**
+HSPLpk/qist/device/lock/**;->**(**)**
+HSPLpk/qist/device/checkin/**;->**(**)**
+HSPLpk/qist/device/data/**;->**(**)**
+HSPLpk/qist/device/deviceadmin/**;->**(**)**
+HSPLpk/qist/device/ui/theme/**;->**(**)**
+Lpk/qist/device/lock/**;
+Lpk/qist/device/checkin/**;
+Lpk/qist/device/data/**;

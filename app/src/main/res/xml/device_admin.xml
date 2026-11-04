@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Device Owner gets its powers from DevicePolicyManager; no legacy device-admin policies are requested. -->
+<device-admin />

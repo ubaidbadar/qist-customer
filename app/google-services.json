@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "562028498531",
+    "project_id": "qist-a",
+    "storage_bucket": "qist-a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:562028498531:android:717945d84d79363d983256",
+        "android_client_info": {
+          "package_name": "pk.qist.device"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBo0AgxxH3eiXiYP9XgB0tTggACakuMVWY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

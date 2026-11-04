@@ -1,0 +1,114 @@
+name: Publish signed Qist APK to Cloudflare R2
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qist-android-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_REGION: auto
+      AWS_DEFAULT_REGION: auto
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          for key in R2_ACCOUNT_ID R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!key}" ]]; then echo "::error::Missing GitHub Actions secret for $key"; exit 1; fi
+          done
+
+      - name: Restore signing key
+        shell: bash
+        run: |
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/qist-release.jks"
+
+      - name: Build signed release
+        shell: bash
+        run: |
+          chmod +x gradlew
+          API_URL="${{ secrets.API_URL || vars.API_URL || secrets.VITE_API_URL || vars.VITE_API_URL || 'https://qist.restora.live/api/v1' }}"
+          echo "Building signed release APK pointing to: $API_URL"
+          ./gradlew :app:assembleRelease \
+            -Pqist.apiUrl.release="$API_URL" \
+            -Pqist.signing.storeFile="$RUNNER_TEMP/qist-release.jks" \
+            -Pqist.signing.storePassword="$KEYSTORE_PASSWORD" \
+            -Pqist.signing.keyAlias="$KEY_ALIAS" \
+            -Pqist.signing.keyPassword="$KEY_PASSWORD" \
+            --no-daemon
+
+      - name: Verify APK and publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)"
+          if [[ -z "$APKSIGNER" || ! -x "$APKSIGNER" ]]; then
+            echo "::error::apksigner tool not found in $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+
+          # Calculate the exact DEVICE_APP_SIGNATURE_CHECKSUM needed for backend QR provisioning
+          CHECKSUM=$(keytool -exportcert -alias "$KEY_ALIAS" -keystore "$RUNNER_TEMP/qist-release.jks" -storepass "$KEYSTORE_PASSWORD" | openssl dgst -binary -sha256 | openssl base64 | tr '+/' '-_' | tr -d '=')
+
+          command -v aws
+          aws s3 cp "$APK" "s3://$R2_BUCKET/android/qist.apk" \
+            --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" \
+            --content-type application/vnd.android.package-archive \
+            --cache-control "public, max-age=300"
+
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          ### 🚀 Release Published to Cloudflare R2
+          - **R2 Bucket**: \`$R2_BUCKET\`
+          - **Object Path**: \`android/qist.apk\`
+
+          ### 📱 Backend Environment Settings (for QR Provisioning):
+          Add this to your backend \`.env\`:
+          \`\`\`env
+          DEVICE_APP_SIGNATURE_CHECKSUM=$CHECKSUM
+          \`\`\`
+          EOF
+
+      - name: Upload Release APK as Artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: qist-locker-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Clean signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/qist-release.jks"
