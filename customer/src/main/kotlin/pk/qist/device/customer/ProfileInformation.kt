@@ -207,7 +207,7 @@ private fun DemoPrivacy() {
     OutlinedButton(
         onClick = {
             try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://qist-customer-privacy.tallpage4.chatgpt.site")))
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://qist-a.web.app/privacy-policy")))
             } catch (_: ActivityNotFoundException) {
                 Toast.makeText(context, browserError, Toast.LENGTH_SHORT).show()
             }
