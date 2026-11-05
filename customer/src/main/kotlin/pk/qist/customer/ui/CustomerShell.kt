@@ -8,6 +8,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.*
+import pk.qist.customer.data.CustomerPreferences
 import pk.qist.customer.data.CustomerRepository
 import pk.qist.customer.data.DemoCustomerRepository
 import pk.qist.customer.ui.auth.AuthScreen
@@ -37,7 +38,8 @@ internal fun CustomerShell() {
     var error by rememberSaveable { mutableStateOf(false) }
     var deadline by rememberSaveable { mutableLongStateOf(0L) }
     var paymentHelp by rememberSaveable { mutableStateOf(false) }
-    val consent = LocalContext.current.getSharedPreferences("customer_privacy", 0)
+    val appContext = LocalContext.current.applicationContext
+    val preferences = remember(appContext) { CustomerPreferences(appContext) }
     var consentPolicy by rememberSaveable { mutableStateOf(false) }
     val repository: CustomerRepository = DemoCustomerRepository
 
@@ -86,7 +88,7 @@ internal fun CustomerShell() {
                     if (repository.verify(code)) {
                         tab = CustomerTab.Home
                         code = ""
-                        route = if (consent.getBoolean("accepted", false)) CustomerRoute.Home else CustomerRoute.Consent
+                        route = if (preferences.hasAcceptedPrivacy) CustomerRoute.Home else CustomerRoute.Consent
                     } else error = true
                 },
             ) {
@@ -100,7 +102,7 @@ internal fun CustomerShell() {
                 PrivacyConsent(
                     onPolicy = { consentPolicy = true },
                     onAgree = {
-                        consent.edit().putBoolean("accepted", true).apply()
+                        preferences.acceptPrivacy()
                         route = CustomerRoute.Home
                     },
                     onDecline = {
@@ -114,6 +116,7 @@ internal fun CustomerShell() {
             } else Dashboard(
                 repository.dashboard(), tab, { tab = it }, { paymentHelp = true },
                 phone = phone,
+                preferences = preferences,
                 onLanguage = { urdu = !urdu },
                 onLogout = {
                     phone = ""

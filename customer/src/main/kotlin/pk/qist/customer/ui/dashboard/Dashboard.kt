@@ -10,12 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.*
 import androidx.core.view.WindowCompat
 import pk.qist.customer.R
+import pk.qist.customer.data.CustomerPreferences
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentSample
 import pk.qist.customer.ui.CustomerTab
@@ -48,18 +48,18 @@ internal fun Dashboard(
     onTab: (CustomerTab) -> Unit,
     onHelp: () -> Unit,
     phone: String,
+    preferences: CustomerPreferences,
     onLanguage: () -> Unit,
     onLogout: () -> Unit,
 ) {
-    val prefs = LocalContext.current.getSharedPreferences("customer_notifications", 0)
-    var allowed by remember { mutableStateOf(prefs.getBoolean("enabled", false)) }
-    var showPrompt by rememberSaveable { mutableStateOf(!prefs.contains("enabled")) }
+    var allowed by remember { mutableStateOf(preferences.notificationsEnabled) }
+    var showPrompt by rememberSaveable { mutableStateOf(!preferences.hasNotificationPreference) }
     var inbox by rememberSaveable { mutableStateOf(false) }
     var unread by rememberSaveable { mutableIntStateOf(3) }
 
     fun setNotifications(enabled: Boolean) {
         allowed = enabled
-        prefs.edit().putBoolean("enabled", enabled).apply()
+        preferences.setNotifications(enabled)
         showPrompt = false
     }
 

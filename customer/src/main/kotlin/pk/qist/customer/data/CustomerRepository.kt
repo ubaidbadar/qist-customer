@@ -24,7 +24,7 @@ internal data class DashboardSample(
 
 internal object DemoCustomerRepository : CustomerRepository {
     override fun verify(code: String) = code == "123456"
-    override fun dashboard() = DashboardSample(
+    private val sample = DashboardSample(
         name = "Demo Customer",
         model = "Demo Phone",
         amount = "7,500",
@@ -38,4 +38,6 @@ internal object DemoCustomerRepository : CustomerRepository {
             PaymentSample(1, "12 Aug 2026", "7,500"),
         ),
     )
+
+    override fun dashboard() = sample
 }
