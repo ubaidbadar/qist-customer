@@ -11,7 +11,9 @@ android {
         applicationId = "pk.qist.device.customer"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
+        versionCode = providers.gradleProperty("qist.customer.versionCode")
+            .map { it.toInt() }
+            .getOrElse(1)
         versionName = "0.1.0"
     }
 

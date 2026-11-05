@@ -1,0 +1,46 @@
+name: Customer CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev, stage, main]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build, lint and test customer
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build and check
+        run: |
+          chmod +x gradlew
+          ./gradlew :customer:assembleDebug :customer:bundleRelease :customer:lintDebug :customer:lintRelease :customer:testDebugUnitTest :customer:testReleaseUnitTest --no-daemon
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v5
+        with:
+          name: qist-customer-debug-${{ github.run_id }}-${{ github.run_attempt }}
+          path: customer/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload check reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: qist-customer-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            customer/build/reports/
+            customer/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 14

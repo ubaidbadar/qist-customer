@@ -1,0 +1,111 @@
+name: Customer Google Play CD
+
+on:
+  push:
+    branches: [stage, main]
+
+permissions:
+  contents: read
+
+# Serialise all Play uploads across both branches.
+concurrency:
+  group: qist-customer-google-play
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish to Google Play
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Validate publishing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD PLAY_SERVICE_ACCOUNT_JSON; do
+            if [[ -z "${!key}" ]]; then
+              echo "::error::Missing $key. See docs/PLAY_STORE_RELEASE.md for GitHub secret names."
+              exit 1
+            fi
+          done
+
+      - name: Select track and version code
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF_NAME" in
+            stage) TRACK=internal ;;
+            main) TRACK=production ;;
+            *) echo "::error::Unsupported release branch"; exit 1 ;;
+          esac
+          # Seconds since 2020 plus a floor keep codes increasing across branches and reruns.
+          VERSION_CODE=$(python3 -c 'import time; print(int(time.time()) - 1577836800 + 1000000)')
+          echo "track=$TRACK" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Restore upload key
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/qist-customer-upload.jks"
+
+      - name: Build signed Android App Bundle
+        env:
+          VERSION_CODE: ${{ steps.release.outputs.version_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew :customer:bundleRelease \
+            -Pqist.customer.versionCode="$VERSION_CODE" \
+            -Pqist.signing.storeFile="$RUNNER_TEMP/qist-customer-upload.jks" \
+            -Pqist.signing.storePassword="$KEYSTORE_PASSWORD" \
+            -Pqist.signing.keyAlias="$KEY_ALIAS" \
+            -Pqist.signing.keyPassword="$KEY_PASSWORD" \
+            --no-daemon
+          test -s customer/build/outputs/bundle/release/customer-release.aab
+          jarsigner -verify customer/build/outputs/bundle/release/customer-release.aab
+
+      - name: Upload signed bundle and R8 mapping
+        uses: actions/upload-artifact@v5
+        with:
+          name: qist-customer-${{ steps.release.outputs.track }}-${{ steps.release.outputs.version_code }}
+          path: |
+            customer/build/outputs/bundle/release/customer-release.aab
+            customer/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish release
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
+        with:
+          serviceAccountJsonPlainText: ${{ env.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: pk.qist.device.customer
+          releaseFiles: customer/build/outputs/bundle/release/customer-release.aab
+          mappingFile: customer/build/outputs/mapping/release/mapping.txt
+          track: ${{ steps.release.outputs.track }}
+          status: completed
+          releaseName: ${{ github.ref_name }}-${{ steps.release.outputs.version_code }}
+
+      - name: Clean upload key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/qist-customer-upload.jks"
