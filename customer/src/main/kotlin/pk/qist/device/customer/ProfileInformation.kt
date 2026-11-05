@@ -1,5 +1,9 @@
 package pk.qist.customer
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
@@ -176,15 +180,22 @@ private fun appVersion(manager: android.content.pm.PackageManager, packageName: 
 
 @Composable
 private fun DemoPrivacy() {
+    val context = LocalContext.current
     val sections = listOf(
-        copy("Information we collect", "جمع کی جانے والی معلومات") to copy("You enter a phone number to try demo sign-in. The demo uses sample payment and plan records.", "ڈیمو سائن ان کے لیے فون نمبر درج کیا جاتا ہے۔ ادائیگیوں اور منصوبے کا ڈیٹا نمونہ ہے۔"),
-        copy("How we use your information", "معلومات کا استعمال") to copy("The demo displays your entered number in the app and saves your reminder preference on this device.", "ڈیمو درج کردہ نمبر ایپ میں دکھاتا ہے اور یاد دہانی کی ترجیح اسی فون پر محفوظ کرتا ہے۔"),
-        copy("Phone management by your retailer", "دکاندار کی جانب سے فون کا انتظام") to copy("This customer demo displays sample phone status. It has no device management controls.", "کسٹمر ڈیمو فون کی نمونہ حالت دکھاتا ہے۔ اس میں فون کے انتظام کے اختیارات نہیں ہیں۔"),
-        copy("Your choices", "آپ کے اختیارات") to copy("Change the demo reminder preference in Profile or log out to clear the number from the current session.", "پروفائل میں یاد دہانی کی ترجیح بدلیں یا موجودہ سیشن سے نمبر ہٹانے کے لیے لاگ آؤٹ کریں۔"),
-        copy("Contact us", "ہم سے رابطہ") to copy("For plan or payment questions, contact your retailer.", "منصوبے یا ادائیگی سے متعلق سوالات کے لیے اپنے دکاندار سے رابطہ کریں۔"),
+        "About this policy" to "This policy applies to Qist Customer (Android package pk.qist.customer), provided by Ubaid Badar. It describes the current demonstration version, which uses sample installment plans, payments, phone status and receipts.",
+        "Information used by the app" to "You can enter a phone number and a demo verification code. They are used locally to demonstrate sign-in and display your number in the app. The app does not send SMS messages or create a real customer account. Phone numbers and codes may be included in Android's temporary saved screen state so the screen can be restored.",
+        "Collection and sharing" to "The current app does not send your phone number, installment information or payment information to the developer or a backend server. It includes no advertising or analytics SDK. The plan, payment, retailer, phone-status and receipt records shown in this version are sample records.",
+        "Local preferences and Android services" to "The app stores your privacy acceptance and notification preference locally. The notification preference is a demo setting; this version does not register for remote push messages. Android's backup and restore services may back up app preferences according to your device settings. Those services are governed by the platform provider's terms and privacy policies.",
+        "Receipts you save or share" to "Downloading a receipt uses Android's file picker to save a text file to a location you choose. Sharing a receipt opens Android's share sheet. Only if you choose a destination will the selected app or service receive the receipt text. The selected provider handles that information under its own policies. Demo receipts are marked as demo data.",
+        "Retention and your choices" to "Logging out clears the entered phone number and code from the current app session. Preferences remain until you clear the app's storage or uninstall it, subject to Android backup and restore settings. You can change the notification preference in Profile. Exported receipts remain in your selected storage location until you delete them there. Because this demo creates no server account, there is no server account record to delete.",
+        "Support correspondence" to "If you email us, we receive your email address and the information you choose to send. We use that correspondence to respond to your request and address support or privacy concerns. Keep sensitive account, payment and identity information out of support messages unless necessary. You may request deletion of support correspondence, subject to applicable retention requirements.",
+        "Phone status and retailer payments" to "The customer app displays sample phone status and payment guidance. It does not manage or lock your device, approve financing, transfer money or process payments. Retailer contact controls in this demo do not contact a real retailer.",
+        "Changes to this policy" to "We will update this policy and the applicable Google Play disclosures before releasing features that change how user data is handled, such as real sign-in, backend synchronization, analytics or push notifications.",
+        "Privacy contact" to "For privacy questions or requests, email m.ubaidbadar@gmail.com. Developer: Ubaid Badar.",
     )
     Panel {
-        ProfileCaption(copy("Demo privacy notice", "ڈیمو رازداری کا نوٹس"))
+        Text(copy("Privacy policy", "رازداری کی پالیسی"), style = MaterialTheme.typography.titleLarge)
+        ProfileCaption(copy("Last updated 5 November 2026", "آخری تازہ کاری 5 نومبر 2026"))
         sections.forEach { (title, body) ->
             Spacer(Modifier.height(16.dp))
             Text(title, style = MaterialTheme.typography.titleMedium)
@@ -192,12 +203,17 @@ private fun DemoPrivacy() {
             ProfileCaption(body)
         }
     }
+    val browserError = copy("No browser is available to open the privacy policy.", "رازداری کی پالیسی کھولنے کے لیے براؤزر دستیاب نہیں۔")
     OutlinedButton(
-        onClick = {},
-        enabled = false,
+        onClick = {
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://qist-customer-privacy.tallpage4.chatgpt.site")))
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(context, browserError, Toast.LENGTH_SHORT).show()
+            }
+        },
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
     ) { Text(copy("Open full policy in browser", "مکمل پالیسی براؤزر میں کھولیں")) }
-    ProfileCaption(copy("A published policy link is not configured for this demo.", "اس ڈیمو میں شائع شدہ پالیسی کا لنک موجود نہیں۔"))
 }
 
 @Composable
