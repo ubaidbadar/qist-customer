@@ -1,50 +1,40 @@
 package pk.qist.customer.ui.plan
 
-import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
-import androidx.compose.ui.unit.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import pk.qist.customer.R
-import pk.qist.customer.data.DashboardSample
-import pk.qist.customer.ui.components.DetailRow
-import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.money
+import pk.qist.customer.data.CustomerPlan
+import pk.qist.customer.ui.components.*
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Divider
-import pk.qist.customer.ui.theme.DueAmber
-import pk.qist.customer.ui.theme.DueBackground
-import pk.qist.customer.ui.theme.PaidBackground
-import pk.qist.customer.ui.theme.PaidGreen
+import pk.qist.customer.ui.theme.*
 
 @Composable
-internal fun PlanDetails(data: DashboardSample) {
-    Panel {
-        DetailRow(data.model, data.retailer, "", R.drawable.phone_outline)
-        Fact(copy("Total price", "کل قیمت"), money(data.advance + data.total * data.installment))
-        Fact(copy("Advance paid", "پیشگی ادائیگی"), money(data.advance))
-        Fact(copy("Installment", "قسط"), money(data.installment))
-        Fact(copy("Plan length", "مدت"), copy("${data.total} months", "${data.total} ماہ"))
-    }
-    Panel {
-        Text(copy("Schedule", "اقساط کا شیڈول"), style = MaterialTheme.typography.titleLarge)
-        data.schedule.forEachIndexed { index, date ->
-            val paid = index < data.paid
-            val due = index == data.paid
-            val tint = when {
-                paid -> PaidGreen
-                due -> DueAmber
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            }
-            if (index > 0) HorizontalDivider(color = Divider)
-            DetailRow(
-                copy("Installment ${index + 1}", "قسط ${index + 1}"), date, money(data.installment),
-                icon = when { paid -> R.drawable.detail_check; due -> R.drawable.detail_clock; else -> R.drawable.tab_plan },
-                tint = tint,
-                background = when { paid -> PaidBackground; due -> DueBackground; else -> Divider },
-                status = when { paid -> copy("Paid", "ادا شدہ"); due -> copy("Due soon", "جلد واجب"); else -> copy("Upcoming", "آنے والی") },
-            )
+internal fun PlanDetails(plan: CustomerPlan?) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+        item("heading") { Text(copy("My plan", "میرا منصوبہ"), style = MaterialTheme.typography.headlineMedium) }
+        if (plan == null) item("empty") { CustomerEmptyState(copy("No installment plan is available yet.", "ابھی قسطوں کا منصوبہ دستیاب نہیں۔")) }
+        else {
+            item("summary") { Panel {
+                DetailRow(plan.deviceLabel, plan.retailer, "", R.drawable.phone_outline)
+                Fact(copy("Status", "حالت"), plan.status)
+                Fact(copy("Total price", "کل قیمت"), money(plan.downPayment + plan.totalPayable))
+                Fact(copy("Down payment", "پیشگی رقم"), money(plan.downPayment))
+                Fact(copy("Late fees", "تاخیر کی فیس"), money(plan.lateFees))
+                Fact(copy("Remaining", "باقی"), money(plan.remaining))
+                Fact(copy("Schedule", "شیڈول"), "${plan.count} · ${plan.frequency}")
+            } }
+            items(plan.installments, key = { it.number }, contentType = { "installment" }) { installment -> Panel {
+                val paid = installment.status == "paid"
+                DetailRow(copy("Installment ${installment.number}", "قسط ${installment.number}"), installment.dueDate, money(installment.amount + installment.lateFee),
+                    if (paid) R.drawable.detail_check else R.drawable.detail_clock, tint = if (paid) PaidGreen else DueAmber,
+                    background = if (paid) PaidBackground else DueBackground, status = installment.status)
+                Fact(copy("Paid", "ادا شدہ"), money(installment.paidAmount))
+                Fact(copy("Remaining", "باقی"), money(installment.remaining))
+            } }
         }
     }
 }
@@ -52,7 +42,7 @@ internal fun PlanDetails(data: DashboardSample) {
 @Composable
 private fun Fact(label: String, value: String) {
     HorizontalDivider(color = Divider)
-    Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().padding(vertical = QistSpacing.Item), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
         Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.titleMedium)
     }

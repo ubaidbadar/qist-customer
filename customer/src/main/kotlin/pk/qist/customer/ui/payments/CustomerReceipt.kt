@@ -1,5 +1,6 @@
 package pk.qist.customer.ui.payments
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -7,85 +8,72 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.*
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pk.qist.customer.R
-import pk.qist.customer.data.DashboardSample
-import pk.qist.customer.data.PaymentSample
-import pk.qist.customer.ui.components.Caption
-import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.PaymentPage
-import pk.qist.customer.ui.components.Pill
-import pk.qist.customer.ui.components.ScreenBadge
-import pk.qist.customer.ui.components.SecondaryAction
+import pk.qist.customer.data.*
+import pk.qist.customer.ui.components.*
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Divider
-import pk.qist.customer.ui.theme.PaidBackground
-import pk.qist.customer.ui.theme.PaidGreen
-import pk.qist.customer.ui.theme.QistSpacing
+import pk.qist.customer.ui.theme.*
 
 @Composable
-internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBack: () -> Unit) {
+internal fun CustomerReceipt(plan: CustomerPlan, payment: CustomerPayment, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val id = "DEMO-${payment.number.toString().padStart(3, '0')}"
-    val amount = copy("Rs. ${payment.amount}", "روپے ${payment.amount}")
+    val amount = money(payment.amount)
     val title = copy("Receipt", "رسید")
     val facts = listOf(
-        copy("Installment", "قسط") to copy("${payment.number} of ${data.total}", "${data.total} میں سے ${payment.number}"),
-        copy("Phone", "فون") to data.model,
-        copy("Payment method", "ادائیگی کا طریقہ") to copy(payment.method, "نقد"),
-        copy("Received by", "وصول کنندہ") to data.retailer,
-        copy("Receipt no.", "رسید نمبر") to id,
+        copy("Receipt no.", "رسید نمبر") to "${payment.receiptNumber}",
+        copy("Phone", "فون") to plan.deviceLabel,
+        copy("Retailer", "دکاندار") to plan.retailer,
+        copy("Received by", "وصول کنندہ") to payment.receivedByName,
+        copy("Payment method", "ادائیگی کا طریقہ") to payment.method,
+        copy("Payment type", "ادائیگی کی قسم") to payment.kind,
+        copy("Installments", "اقساط") to payment.installmentNumbers.joinToString(", ").ifEmpty { "—" },
+        copy("Reference", "حوالہ") to payment.reference.ifBlank { "—" },
     )
     val receipt = buildString {
-        appendLine("Qist · " + copy("Demo receipt", "نمونہ رسید"))
-        appendLine("$amount · ${payment.date}")
+        appendLine("Qist · $title"); appendLine("$amount · ${payment.receivedOn}")
         facts.forEach { (label, value) -> appendLine("$label: $value") }
+        appendLine("Payment ID: ${payment.id}")
     }
-    val error = copy("Could not save the receipt.", "رسید محفوظ نہیں ہو سکی۔")
+    val error = copy("Could not save or share the receipt.", "رسید محفوظ یا شیئر نہیں ہو سکی۔")
+    var saving by remember { mutableStateOf(false) }
     val download = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
-        if (uri != null) scope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    val stream = context.contentResolver.openOutputStream(uri) ?: throw IOException("No output stream")
-                    stream.bufferedWriter(Charsets.UTF_8).use { it.write(receipt) }
-                }
-            } catch (_: IOException) {
-                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
-            } catch (_: SecurityException) {
-                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
-            }
+        if (uri != null && !saving) scope.launch {
+            saving = true
+            try { withContext(Dispatchers.IO) {
+                val stream = context.contentResolver.openOutputStream(uri) ?: throw IOException("No output stream")
+                stream.bufferedWriter(Charsets.UTF_8).use { it.write(receipt) }
+            } } catch (_: IOException) { Toast.makeText(context, error, Toast.LENGTH_SHORT).show() }
+            catch (_: SecurityException) { Toast.makeText(context, error, Toast.LENGTH_SHORT).show() }
+            finally { saving = false }
         }
     }
     PaymentPage(title, onBack, actions = {
         Pill(copy("Share receipt", "رسید شیئر کریں"), {
-            val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, receipt)
-            context.startActivity(Intent.createChooser(intent, title))
+            try { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, receipt), title)) }
+            catch (_: ActivityNotFoundException) { Toast.makeText(context, error, Toast.LENGTH_SHORT).show() }
         })
-        SecondaryAction(copy("Download", "ڈاؤن لوڈ کریں")) { download.launch("qist-receipt-$id.txt") }
+        OutlinedButton(onClick = { download.launch("qist-receipt-${payment.receiptNumber}.txt") }, enabled = !saving, modifier = Modifier.fillMaxWidth()) { Text(copy("Download", "ڈاؤن لوڈ کریں")) }
     }) {
         Panel {
-            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                 ScreenBadge(R.drawable.detail_check, PaidGreen, PaidBackground, 64)
                 Caption(copy("Payment received", "ادائیگی موصول ہوئی"))
-                Text(amount, style = MaterialTheme.typography.headlineLarge)
-                Caption(payment.date)
+                Text(amount, style = MaterialTheme.typography.headlineLarge); Caption(payment.receivedOn)
             }
         }
-        Panel {
-            facts.forEachIndexed { index, (label, value) ->
-                if (index > 0) HorizontalDivider(color = Divider)
-                Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-                    Box(Modifier.weight(1f)) { Caption(label) }
-                    Text(value, style = MaterialTheme.typography.titleMedium)
-                }
+        Panel { facts.forEach { (label, value) ->
+            Row(Modifier.fillMaxWidth().padding(vertical = QistSpacing.Item), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                Box(Modifier.weight(1f)) { Caption(label) }; Text(value, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             }
-        }
+            HorizontalDivider(color = Divider)
+        } }
     }
 }

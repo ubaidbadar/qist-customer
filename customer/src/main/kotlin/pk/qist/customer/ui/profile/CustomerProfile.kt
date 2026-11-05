@@ -1,101 +1,46 @@
 package pk.qist.customer.ui.profile
 
-import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.*
+import androidx.compose.ui.Modifier
 import pk.qist.customer.R
-import pk.qist.customer.data.DashboardSample
-import pk.qist.customer.ui.components.Badge
-import pk.qist.customer.ui.components.Caption
-import pk.qist.customer.ui.components.Chevron
-import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.RetailerContactDialog
+import pk.qist.customer.data.CustomerOverview
+import pk.qist.customer.ui.components.*
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Blue
-import pk.qist.customer.ui.theme.Destructive
-import pk.qist.customer.ui.theme.DestructiveBackground
-import pk.qist.customer.ui.theme.Divider
-import pk.qist.customer.ui.theme.Navy
-import pk.qist.customer.ui.theme.QistSpacing
+import pk.qist.customer.ui.theme.*
+
+internal enum class ProfilePage { Help, Privacy }
+private enum class ProfileDialog { Language, Logout }
 
 @Composable
-internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: () -> Unit, onLogout: () -> Unit, notifications: Boolean, onNotifications: (Boolean) -> Unit, onOpenPage: (String) -> Unit) {
-    var dialog by rememberSaveable { mutableStateOf("") }
+internal fun CustomerProfile(data: CustomerOverview, onLanguage: () -> Unit, onLogout: () -> Unit,
+    reminders: Boolean, onReminders: (Boolean) -> Unit, busy: Boolean, onPage: (ProfilePage) -> Unit,
+) {
+    var dialog by rememberSaveable { mutableStateOf<ProfileDialog?>(null) }
     val language = copy("English", "اردو")
-    Panel {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(Modifier.size(52.dp).background(Navy, CircleShape), contentAlignment = Alignment.Center) {
-                Text(data.name.take(1), color = Color.White, style = MaterialTheme.typography.titleLarge)
-            }
-            Column(Modifier.weight(1f)) {
-                Text(data.name, style = MaterialTheme.typography.titleLarge)
-                Caption("+92 $phone")
-            }
-        }
-    }
-    Panel {
+    Panel { Text(data.name, style = MaterialTheme.typography.titleLarge); Caption(data.phone) }
+    data.plan?.let { plan -> Panel {
         Caption(copy("Your retailer", "آپ کا دکاندار"))
-        Text(data.retailer, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-            Button(onClick = { dialog = "contact" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                Text(copy("Call", "کال کریں"))
-            }
-            OutlinedButton(onClick = { dialog = "contact" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
-                Text(copy("WhatsApp", "واٹس ایپ"), color = Navy)
-            }
-        }
-    }
+        Text(plan.retailer, style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(QistSpacing.Item)); RetailerContactActions(plan.retailerPhone)
+    } }
     Panel {
-        SettingsRow(copy("Language", "زبان"), R.drawable.detail_language, onClick = { dialog = "language" }) {
-            Caption(language)
-            Chevron()
+        TextButton(onClick = { dialog = ProfileDialog.Language }, modifier = Modifier.fillMaxWidth()) { Text(copy("Language", "زبان") + " · " + language) }
+        HorizontalDivider(color = Divider)
+        Row(Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) { Text(copy("In-app reminders", "ایپ میں یاد دہانیاں")); Caption(copy("Shown while you use Qist", "قسط استعمال کرتے وقت دکھائی جائیں گی")) }
+            Switch(checked = reminders, onCheckedChange = onReminders)
         }
         HorizontalDivider(color = Divider)
-        SettingsRow(copy("Notifications", "اطلاعات"), R.drawable.detail_bell) {
-            Switch(checked = notifications, onCheckedChange = onNotifications)
-        }
-        HorizontalDivider(color = Divider)
-        SettingsRow(copy("Help and support", "مدد اور معاونت"), R.drawable.detail_help, onClick = { onOpenPage("help") }) { Chevron() }
-        HorizontalDivider(color = Divider)
-        SettingsRow(copy("Privacy policy", "رازداری کی پالیسی"), R.drawable.detail_shield, onClick = { onOpenPage("privacy") }) { Chevron() }
-        HorizontalDivider(color = Divider)
-        SettingsRow(copy("Log out", "لاگ آؤٹ"), R.drawable.detail_logout, destructive = true, onClick = { dialog = "logout" }) { Chevron() }
+        TextButton(onClick = { onPage(ProfilePage.Help) }, modifier = Modifier.fillMaxWidth()) { Text(copy("Help and support", "مدد اور معاونت")) }
+        TextButton(onClick = { onPage(ProfilePage.Privacy) }, modifier = Modifier.fillMaxWidth()) { Text(copy("Privacy policy", "رازداری کی پالیسی")) }
+        TextButton(onClick = { dialog = ProfileDialog.Logout }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(copy("Log out", "لاگ آؤٹ"), color = Destructive) }
     }
     when (dialog) {
-        "contact" -> RetailerContactDialog { dialog = "" }
-        "language" -> LanguagePicker(
-            selectedUrdu = language == "اردو",
-            onDismiss = { dialog = "" },
-            onApply = { selected ->
-                dialog = ""
-                if (selected != (language == "اردو")) onLanguage()
-            },
-        )
-        "logout" -> LogoutConfirmation({ dialog = "" }) {
-            dialog = ""
-            onLogout()
-        }
-    }
-}
-
-@Composable
-private fun SettingsRow(title: String, icon: Int, destructive: Boolean = false, onClick: (() -> Unit)? = null, trailing: @Composable RowScope.() -> Unit) {
-    val color = if (destructive) Destructive else Blue
-    val background = if (destructive) DestructiveBackground else Blue.copy(alpha = 0.08f)
-    Row(
-        Modifier.fillMaxWidth().then(if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)).heightIn(min = 56.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Badge(icon, color, background)
-        Text(title, Modifier.weight(1f), color = if (destructive) color else Navy, style = MaterialTheme.typography.titleMedium)
-        trailing()
+        ProfileDialog.Language -> LanguagePicker(language == "اردو", { dialog = null }) { selected -> dialog = null; if (selected != (language == "اردو")) onLanguage() }
+        ProfileDialog.Logout -> LogoutConfirmation({ dialog = null }) { dialog = null; onLogout() }
+        null -> Unit
     }
 }

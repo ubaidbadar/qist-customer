@@ -10,18 +10,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.CustomerBackButton
 import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.RetailerContactDialog
+import pk.qist.customer.ui.components.RetailerContactActions
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Canvas
 import pk.qist.customer.ui.theme.Divider
 import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
-internal fun ProfileInformation(data: DashboardSample, privacy: Boolean, onBack: () -> Unit) {
+internal fun ProfileInformation(retailer: String, retailerPhone: String, privacy: Boolean, onBack: () -> Unit) {
     Column(
         Modifier.fillMaxSize().background(Canvas).systemBarsPadding().verticalScroll(rememberScrollState()).padding(QistSpacing.Screen),
         verticalArrangement = Arrangement.spacedBy(QistSpacing.Section),
@@ -33,14 +32,13 @@ internal fun ProfileInformation(data: DashboardSample, privacy: Boolean, onBack:
                 style = MaterialTheme.typography.headlineMedium,
             )
         }
-        if (privacy) DemoPrivacy() else HelpAndSupport(data.retailer)
+        if (privacy) CustomerPrivacy() else HelpAndSupport(retailer, retailerPhone)
     }
 }
 
 @Composable
-private fun HelpAndSupport(retailer: String) {
+private fun HelpAndSupport(retailer: String, phone: String) {
     var expanded by rememberSaveable { mutableIntStateOf(0) }
-    var contact by rememberSaveable { mutableStateOf(false) }
     val questions = listOf(
         copy("When is my installment due?", "میری قسط کب واجب ہے؟") to copy("Open the Plan tab to see every due date and amount.", "ہر قسط کی تاریخ اور رقم منصوبے میں دیکھیں۔"),
         copy("How do I pay?", "میں ادائیگی کیسے کروں؟") to copy("Ask your retailer which payment methods they accept.", "ادائیگی کے طریقے اپنے دکاندار سے پوچھیں۔"),
@@ -52,10 +50,7 @@ private fun HelpAndSupport(retailer: String) {
         Caption(copy("Your retailer can help with payments", "ادائیگیوں میں آپ کا دکاندار مدد کر سکتا ہے"))
         Text(retailer, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-            Button(onClick = { contact = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text(copy("Call", "کال کریں")) }
-            OutlinedButton(onClick = { contact = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) { Text(copy("WhatsApp", "واٹس ایپ")) }
-        }
+        RetailerContactActions(phone)
     }
     Panel {
         Text(copy("Common questions", "عام سوالات"), style = MaterialTheme.typography.titleLarge)
@@ -77,9 +72,6 @@ private fun HelpAndSupport(retailer: String) {
         copy("Qist customer app · Version $version", "قسط کسٹمر ایپ · ورژن $version"),
         Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    if (contact) {
-        RetailerContactDialog { contact = false }
-    }
 }
 
 @Suppress("DEPRECATION")

@@ -11,8 +11,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import java.text.NumberFormat
-import java.util.Locale
+import pk.qist.customer.data.formatAmount
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
 import pk.qist.customer.ui.theme.Cyan
@@ -29,13 +28,17 @@ internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnSco
 }
 
 @Composable
-internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false) {
+internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false, enabled: Boolean = true, loading: Boolean = false) {
     Button(
         onClick = onClick,
+        enabled = enabled && !loading,
         modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = if (cyan) Cyan else Blue, contentColor = if (cyan) Navy else Color.White),
-    ) { Text(label, style = MaterialTheme.typography.labelLarge) }
+    ) {
+        if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        else Text(label, style = MaterialTheme.typography.labelLarge)
+    }
 }
 
 @Composable
@@ -100,14 +103,14 @@ internal fun RetailerContactDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(copy("Contact retailer", "دکاندار سے رابطہ")) },
-        text = { Text(copy("This demo has no retailer phone number.", "ڈیمو میں دکاندار کا نمبر موجود نہیں۔")) },
+        text = { Text(copy("Your retailer has not added a contact number yet.", "آپ کے دکاندار نے ابھی رابطہ نمبر شامل نہیں کیا۔")) },
         confirmButton = { TextButton(onClick = onDismiss) { Text(copy("Close", "بند کریں")) } },
     )
 }
 
 @Composable
-internal fun money(amount: Int): String {
-    val formatted = NumberFormat.getIntegerInstance(Locale.US).format(amount)
+internal fun money(amount: Long): String {
+    val formatted = formatAmount(amount)
     return copy("Rs. $formatted", "روپے $formatted")
 }
 

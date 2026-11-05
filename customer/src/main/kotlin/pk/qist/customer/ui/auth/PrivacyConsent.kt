@@ -27,9 +27,9 @@ internal fun PrivacyConsent(onPolicy: () -> Unit, onAgree: () -> Unit, onDecline
             ScreenBadge(R.drawable.detail_shield, Color.White, Blue, 56)
             Text(copy("Your privacy matters", "آپ کی رازداری اہم ہے"), style = MaterialTheme.typography.headlineMedium)
             Caption(copy("Here is what Qist uses and why.", "قسط کیا استعمال کرتا ہے اور کیوں۔"))
-            ConsentItem(R.drawable.phone_outline, copy("Your phone number", "آپ کا فون نمبر"), copy("To sign you in with a code.", "کوڈ کے ذریعے سائن ان کے لیے۔"))
+            ConsentItem(R.drawable.phone_outline, copy("Your phone number", "آپ کا فون نمبر"), copy("For phone/password sign-in and WhatsApp password recovery.", "فون اور پاس ورڈ سے سائن ان اور واٹس ایپ کے ذریعے پاس ورڈ کی بحالی کے لیے۔"))
             ConsentItem(R.drawable.tab_plan, copy("Your plan and payments", "آپ کا منصوبہ اور ادائیگیاں"), copy("To show your due dates, amounts and receipts.", "تاریخیں، رقوم اور رسیدیں دکھانے کے لیے۔"))
-            ConsentItem(R.drawable.detail_bell, copy("Notifications (optional)", "اطلاعات (اختیاری)"), copy("For reminders before an installment is due.", "قسط واجب ہونے سے پہلے یاد دہانی کے لیے۔"))
+            ConsentItem(R.drawable.detail_bell, copy("In-app reminders (optional)", "اطلاعات (اختیاری)"), copy("To show reminders while you use Qist. WhatsApp is used only when you request a verification code.", "قسط واجب ہونے سے پہلے یاد دہانی کے لیے۔"))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             val label = copy("I have read the privacy policy", "میں نے رازداری کی پالیسی پڑھ لی ہے")
