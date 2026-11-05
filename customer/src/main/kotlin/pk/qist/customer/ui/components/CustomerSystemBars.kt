@@ -11,6 +11,10 @@ internal fun CustomerSystemBars(lightIcons: Boolean) {
     DisposableEffect(window, lightIcons) {
         val controller = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
         controller?.isAppearanceLightStatusBars = !lightIcons
-        onDispose { controller?.isAppearanceLightStatusBars = true }
+        controller?.isAppearanceLightNavigationBars = !lightIcons
+        onDispose {
+            controller?.isAppearanceLightStatusBars = true
+            controller?.isAppearanceLightNavigationBars = true
+        }
     }
 }

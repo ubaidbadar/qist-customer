@@ -19,13 +19,14 @@ import pk.qist.customer.data.CustomerSessionStore
 
 internal enum class AuthPage { Welcome, Login, RequestPassword, ResetPassword }
 internal sealed interface CustomerContent {
+    data object RestoringSession : CustomerContent
     data object Loading : CustomerContent
     data object SignedOut : CustomerContent
     data class Ready(val overview: CustomerOverview) : CustomerContent
     data class Failed(val message: String) : CustomerContent
 }
 internal data class CustomerUiState(
-    val content: CustomerContent = CustomerContent.Loading, val authPage: AuthPage = AuthPage.Welcome,
+    val content: CustomerContent = CustomerContent.RestoringSession, val authPage: AuthPage = AuthPage.Welcome,
     val busy: Boolean = false, val loadingMore: Boolean = false, val error: String? = null,
     val message: String? = null, val recoveryPhone: String = "",
 )
@@ -42,13 +43,16 @@ internal class CustomerViewModel(private val api: CustomerApi, private val sessi
 
     private fun restoreSession() {
         requestJob?.cancel()
-        mutableState.update { it.copy(content = CustomerContent.Loading) }
+        mutableState.update { it.copy(content = CustomerContent.RestoringSession) }
         requestJob = viewModelScope.launch {
             try {
                 token = sessions.read()
                 val saved = token
                 if (saved == null) mutableState.update { it.copy(content = CustomerContent.SignedOut) }
-                else readOverview(saved, null)
+                else {
+                    mutableState.update { it.copy(content = CustomerContent.Loading) }
+                    readOverview(saved, null)
+                }
             } catch (error: Exception) { failContent(error) }
         }
     }

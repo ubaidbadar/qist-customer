@@ -31,10 +31,10 @@ internal fun CustomerShell() {
     val context = LocalContext.current.applicationContext
     val preferences = remember(context) { CustomerPreferences(context) }
     val storedPreferences by produceState<CustomerPreferenceSnapshot?>(null, preferences) { value = preferences.load() }
-    val initialPreferences = storedPreferences
-    if (initialPreferences == null) { CustomerSkeleton(); return }
     val factory = remember(context) { viewModelFactory { initializer { CustomerViewModel(HttpCustomerApi(), EncryptedCustomerSession(context)) } } }
     val model: CustomerViewModel = viewModel(factory = factory)
+    val initialPreferences = storedPreferences
+    if (initialPreferences == null) { CustomerStartup(); return }
     val state by model.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(CustomerTab.Home) }
     var urdu by rememberSaveable { mutableStateOf(false) }
@@ -49,6 +49,7 @@ internal fun CustomerShell() {
             return@CompositionLocalProvider
         }
         when (val content = state.content) {
+            CustomerContent.RestoringSession -> CustomerStartup()
             CustomerContent.Loading -> CustomerSkeleton()
             CustomerContent.SignedOut -> Authentication(state, model) { urdu = !urdu }
             is CustomerContent.Ready -> Dashboard(content.overview, preferences, state.loadingMore, state.error, state.busy,

@@ -20,7 +20,8 @@ class MainDispatcherRule : TestWatcher() {
 
 private val overview = CustomerOverview("A Customer", "03001234567", emptyList(), null, PaymentPage(emptyList(), null), "2026-11-05")
 private class MemorySession(var token: String? = null) : CustomerSessionStore {
-    override suspend fun read() = token
+    var blockRead: CompletableDeferred<Unit>? = null
+    override suspend fun read(): String? { blockRead?.await(); return token }
     override suspend fun write(token: String?) { this.token = token }
 }
 private class FakeApi : CustomerApi {
@@ -29,12 +30,13 @@ private class FakeApi : CustomerApi {
     var failure: Exception? = null
     var blockLogin: CompletableDeferred<Unit>? = null
     var blockLogout: CompletableDeferred<Unit>? = null
+    var blockOverview: CompletableDeferred<Unit>? = null
     var selectionDelay = false
     override suspend fun login(phone: String, password: String): CustomerSession { loginPhone = phone; blockLogin?.await(); failure?.let { throw it }; return CustomerSession("signed-token", "2026-12-05") }
     override suspend fun requestPassword(phone: String) { failure?.let { throw it } }
     override suspend fun resetPassword(phone: String, code: String, password: String) { failure?.let { throw it } }
     override suspend fun overview(token: String, contractId: String?): CustomerOverview {
-        reads++; if (selectionDelay && contractId == "slow") delay(1000)
+        reads++; blockOverview?.await(); if (selectionDelay && contractId == "slow") delay(1000)
         failure?.let { throw it }
         return overview.copy(name = contractId ?: overview.name)
     }
@@ -45,6 +47,31 @@ private class FakeApi : CustomerApi {
 @OptIn(ExperimentalCoroutinesApi::class)
 class CustomerViewModelTest {
     @get:Rule val main = MainDispatcherRule()
+    @Test fun firstLaunchWaitsForLocalSessionThenShowsWelcomeWithoutFetchingAccount() = runTest {
+        val api = FakeApi(); val store = MemorySession(); store.blockRead = CompletableDeferred()
+        val model = CustomerViewModel(api, store)
+        assertEquals(CustomerContent.RestoringSession, model.state.value.content)
+        runCurrent()
+        assertEquals(CustomerContent.RestoringSession, model.state.value.content)
+        assertEquals(0, api.reads)
+        store.blockRead?.complete(Unit); advanceUntilIdle()
+        assertEquals(CustomerContent.SignedOut, model.state.value.content)
+        assertEquals(AuthPage.Welcome, model.state.value.authPage)
+        assertEquals(0, api.reads)
+    }
+    @Test fun savedSessionShowsAccountLoadingOnlyAfterTheTokenIsRestored() = runTest {
+        val api = FakeApi(); api.blockOverview = CompletableDeferred()
+        val store = MemorySession("saved-token"); store.blockRead = CompletableDeferred()
+        val model = CustomerViewModel(api, store); runCurrent()
+        assertEquals(CustomerContent.RestoringSession, model.state.value.content)
+        assertEquals(0, api.reads)
+        store.blockRead?.complete(Unit); runCurrent()
+        assertEquals(CustomerContent.Loading, model.state.value.content)
+        assertEquals(1, api.reads)
+        api.blockOverview?.complete(Unit); advanceUntilIdle()
+        assertTrue(model.state.value.content is CustomerContent.Ready)
+        assertEquals(1, api.reads)
+    }
     @Test fun loginPersistsTokenAndLoadsOneSharedOverview() = runTest {
         val api = FakeApi(); val store = MemorySession(); val model = CustomerViewModel(api, store)
         advanceUntilIdle(); assertEquals(CustomerContent.SignedOut, model.state.value.content)

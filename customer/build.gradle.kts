@@ -14,7 +14,7 @@ android {
         versionCode = providers.gradleProperty("qist.customer.versionCode")
             .map { it.toInt() }
             .getOrElse(1)
-        versionName = "0.2.0"
+        versionName = "0.2.1"
         buildConfigField("String", "CUSTOMER_API_URL", "\"https://qist.restora.live/api/v1/customer-app/\"")
     }
 

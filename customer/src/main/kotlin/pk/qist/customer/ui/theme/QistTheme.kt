@@ -75,6 +75,8 @@ internal fun QistTheme(content: @Composable () -> Unit) {
             surface = Color.White,
             onSurface = Navy,
             onSurfaceVariant = Color(0xFF46577F),
+            outline = InputBorder,
+            outlineVariant = Divider,
         ),
         typography = type.copy(
             headlineLarge = type.headlineLarge.copy(fontFamily = inter, fontWeight = FontWeight.Bold),
