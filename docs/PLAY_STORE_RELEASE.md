@@ -36,7 +36,7 @@ Main rebuilds a release AAB with a newer code rather than promoting the exact in
 
 ## Checks and limitations
 
-CI runs assembleDebug, bundleRelease, lintDebug, lintRelease, testDebugUnitTest and testReleaseUnitTest for :customer. A unit-test task reporting NO-SOURCE means there are no tests for that variant, not that test assertions passed. CI does not run emulator tests.
+CI runs assembleDebug, bundleRelease, lintDebug, lintRelease, the test aggregate task for :customer. A unit-test task reporting NO-SOURCE means there are no tests for that variant, not that test assertions passed. CI does not run emulator tests.
 
 Missing signing or Play secrets fail the publish job with a clear error after CI. Debug artifacts and check reports remain available. Publishing is not verified until a real Play upload succeeds.
 

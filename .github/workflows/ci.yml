@@ -26,7 +26,7 @@ jobs:
       - name: Build and check
         run: |
           chmod +x gradlew
-          ./gradlew :customer:assembleDebug :customer:bundleRelease :customer:lintDebug :customer:lintRelease :customer:testDebugUnitTest :customer:testReleaseUnitTest --no-daemon
+          ./gradlew :customer:assembleDebug :customer:bundleRelease :customer:lintDebug :customer:lintRelease :customer:test --no-daemon
       - name: Upload debug APK
         uses: actions/upload-artifact@v5
         with:
