@@ -1,47 +1,36 @@
 package pk.qist.customer.ui.payments
 
-import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
-import androidx.compose.ui.unit.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import pk.qist.customer.R
-import pk.qist.customer.data.DashboardSample
-import pk.qist.customer.data.PaymentSample
-import pk.qist.customer.ui.components.Caption
-import pk.qist.customer.ui.components.DetailRow
-import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.money
+import pk.qist.customer.data.*
+import pk.qist.customer.ui.components.*
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Divider
-import pk.qist.customer.ui.theme.PaidBackground
-import pk.qist.customer.ui.theme.PaidGreen
-import pk.qist.customer.ui.theme.QistSpacing
+import pk.qist.customer.ui.theme.*
 
 @Composable
-internal fun PaymentHistory(data: DashboardSample, onReceipt: (PaymentSample) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-        Panel(Modifier.weight(1f)) {
-            Caption(copy("Total paid", "کل ادا شدہ"))
-            Text(money(data.advance + data.paid * data.installment), color = PaidGreen, style = MaterialTheme.typography.titleLarge)
+internal fun PaymentHistory(data: CustomerOverview, loadingMore: Boolean, onLoadMore: () -> Unit, onReceipt: (CustomerPayment) -> Unit) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+        item("heading") { Text(copy("Payments", "ادائیگیاں"), style = MaterialTheme.typography.headlineMedium) }
+        item("totals") {
+            Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                Panel(Modifier.weight(1f)) { Caption(copy("Total paid", "کل ادا شدہ")); Text(money(data.plan?.totalPaid ?: 0), color = PaidGreen, style = MaterialTheme.typography.titleLarge) }
+                Panel(Modifier.weight(1f)) { Caption(copy("Remaining", "باقی")); Text(money(data.plan?.remaining ?: 0), style = MaterialTheme.typography.titleLarge) }
+            }
         }
-        Panel(Modifier.weight(1f)) {
-            Caption(copy("Remaining", "باقی"))
-            Text(money((data.total - data.paid) * data.installment), style = MaterialTheme.typography.titleLarge)
-        }
+        if (data.payments.items.isEmpty()) item("empty") { CustomerEmptyState(copy("No active payment receipts are available.", "کوئی فعال ادائیگی کی رسید دستیاب نہیں۔")) }
+        items(data.payments.items, key = { it.id }, contentType = { "payment" }) { payment -> Panel { PaymentRow(payment) { onReceipt(payment) } } }
+        if (data.payments.nextCursor != null) item("more") { Pill(copy("Load more", "مزید دکھائیں"), onLoadMore, loading = loadingMore) }
     }
-    Panel {
-        Text(copy("History", "ادائیگیوں کی تفصیل"), style = MaterialTheme.typography.titleLarge)
-        data.payments.forEachIndexed { index, payment ->
-            if (index > 0) HorizontalDivider(color = Divider)
-            DetailRow(
-                title = copy("Installment ${payment.number}", "قسط ${payment.number}"),
-                subtitle = "${payment.date} · ${copy(payment.method, "نقد")}",
-                value = copy("Rs. ${payment.amount}", "روپے ${payment.amount}"),
-                icon = R.drawable.detail_check, tint = PaidGreen, background = PaidBackground,
-                valueColor = PaidGreen, onClick = { onReceipt(payment) },
-            )
-        }
-    }
+}
+
+@Composable
+internal fun PaymentRow(payment: CustomerPayment, onClick: () -> Unit) {
+    DetailRow(if (payment.kind == "down_payment") copy("Advance payment", "پیشگی ادائیگی") else copy("Payment received", "ادائیگی موصول ہوئی"),
+        "${payment.receivedOn} · #${payment.receiptNumber}", money(payment.amount), R.drawable.detail_check,
+        tint = PaidGreen, background = PaidBackground, valueColor = PaidGreen, onClick = onClick)
 }
