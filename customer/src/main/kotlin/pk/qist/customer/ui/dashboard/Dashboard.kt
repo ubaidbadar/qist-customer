@@ -1,31 +1,45 @@
-package pk.qist.customer
+package pk.qist.customer.ui.dashboard
 
-import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
-import androidx.core.view.WindowCompat
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.*
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import kotlinx.coroutines.delay
+import androidx.core.view.WindowCompat
+import pk.qist.customer.R
+import pk.qist.customer.data.CustomerPreferences
+import pk.qist.customer.data.DashboardSample
+import pk.qist.customer.data.PaymentSample
+import pk.qist.customer.ui.CustomerTab
+import pk.qist.customer.ui.components.Panel
+import pk.qist.customer.ui.components.Pill
+import pk.qist.customer.ui.localization.copy
+import pk.qist.customer.ui.notifications.NotificationInbox
+import pk.qist.customer.ui.notifications.NotificationPrompt
+import pk.qist.customer.ui.payments.CustomerReceipt
+import pk.qist.customer.ui.payments.PaymentHistory
+import pk.qist.customer.ui.plan.PlanDetails
+import pk.qist.customer.ui.profile.CustomerProfile
+import pk.qist.customer.ui.profile.ProfileInformation
+import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.Canvas
+import pk.qist.customer.ui.theme.Cyan
+import pk.qist.customer.ui.theme.DeepSurface
+import pk.qist.customer.ui.theme.Divider
+import pk.qist.customer.ui.theme.Muted
+import pk.qist.customer.ui.theme.Navy
+import pk.qist.customer.ui.theme.PaidBackground
+import pk.qist.customer.ui.theme.PaidGreen
+import pk.qist.customer.ui.theme.QistShapes
+import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
 internal fun Dashboard(
@@ -34,18 +48,18 @@ internal fun Dashboard(
     onTab: (CustomerTab) -> Unit,
     onHelp: () -> Unit,
     phone: String,
+    preferences: CustomerPreferences,
     onLanguage: () -> Unit,
     onLogout: () -> Unit,
 ) {
-    val prefs = LocalContext.current.getSharedPreferences("customer_notifications", 0)
-    var allowed by remember { mutableStateOf(prefs.getBoolean("enabled", false)) }
-    var showPrompt by rememberSaveable { mutableStateOf(!prefs.contains("enabled")) }
+    var allowed by remember { mutableStateOf(preferences.notificationsEnabled) }
+    var showPrompt by rememberSaveable { mutableStateOf(!preferences.hasNotificationPreference) }
     var inbox by rememberSaveable { mutableStateOf(false) }
     var unread by rememberSaveable { mutableIntStateOf(3) }
 
     fun setNotifications(enabled: Boolean) {
         allowed = enabled
-        prefs.edit().putBoolean("enabled", enabled).apply()
+        preferences.setNotifications(enabled)
         showPrompt = false
     }
 
@@ -106,7 +120,7 @@ internal fun Dashboard(
             if (tab == CustomerTab.Home) {
                 Box {
                     Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
-                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
                         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
@@ -116,7 +130,7 @@ internal fun Dashboard(
                         }
                         InstallmentCard(data, onHelp)
                         Panel {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                                 Box(Modifier.size(44.dp).background(Blue.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
                                     Icon(painterResource(R.drawable.phone_outline), contentDescription = null, tint = Blue)
                                 }
@@ -126,8 +140,8 @@ internal fun Dashboard(
                                 }
                                 Text(
                                     copy("✓ Active", "✓ فعال"),
-                                    Modifier.background(Color(0xFFD9F4EB), CircleShape).padding(horizontal = 10.dp, vertical = 6.dp),
-                                    color = Color(0xFF08674D),
+                                    Modifier.background(PaidBackground, CircleShape).padding(horizontal = 10.dp, vertical = 6.dp),
+                                    color = PaidGreen,
                                     style = MaterialTheme.typography.labelMedium,
                                 )
                             }
@@ -136,7 +150,7 @@ internal fun Dashboard(
                     }
                 }
             } else {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
                     Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabs[tab.ordinal], style = MaterialTheme.typography.headlineMedium)
                     when (tab) {
                         CustomerTab.Payments -> PaymentHistory(data) { receiptNumber = it.number }
@@ -147,13 +161,6 @@ internal fun Dashboard(
                 }
             }
         }
-    }
-}
-
-@Composable
-internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier = modifier.fillMaxWidth(), color = Color.White, shape = RoundedCornerShape(22.dp)) {
-        Column(Modifier.padding(20.dp), content = content)
     }
 }
 
@@ -170,7 +177,7 @@ private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit) {
             progress = { (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth().height(8.dp),
             color = Blue,
-            trackColor = Color(0xFFE4E9F4),
+            trackColor = Divider,
         )
         Spacer(Modifier.height(6.dp))
         Text(copy("${data.paid} of ${data.total} installments paid", "${data.total} میں سے ${data.paid} اقساط ادا ہوئیں"), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -187,13 +194,13 @@ private fun PaymentsCard(payments: List<PaymentSample>, onViewAll: (() -> Unit)?
             if (onViewAll != null) TextButton(onClick = onViewAll) { Text(copy("View all", "تمام دیکھیں")) }
         }
         payments.forEach { payment ->
-            HorizontalDivider(color = Color(0xFFE4E9F4))
+            HorizontalDivider(color = Divider)
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(copy("Installment ${payment.number}", "قسط ${payment.number}"), style = MaterialTheme.typography.titleMedium)
                     Text(copy("Paid ${payment.date}", "ادا شدہ ${payment.date}"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(copy("Rs. ${payment.amount}", "روپے ${payment.amount}"), color = Color(0xFF08674D), style = MaterialTheme.typography.titleMedium)
+                Text(copy("Rs. ${payment.amount}", "روپے ${payment.amount}"), color = PaidGreen, style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -209,7 +216,7 @@ private fun HomeNotificationsButton(unread: Boolean, onClick: () -> Unit) {
         Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
             Icon(painterResource(R.drawable.detail_bell), contentDescription = copy("Notifications", "اطلاعات"))
             if (unread) {
-                Box(Modifier.align(Alignment.TopEnd).size(10.dp).background(Cyan, RoundedCornerShape(3.dp)))
+                Box(Modifier.align(Alignment.TopEnd).size(10.dp).background(Cyan, QistShapes.UnreadBadge))
             }
         }
     }
