@@ -8,7 +8,7 @@
 
 Open pull requests from dev to stage, then stage to main. Pull requests run CI without release credentials. Each release builds the exact pushed commit and waits for CI. Google Play review, account eligibility and Managed Publishing can delay availability even after upload succeeds. Production uses a completed release, not a percentage rollout.
 
-The same package ID, pk.qist.device.customer, and upload key are used on both tracks. AABs are Play upload files. Install debug APK artifacts directly on a test device.
+The same package ID, pk.qist.customer, and upload key are used on both tracks. AABs are Play upload files. Install debug APK artifacts directly on a test device.
 
 ## Required GitHub Actions secrets
 
