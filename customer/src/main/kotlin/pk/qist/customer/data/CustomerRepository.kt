@@ -1,7 +1,5 @@
 package pk.qist.customer.data
 
-
-
 internal interface CustomerRepository {
     fun verify(code: String): Boolean
     fun dashboard(): DashboardSample

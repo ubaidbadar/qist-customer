@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
@@ -14,6 +13,8 @@ import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.money
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Divider
+import pk.qist.customer.ui.theme.DueAmber
+import pk.qist.customer.ui.theme.DueBackground
 import pk.qist.customer.ui.theme.PaidBackground
 import pk.qist.customer.ui.theme.PaidGreen
 
@@ -33,7 +34,7 @@ internal fun PlanDetails(data: DashboardSample) {
             val due = index == data.paid
             val tint = when {
                 paid -> PaidGreen
-                due -> Color(0xFF795000)
+                due -> DueAmber
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             }
             if (index > 0) HorizontalDivider(color = Divider)
@@ -41,7 +42,7 @@ internal fun PlanDetails(data: DashboardSample) {
                 copy("Installment ${index + 1}", "قسط ${index + 1}"), date, money(data.installment),
                 icon = when { paid -> R.drawable.detail_check; due -> R.drawable.detail_clock; else -> R.drawable.tab_plan },
                 tint = tint,
-                background = when { paid -> PaidBackground; due -> Color(0xFFFFF1D5); else -> Divider },
+                background = when { paid -> PaidBackground; due -> DueBackground; else -> Divider },
                 status = when { paid -> copy("Paid", "ادا شدہ"); due -> copy("Due soon", "جلد واجب"); else -> copy("Upcoming", "آنے والی") },
             )
         }

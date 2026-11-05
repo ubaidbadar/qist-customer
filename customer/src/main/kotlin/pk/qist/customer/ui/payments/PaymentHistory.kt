@@ -17,10 +17,11 @@ import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Divider
 import pk.qist.customer.ui.theme.PaidBackground
 import pk.qist.customer.ui.theme.PaidGreen
+import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
 internal fun PaymentHistory(data: DashboardSample, onReceipt: (PaymentSample) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
         Panel(Modifier.weight(1f)) {
             Caption(copy("Total paid", "کل ادا شدہ"))
             Text(money(data.advance + data.paid * data.installment), color = PaidGreen, style = MaterialTheme.typography.titleLarge)

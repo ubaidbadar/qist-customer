@@ -4,7 +4,6 @@ import android.os.SystemClock
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -25,9 +24,13 @@ import pk.qist.customer.R
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.BrandGradientStart
 import pk.qist.customer.ui.theme.Canvas
+import pk.qist.customer.ui.theme.InputBorder
 import pk.qist.customer.ui.theme.Muted
 import pk.qist.customer.ui.theme.Navy
+import pk.qist.customer.ui.theme.QistShapes
+import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
 internal fun Welcome(onLanguage: () -> Unit, onContinue: () -> Unit) {
@@ -44,7 +47,7 @@ internal fun Welcome(onLanguage: () -> Unit, onContinue: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
-                Modifier.size(104.dp).background(Brush.linearGradient(listOf(Color(0xFF06B6D4), Blue)), CircleShape),
+                Modifier.size(104.dp).background(Brush.linearGradient(listOf(BrandGradientStart, Blue)), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, modifier = Modifier.fillMaxSize())
@@ -72,7 +75,7 @@ internal fun AuthScreen(
     footer: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().imePadding().padding(24.dp)) {
+    Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().imePadding().padding(QistSpacing.AuthScreen)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             val backLabel = copy("Back", "واپس")
             FilledIconButton(onClick = onBack, modifier = Modifier.size(48.dp).semantics { contentDescription = backLabel },
@@ -105,7 +108,7 @@ internal fun PhoneField(phone: String, error: Boolean, onChange: (String) -> Uni
     Spacer(Modifier.height(8.dp))
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, Color(0xFFBFCBE4))) {
+            Surface(shape = QistShapes.Input, border = BorderStroke(1.dp, InputBorder)) {
                 Text("+92", modifier = Modifier.padding(horizontal = 20.dp, vertical = 17.dp), style = MaterialTheme.typography.titleMedium)
             }
             OutlinedTextField(
@@ -115,7 +118,7 @@ internal fun PhoneField(phone: String, error: Boolean, onChange: (String) -> Uni
                 singleLine = true,
                 placeholder = { Text("3XX XXXXXXX") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                shape = RoundedCornerShape(14.dp),
+                shape = QistShapes.Input,
                 isError = error,
                 colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White),
             )
@@ -142,8 +145,8 @@ internal fun CodeField(code: String, onChange: (String) -> Unit) {
                         repeat(6) { index ->
                             Surface(
                                 Modifier.weight(1f).height(56.dp),
-                                shape = RoundedCornerShape(13.dp),
-                                border = BorderStroke(if (index == code.length) 2.dp else 1.dp, if (index == code.length) Blue else Color(0xFFBFCBE4)),
+                                shape = QistShapes.CodeCell,
+                                border = BorderStroke(if (index == code.length) 2.dp else 1.dp, if (index == code.length) Blue else InputBorder),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(code.getOrNull(index)?.toString().orEmpty(), style = MaterialTheme.typography.titleLarge)

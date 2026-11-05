@@ -14,12 +14,15 @@ import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.Badge
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Chevron
-import pk.qist.customer.ui.components.DetailDialog
 import pk.qist.customer.ui.components.Panel
+import pk.qist.customer.ui.components.RetailerContactDialog
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.Destructive
+import pk.qist.customer.ui.theme.DestructiveBackground
 import pk.qist.customer.ui.theme.Divider
 import pk.qist.customer.ui.theme.Navy
+import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
 internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: () -> Unit, onLogout: () -> Unit, notifications: Boolean, onNotifications: (Boolean) -> Unit, onOpenPage: (String) -> Unit) {
@@ -40,7 +43,7 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
         Caption(copy("Your retailer", "آپ کا دکاندار"))
         Text(data.retailer, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
             Button(onClick = { dialog = "contact" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                 Text(copy("Call", "کال کریں"))
             }
@@ -66,7 +69,7 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
         SettingsRow(copy("Log out", "لاگ آؤٹ"), R.drawable.detail_logout, destructive = true, onClick = { dialog = "logout" }) { Chevron() }
     }
     when (dialog) {
-        "contact" -> DetailDialog(copy("Contact retailer", "دکاندار سے رابطہ"), copy("This demo has no retailer phone number.", "ڈیمو میں دکاندار کا نمبر موجود نہیں۔")) { dialog = "" }
+        "contact" -> RetailerContactDialog { dialog = "" }
         "language" -> LanguagePicker(
             selectedUrdu = language == "اردو",
             onDismiss = { dialog = "" },
@@ -84,8 +87,8 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
 
 @Composable
 private fun SettingsRow(title: String, icon: Int, destructive: Boolean = false, onClick: (() -> Unit)? = null, trailing: @Composable RowScope.() -> Unit) {
-    val color = if (destructive) Color(0xFFAA381D) else Blue
-    val background = if (destructive) Color(0xFFFFE8E0) else Blue.copy(alpha = 0.08f)
+    val color = if (destructive) Destructive else Blue
+    val background = if (destructive) DestructiveBackground else Blue.copy(alpha = 0.08f)
     Row(
         Modifier.fillMaxWidth().then(if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)).heightIn(min = 56.dp),
         verticalAlignment = Alignment.CenterVertically,

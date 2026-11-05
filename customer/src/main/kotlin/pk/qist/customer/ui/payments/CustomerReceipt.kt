@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.*
 import java.io.IOException
@@ -18,13 +17,17 @@ import kotlinx.coroutines.withContext
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentSample
-import pk.qist.customer.ui.components.MutedCopy
+import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.PaymentPage
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.components.ScreenBadge
 import pk.qist.customer.ui.components.SecondaryAction
 import pk.qist.customer.ui.localization.copy
+import pk.qist.customer.ui.theme.Divider
+import pk.qist.customer.ui.theme.PaidBackground
+import pk.qist.customer.ui.theme.PaidGreen
+import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
 internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBack: () -> Unit) {
@@ -69,17 +72,17 @@ internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBa
     }) {
         Panel {
             Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                ScreenBadge(R.drawable.detail_check, Color(0xFF08674D), Color(0xFFD9F4EB), 64)
-                MutedCopy(copy("Payment received", "ادائیگی موصول ہوئی"))
+                ScreenBadge(R.drawable.detail_check, PaidGreen, PaidBackground, 64)
+                Caption(copy("Payment received", "ادائیگی موصول ہوئی"))
                 Text(amount, style = MaterialTheme.typography.headlineLarge)
-                MutedCopy(payment.date)
+                Caption(payment.date)
             }
         }
         Panel {
             facts.forEachIndexed { index, (label, value) ->
-                if (index > 0) HorizontalDivider(color = Color(0xFFE4E9F4))
-                Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.weight(1f)) { MutedCopy(label) }
+                if (index > 0) HorizontalDivider(color = Divider)
+                Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                    Box(Modifier.weight(1f)) { Caption(label) }
                     Text(value, style = MaterialTheme.typography.titleMedium)
                 }
             }

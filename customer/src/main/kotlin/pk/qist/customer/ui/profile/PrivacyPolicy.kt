@@ -10,8 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.*
+import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.ProfileCaption
 import pk.qist.customer.ui.components.money
 import pk.qist.customer.ui.localization.copy
 
@@ -32,12 +32,12 @@ internal fun DemoPrivacy() {
     )
     Panel {
         Text(copy("Privacy policy", "رازداری کی پالیسی"), style = MaterialTheme.typography.titleLarge)
-        ProfileCaption(copy("Last updated 5 November 2026", "آخری تازہ کاری 5 نومبر 2026"))
+        Caption(copy("Last updated 5 November 2026", "آخری تازہ کاری 5 نومبر 2026"))
         sections.forEach { (title, body) ->
             Spacer(Modifier.height(16.dp))
             Text(title, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))
-            ProfileCaption(body)
+            Caption(body)
         }
     }
     val browserError = copy("No browser is available to open the privacy policy.", "رازداری کی پالیسی کھولنے کے لیے براؤزر دستیاب نہیں۔")
