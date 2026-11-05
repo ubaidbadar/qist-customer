@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "pk.qist.device.customer"
+    namespace = "pk.qist.customer"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "pk.qist.device.customer"
+        applicationId = "pk.qist.customer"
         minSdk = 24
         targetSdk = 37
         versionCode = providers.gradleProperty("qist.customer.versionCode")

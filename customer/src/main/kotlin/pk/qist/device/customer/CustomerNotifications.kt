@@ -1,4 +1,4 @@
-package pk.qist.device.customer
+package pk.qist.customer
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*

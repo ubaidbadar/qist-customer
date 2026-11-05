@@ -1,4 +1,4 @@
-package pk.qist.device.customer
+package pk.qist.customer
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography

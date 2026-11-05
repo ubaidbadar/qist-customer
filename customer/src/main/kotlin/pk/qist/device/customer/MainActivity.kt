@@ -1,4 +1,4 @@
-package pk.qist.device.customer
+package pk.qist.customer
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
