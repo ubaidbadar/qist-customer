@@ -1,4 +1,4 @@
-package pk.qist.device.customer
+package pk.qist.customer
 
 internal interface CustomerRepository {
     fun verify(code: String): Boolean

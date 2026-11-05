@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:562028498531:android:45cfbe4b4f935b75983256",
+        "android_client_info": {
+          "package_name": "pk.qist.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBo0AgxxH3eiXiYP9XgB0tTggACakuMVWY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:562028498531:android:717945d84d79363d983256",
         "android_client_info": {
           "package_name": "pk.qist.device"

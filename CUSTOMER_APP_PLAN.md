@@ -5,7 +5,7 @@ Discovery baseline: `main` at `c78798db648279f3319ca4b6824d92b964213f9d` (4 Nove
 
 ## Structure and isolation
 
-Create `customer-app` from the default branch after approval. Add independent Android application module `:customer` in `customer/`; register it in `settings.gradle.kts`. Application ID and namespace: `pk.qist.device.customer`; launcher label: `Qist`. Keep `:app`, its icons, signing configuration, versions, and both existing workflows unchanged. No dependency on the locker module. Never push to main, force-push, change repository settings/secrets/protection, or open a PR targeting main during this experiment.
+Create `customer-app` from the default branch after approval. Add independent Android application module `:customer` in `customer/`; register it in `settings.gradle.kts`. Application ID and namespace: `pk.qist.customer`; launcher label: `Qist`. Keep `:app`, its icons, signing configuration, versions, and both existing workflows unchanged. No dependency on the locker module. Never push to main, force-push, change repository settings/secrets/protection, or open a PR targeting main during this experiment.
 
 Use existing Kotlin, Jetpack Compose, Material 3, Gradle wrapper, version catalog, and Java configuration. Add only customer-required dependencies. Minimal launcher manifest; no networking, device administration, accessibility, overlays, boot receivers, Firebase, or locking capabilities. Inspect merged manifests, including dependency-added permissions.
 

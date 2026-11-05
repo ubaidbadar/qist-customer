@@ -1,4 +1,4 @@
-package pk.qist.device.customer
+package pk.qist.customer
 
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
