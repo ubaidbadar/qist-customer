@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.ensureActive
 import pk.qist.customer.data.CustomerApi
 import pk.qist.customer.data.CustomerApiException
 import pk.qist.customer.data.CustomerOverview
@@ -74,7 +75,7 @@ internal class CustomerViewModel(private val api: CustomerApi, private val sessi
         mutableState.update { it.copy(authPage = AuthPage.Login, message = "Password saved. Sign in with your phone number and new password.") }
     }
     private fun authAction(action: suspend () -> Unit) {
-        if (state.value.busy) return
+        if (state.value.busy || state.value.content != CustomerContent.SignedOut) return
         mutableState.update { it.copy(busy = true, error = null, message = null) }
         authJob = viewModelScope.launch {
             try { action() }
@@ -85,6 +86,7 @@ internal class CustomerViewModel(private val api: CustomerApi, private val sessi
         }
     }
     fun refresh(contractId: String? = selectedPlan) {
+        if (state.value.busy) return
         val currentToken = token
         if (currentToken == null) { restoreSession(); return }
         requestJob?.cancel()
@@ -93,11 +95,13 @@ internal class CustomerViewModel(private val api: CustomerApi, private val sessi
     }
     private suspend fun readOverview(currentToken: String, contractId: String?) {
         val overview = api.overview(currentToken, contractId)
+        currentCoroutineContext().ensureActive()
+        if (token != currentToken) return
         selectedPlan = overview.plan?.id
         mutableState.update { it.copy(content = CustomerContent.Ready(overview), error = null) }
     }
     fun loadMorePayments() {
-        if (state.value.loadingMore) return
+        if (state.value.loadingMore || state.value.busy) return
         val loaded = (state.value.content as? CustomerContent.Ready)?.overview ?: return
         val plan = loaded.plan ?: return
         val cursor = loaded.payments.nextCursor ?: return
@@ -106,6 +110,8 @@ internal class CustomerViewModel(private val api: CustomerApi, private val sessi
         requestJob = viewModelScope.launch {
             try {
                 val next = api.payments(currentToken, plan.id, cursor)
+                currentCoroutineContext().ensureActive()
+                if (token != currentToken) return@launch
                 mutableState.update { current ->
                     val active = (current.content as? CustomerContent.Ready)?.overview
                     if (active?.plan?.id != plan.id) current else current.copy(loadingMore = false,
@@ -142,6 +148,7 @@ internal class CustomerViewModel(private val api: CustomerApi, private val sessi
         mutableState.value = CustomerUiState(content = CustomerContent.SignedOut, authPage = AuthPage.Login)
     }
     private suspend fun failContent(error: Exception) {
+        currentCoroutineContext().ensureActive()
         if (error is CancellationException) throw error
         if (error is CustomerApiException && error.status == 401) {
             try { signOutLocally() }

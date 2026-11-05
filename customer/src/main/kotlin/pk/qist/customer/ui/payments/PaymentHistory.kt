@@ -22,7 +22,7 @@ internal fun PaymentHistory(data: CustomerOverview, loadingMore: Boolean, onLoad
                 Panel(Modifier.weight(1f)) { Caption(copy("Remaining", "باقی")); Text(money(data.plan?.remaining ?: 0), style = MaterialTheme.typography.titleLarge) }
             }
         }
-        if (data.payments.items.isEmpty()) item("empty") { CustomerEmptyState(copy("Your retailer has not recorded a payment yet.", "آپ کے دکاندار نے ابھی ادائیگی درج نہیں کی۔")) }
+        if (data.payments.items.isEmpty()) item("empty") { CustomerEmptyState(copy("No active payment receipts are available.", "کوئی فعال ادائیگی کی رسید دستیاب نہیں۔")) }
         items(data.payments.items, key = { it.id }, contentType = { "payment" }) { payment -> Panel { PaymentRow(payment) { onReceipt(payment) } } }
         if (data.payments.nextCursor != null) item("more") { Pill(copy("Load more", "مزید دکھائیں"), onLoadMore, loading = loadingMore) }
     }

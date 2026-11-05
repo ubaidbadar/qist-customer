@@ -27,7 +27,11 @@ internal fun PlanDetails(plan: CustomerPlan?) {
                 Fact(copy("Remaining", "باقی"), money(plan.remaining))
                 Fact(copy("Schedule", "شیڈول"), "${plan.count} · ${plan.frequency}")
             } }
-            items(plan.installments, key = { it.number }, contentType = { "installment" }) { installment -> Panel {
+            if (plan.status == "cancelled") item("cancelled") { Panel {
+                Text(copy("Plan cancelled", "منصوبہ منسوخ"), style = MaterialTheme.typography.titleMedium)
+                Caption(copy("No scheduled payment is due.", "کوئی طے شدہ ادائیگی واجب نہیں۔"))
+            } }
+            else items(plan.installments, key = { it.number }, contentType = { "installment" }) { installment -> Panel {
                 val paid = installment.status == "paid"
                 DetailRow(copy("Installment ${installment.number}", "قسط ${installment.number}"), installment.dueDate, money(installment.amount + installment.lateFee),
                     if (paid) R.drawable.detail_check else R.drawable.detail_clock, tint = if (paid) PaidGreen else DueAmber,

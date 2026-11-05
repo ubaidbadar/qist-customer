@@ -28,6 +28,7 @@ private class FakeApi : CustomerApi {
     var loginPhone = ""
     var failure: Exception? = null
     var blockLogin: CompletableDeferred<Unit>? = null
+    var blockLogout: CompletableDeferred<Unit>? = null
     var selectionDelay = false
     override suspend fun login(phone: String, password: String): CustomerSession { loginPhone = phone; blockLogin?.await(); failure?.let { throw it }; return CustomerSession("signed-token", "2026-12-05") }
     override suspend fun requestPassword(phone: String) { failure?.let { throw it } }
@@ -38,7 +39,7 @@ private class FakeApi : CustomerApi {
         return overview.copy(name = contractId ?: overview.name)
     }
     override suspend fun payments(token: String, contractId: String, cursor: String) = PaymentPage(emptyList(), null)
-    override suspend fun logout(token: String) { failure?.let { throw it } }
+    override suspend fun logout(token: String) { blockLogout?.await(); failure?.let { throw it } }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -82,6 +83,15 @@ class CustomerViewModelTest {
         model.resetPassword("123456", "new-password"); advanceUntilIdle(); assertEquals(AuthPage.Login, model.state.value.authPage)
         model.login("3001234567", "new-password"); advanceUntilIdle()
         api.failure = IOException("Offline"); model.logout(); advanceUntilIdle()
+        assertNull(store.token); assertEquals(CustomerContent.SignedOut, model.state.value.content)
+    }
+    @Test fun logoutBlocksNewReadsUntilTheLocalSessionIsCleared() = runTest {
+        val api = FakeApi(); val store = MemorySession("token"); val model = CustomerViewModel(api, store)
+        advanceUntilIdle(); val reads = api.reads
+        api.blockLogout = CompletableDeferred()
+        model.logout(); runCurrent(); model.refresh("should-not-start"); runCurrent()
+        assertEquals(reads, api.reads)
+        api.blockLogout?.complete(Unit); advanceUntilIdle()
         assertNull(store.token); assertEquals(CustomerContent.SignedOut, model.state.value.content)
     }
 }

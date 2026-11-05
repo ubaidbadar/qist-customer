@@ -52,11 +52,19 @@ internal fun NotificationInbox(notices: List<AccountNotice>, readIds: Set<String
         items(notices, key = { it.id }, contentType = { it.kind }) { notice ->
             val unread = notice.id !in readIds
             Surface(modifier = Modifier.fillMaxWidth().then(if (unread) Modifier.clickable { onRead(notice.id) } else Modifier), color = MaterialTheme.colorScheme.surface, shape = QistShapes.Card) {
-                Column(Modifier.padding(QistSpacing.Section), verticalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                Row(Modifier.padding(QistSpacing.Section), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                    val icon = when (notice.kind) {
+                        NoticeKind.Payment -> R.drawable.detail_check
+                        NoticeKind.Due -> if (notice.status == "overdue") R.drawable.notice_overdue else R.drawable.detail_clock
+                        NoticeKind.Phone -> if (notice.status == "unlocked") R.drawable.notice_unlock else R.drawable.notice_overdue
+                    }
+                    Badge(icon, Blue, BlueBackground)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                     Text(when (notice.kind) { NoticeKind.Payment -> copy("Payment received", "ادائیگی موصول ہوئی"); NoticeKind.Due -> if (notice.status == "overdue") copy("Payment overdue", "ادائیگی کی تاریخ گزر گئی") else copy("Installment due soon", "قسط جلد واجب ہے"); NoticeKind.Phone -> copy("Phone status", "فون کی حالت") }, style = MaterialTheme.typography.titleMedium)
                     if (notice.kind == NoticeKind.Phone) Caption(copy("Last acknowledged status: ${notice.status}", "آخری تصدیق شدہ حالت: ${notice.status}"))
                     else { Text(money(notice.amount)); Caption(notice.date) }
                     if (unread) Text(copy("Unread", "نہیں پڑھی گئی"), color = Blue, style = MaterialTheme.typography.labelMedium)
+                    }
                 }
             }
         }

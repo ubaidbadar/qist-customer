@@ -94,6 +94,7 @@ private fun PasswordField(password: String, busy: Boolean, onChange: (String) ->
 }
 @Composable
 internal fun Welcome(onLanguage: () -> Unit, onContinue: () -> Unit) {
+    CustomerSystemBars(lightIcons = true)
     Column(
         Modifier.fillMaxSize().background(Navy).systemBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

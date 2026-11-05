@@ -44,6 +44,7 @@ internal fun CustomerShell() {
     CompositionLocalProvider(LocalUrdu provides urdu, LocalLayoutDirection provides if (urdu) LayoutDirection.Rtl else LayoutDirection.Ltr) {
         if (policy) { ProfileInformation("", "", privacy = true) { policy = false }; return@CompositionLocalProvider }
         if (!accepted && state.content == CustomerContent.SignedOut && state.authPage != AuthPage.Welcome) {
+            BackHandler { model.openAuth(AuthPage.Welcome) }
             PrivacyConsent({ policy = true }, { preferences.acceptPrivacy(); accepted = true }, { model.openAuth(AuthPage.Welcome) })
             return@CompositionLocalProvider
         }

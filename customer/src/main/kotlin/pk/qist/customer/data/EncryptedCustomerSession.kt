@@ -36,8 +36,11 @@ internal class EncryptedCustomerSession(context: Context) : CustomerSessionStore
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, Base64.decode(parts[0], Base64.NO_WRAP)))
             String(cipher.doFinal(Base64.decode(parts[1], Base64.NO_WRAP)), Charsets.UTF_8)
-        } catch (_: GeneralSecurityException) { preferences().edit().clear().commit(); null }
-        catch (_: IllegalArgumentException) { preferences().edit().clear().commit(); null }
+        } catch (_: GeneralSecurityException) { clearSavedToken(); null }
+        catch (_: IllegalArgumentException) { clearSavedToken(); null }
+    }
+    private fun clearSavedToken() {
+        if (!preferences().edit().clear().commit()) throw IOException("Could not clear the saved session. Please try again.")
     }
     override suspend fun write(token: String?) = withContext(Dispatchers.IO) {
         val editor = preferences().edit()

@@ -1,7 +1,6 @@
 package pk.qist.customer.ui.dashboard
 
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -11,7 +10,6 @@ import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import pk.qist.customer.R
 import pk.qist.customer.data.*
 import pk.qist.customer.ui.CustomerTab
@@ -52,12 +50,7 @@ internal fun Dashboard(data: CustomerOverview, preferences: CustomerPreferences,
     if (inbox) { NotificationInbox(notices, readIds, { inbox = false }, { read(notices.map { it.id }.toSet()) }) { read(setOf(it)) }; return }
     if (showPrompt) NotificationPrompt({ setReminders(true) }, { setReminders(false) })
     val home = tab == CustomerTab.Home
-    val window = LocalActivity.current?.window
-    DisposableEffect(window, home) {
-        val controller = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
-        controller?.isAppearanceLightStatusBars = !home
-        onDispose { controller?.isAppearanceLightStatusBars = true }
-    }
+    CustomerSystemBars(home)
     val titles = listOf(copy("Home", "گھر"), copy("Payments", "ادائیگیاں"), copy("My plan", "میرا منصوبہ"), copy("Profile", "پروفائل"))
     val icons = listOf(R.drawable.tab_home, R.drawable.tab_payments, R.drawable.tab_plan, R.drawable.tab_profile)
     Scaffold(containerColor = Canvas,
@@ -119,7 +112,7 @@ private fun HomeOverview(data: CustomerOverview, unread: Boolean, onInbox: () ->
                     Spacer(Modifier.height(16.dp))
                     LinearProgressIndicator(progress = { if (plan.count > 0) (plan.paidCount.toFloat() / plan.count).coerceIn(0f, 1f) else 0f }, modifier = Modifier.fillMaxWidth(), color = Blue, trackColor = Divider)
                     Caption(copy("${plan.paidCount} of ${plan.count} installments paid", "${plan.count} میں سے ${plan.paidCount} اقساط ادا ہوئیں"))
-                    Spacer(Modifier.height(16.dp)); Pill(copy("How to pay", "ادائیگی کیسے کریں"), onHelp)
+                    if (due != null) { Spacer(Modifier.height(16.dp)); Pill(copy("How to pay", "ادائیگی کیسے کریں"), onHelp) }
                 }
                 Panel {
                     DetailRow(plan.deviceLabel, plan.retailer, "", R.drawable.phone_outline)

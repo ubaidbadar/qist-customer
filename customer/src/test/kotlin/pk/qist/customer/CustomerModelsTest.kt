@@ -15,6 +15,11 @@ class CustomerModelsTest {
         assertEquals(65000L, CustomerInstallment(1, "2026-11-05", 100000, 5000, 40000, "partial").remaining)
         assertEquals(0L, CustomerInstallment(1, "2026-11-05", 100000, 0, 100001, "paid").remaining)
     }
+    @Test fun cancelledPlansDoNotRequestVoidedAmounts() {
+        val plan = CustomerPlan("id", "Phone", "Retailer", "cancelled", 10000, 20000, 0, 0, 2, "monthly", "", "", null,
+            listOf(CustomerInstallment(1, "2026-11-05", 10000, 0, 0, "pending")))
+        assertEquals(0L, plan.remaining); assertEquals(0L, plan.totalPaid); assertNull(plan.nextInstallment)
+    }
     @Test fun phoneNormalizationHandlesLocalInternationalAndUrduDigits() {
         assertEquals("3001234567", normalizePhone("+92 300 1234567"))
         assertEquals("3001234567", normalizePhone("0300-1234567"))
