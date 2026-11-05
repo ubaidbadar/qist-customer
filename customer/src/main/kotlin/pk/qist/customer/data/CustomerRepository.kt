@@ -1,4 +1,6 @@
-package pk.qist.customer
+package pk.qist.customer.data
+
+
 
 internal interface CustomerRepository {
     fun verify(code: String): Boolean
@@ -6,6 +8,7 @@ internal interface CustomerRepository {
 }
 
 internal data class PaymentSample(val number: Int, val date: String, val amount: String, val method: String = "Cash")
+
 internal data class DashboardSample(
     val name: String,
     val model: String,
@@ -38,4 +41,3 @@ internal object DemoCustomerRepository : CustomerRepository {
         ),
     )
 }
-

@@ -1,31 +1,41 @@
-package pk.qist.customer
+package pk.qist.customer.ui.dashboard
 
-import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
-import androidx.core.view.WindowCompat
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.*
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import kotlinx.coroutines.delay
+import androidx.core.view.WindowCompat
+import pk.qist.customer.R
+import pk.qist.customer.data.DashboardSample
+import pk.qist.customer.data.PaymentSample
+import pk.qist.customer.ui.CustomerTab
+import pk.qist.customer.ui.components.Panel
+import pk.qist.customer.ui.components.Pill
+import pk.qist.customer.ui.localization.copy
+import pk.qist.customer.ui.notifications.NotificationInbox
+import pk.qist.customer.ui.notifications.NotificationPrompt
+import pk.qist.customer.ui.payments.CustomerReceipt
+import pk.qist.customer.ui.payments.PaymentHistory
+import pk.qist.customer.ui.plan.PlanDetails
+import pk.qist.customer.ui.profile.CustomerProfile
+import pk.qist.customer.ui.profile.ProfileInformation
+import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.Canvas
+import pk.qist.customer.ui.theme.Cyan
+import pk.qist.customer.ui.theme.DeepSurface
+import pk.qist.customer.ui.theme.Muted
+import pk.qist.customer.ui.theme.Navy
 
 @Composable
 internal fun Dashboard(
@@ -147,13 +157,6 @@ internal fun Dashboard(
                 }
             }
         }
-    }
-}
-
-@Composable
-internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier = modifier.fillMaxWidth(), color = Color.White, shape = RoundedCornerShape(22.dp)) {
-        Column(Modifier.padding(20.dp), content = content)
     }
 }
 

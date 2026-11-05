@@ -1,21 +1,34 @@
-package pk.qist.customer
+package pk.qist.customer.ui.theme
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import pk.qist.customer.R
+import pk.qist.customer.ui.localization.copy
 
 internal val Navy = Color(0xFF0A1A3F)
+
 internal val DeepSurface = Color(0xFF11275A)
+
 internal val Muted = Color(0xFFA9B8DD)
+
 internal val Cyan = Color(0xFF22D3EE)
+
 internal val Blue = Color(0xFF2F3FE0)
+
 internal val Canvas = Color(0xFFF5F7FC)
+
 internal val Coral = Color(0xFFFFA383)
+
+internal val PaidGreen = Color(0xFF08674D)
+
+internal val PaidBackground = Color(0xFFD9F4EB)
+
+internal val Divider = Color(0xFFE4E9F4)
 
 private val inter = FontFamily(
     Font(R.font.inter_400, FontWeight.Normal),
