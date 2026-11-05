@@ -14,7 +14,8 @@ android {
         versionCode = providers.gradleProperty("qist.customer.versionCode")
             .map { it.toInt() }
             .getOrElse(1)
-        versionName = "0.1.0"
+        versionName = "0.2.1"
+        buildConfigField("String", "CUSTOMER_API_URL", "\"https://qist.restora.live/api/v1/customer-app/\"")
     }
 
     val signingPath = providers.gradleProperty("qist.signing.storeFile").orNull
@@ -40,7 +41,8 @@ android {
         }
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
+    testOptions { unitTests.isIncludeAndroidResources = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -52,4 +54,12 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
     implementation(libs.compose.material3)
+    implementation(libs.okhttp)
+    implementation(libs.coroutines.android)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.okhttp.mockwebserver)
 }
