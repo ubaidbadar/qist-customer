@@ -1,7 +1,49 @@
+import java.io.File
+import java.util.Base64
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+/** Parses .env files into key-value pairs (workspace root, project root, and customer module). */
+fun loadDotEnv(): Map<String, String> {
+    val env = mutableMapOf<String, String>()
+    val candidateFiles = listOf(
+        rootProject.file("../.env"),
+        rootProject.file(".env"),
+        project.file(".env"),
+        rootProject.file(".env.local"),
+        project.file(".env.local")
+    )
+    for (candidate in candidateFiles) {
+        if (candidate.isFile) {
+            candidate.forEachLine { rawLine ->
+                val line = rawLine.trim()
+                if (line.isNotEmpty() && !line.startsWith("#") && line.contains("=")) {
+                    val parts = line.split("=", limit = 2)
+                    val key = parts[0].trim()
+                    var value = parts[1].trim()
+                    if ((value.startsWith("\"") && value.endsWith("\"")) ||
+                        (value.startsWith("'") && value.endsWith("'"))
+                    ) {
+                        value = value.substring(1, value.length - 1)
+                    }
+                    env[key] = value
+                }
+            }
+        }
+    }
+    return env
+}
+
+val dotEnv = loadDotEnv()
+
+/** Looks up value across System.getenv, .env, and Gradle properties. */
+fun resolveEnv(envKey: String, gradlePropName: String? = null): String? = System.getenv(envKey)
+    ?: dotEnv[envKey]
+    ?: (gradlePropName?.let { providers.gradleProperty(it).orNull })
+    ?: providers.gradleProperty(envKey).orNull
 
 android {
     namespace = "pk.qist.customer"
@@ -13,26 +55,56 @@ android {
         targetSdk = 37
         versionCode = providers.gradleProperty("qist.customer.versionCode")
             .map { it.toInt() }
-            .getOrElse(1)
-        versionName = "0.1.0"
+            .orElse(
+                providers.provider {
+                    resolveEnv("VERSION_CODE")?.toIntOrNull() ?: 1
+                }
+            )
+            .get()
+        versionName = "0.2.1"
+        val customerApiUrl = resolveEnv("CUSTOMER_API_URL", "qist.customer.apiUrl")
+            ?: resolveEnv("API_URL")
+            ?: "https://qist.restora.live/api/v1/customer-app/"
+        buildConfigField("String", "CUSTOMER_API_URL", "\"$customerApiUrl\"")
     }
 
-    val signingPath = providers.gradleProperty("qist.signing.storeFile").orNull
     signingConfigs {
         create("ciRelease") {
-            if (signingPath != null) {
-                storeFile = file(signingPath)
-                storePassword = providers.gradleProperty("qist.signing.storePassword").orNull
-                keyAlias = providers.gradleProperty("qist.signing.keyAlias").orNull
-                keyPassword = providers.gradleProperty("qist.signing.keyPassword").orNull
+            val keystoreBase64 = resolveEnv("ANDROID_KEYSTORE_BASE64")
+            val explicitStoreFile = resolveEnv("ANDROID_KEYSTORE_FILE", "qist.signing.storeFile")
+
+            if (!keystoreBase64.isNullOrBlank()) {
+                val decodedKeystore = layout.buildDirectory.file("keystore/release.jks").get().asFile
+                if (!decodedKeystore.exists() || decodedKeystore.length() == 0L) {
+                    decodedKeystore.parentFile.mkdirs()
+                    decodedKeystore.writeBytes(Base64.getDecoder().decode(keystoreBase64.trim()))
+                }
+                storeFile = decodedKeystore
+            } else if (!explicitStoreFile.isNullOrBlank()) {
+                storeFile = file(explicitStoreFile)
+            } else {
+                val candidateKeystores = listOf(
+                    rootProject.file("../qist-release.jks"),
+                    rootProject.file("qist-release.jks"),
+                    project.file("qist-release.jks")
+                )
+                val found = candidateKeystores.find { it.isFile }
+                if (found != null) {
+                    storeFile = found
+                }
             }
+
+            storePassword = resolveEnv("ANDROID_KEYSTORE_PASSWORD", "qist.signing.storePassword")
+            keyAlias = resolveEnv("ANDROID_KEY_ALIAS", "qist.signing.keyAlias")
+            keyPassword = resolveEnv("ANDROID_KEY_PASSWORD", "qist.signing.keyPassword")
         }
     }
 
     buildTypes {
         release {
-            if (signingPath != null) {
-                signingConfig = signingConfigs.getByName("ciRelease")
+            val ciRelease = signingConfigs.getByName("ciRelease")
+            if (ciRelease.storeFile?.isFile == true && !ciRelease.storePassword.isNullOrBlank()) {
+                signingConfig = ciRelease
             }
             isMinifyEnabled = true
             isShrinkResources = true
@@ -40,7 +112,10 @@ android {
         }
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
