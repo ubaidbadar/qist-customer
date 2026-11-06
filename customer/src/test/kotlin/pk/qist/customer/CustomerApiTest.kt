@@ -6,6 +6,7 @@ import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import okhttp3.OkHttpClient
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -26,6 +27,14 @@ class CustomerApiTest {
     }
     @After fun close() { server.close() }
     private fun reply(code: Int, body: String) { server.enqueue(MockResponse.Builder().code(code).body(body).build()) }
+    @Test fun overviewReadsPaymentAccountsAndSupportsOlderServers() {
+        val data = JSONObject("""{"profile":{"name":"Customer","phone":"03001234567"},"contracts":[],"contract":{"id":"plan","deviceLabel":"Phone","retailer":"Retailer","status":"active","downPayment":0,"totalPayable":100,"paidTotal":0,"lateFees":0,"count":1,"frequency":"monthly","retailerPhone":"03001234567","retailerAddress":"Main Road","deviceLockState":null,"installments":[],"paymentMethods":[{"id":"wallet","kind":"easypaisa","accountTitle":"Retailer","accountNumber":"03001234567"}]},"payments":{"items":[],"nextCursor":null},"today":"2026-11-06"}""")
+        val method = parseOverview(data).plan?.paymentMethods?.single()
+        assertEquals("03001234567", method?.accountNumber)
+        assertEquals("Retailer", method?.accountTitle)
+        data.getJSONObject("contract").remove("paymentMethods")
+        assertEquals(emptyList<CustomerPaymentMethod>(), parseOverview(data).plan?.paymentMethods)
+    }
     @Test fun loginSendsPhoneAndPasswordAndNoStaffAuthorization() = runTest {
         reply(200, """{"data":{"accessToken":"customer-token","expiresAt":"2026-12-05"}}""")
         assertEquals("customer-token", api.login("03001234567", "my-password").accessToken)

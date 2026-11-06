@@ -32,9 +32,9 @@ internal fun CustomerReceipt(plan: CustomerPlan, payment: CustomerPayment, onBac
         copy("Phone", "فون") to plan.deviceLabel,
         copy("Retailer", "دکاندار") to plan.retailer,
         copy("Received by", "وصول کنندہ") to payment.receivedByName,
-        copy("Payment method", "ادائیگی کا طریقہ") to payment.method,
-        copy("Payment type", "ادائیگی کی قسم") to payment.kind,
-        copy("Installments", "اقساط") to payment.installmentNumbers.joinToString(", ").ifEmpty { "—" },
+        copy("Payment method", "ادائیگی کا طریقہ") to paymentMethodLabel(payment.method),
+        copy("Payment type", "ادائیگی کی قسم") to if (payment.kind == "down_payment") copy("Down payment", "پیشگی ادائیگی") else copy("Installment", "قسط"),
+        copy("Installments", "اقساط") to if (payment.kind == "down_payment") copy("Down payment", "پیشگی ادائیگی") else payment.installmentNumbers.joinToString(", ") { "$it / ${plan.count}" }.ifEmpty { "—" },
         copy("Reference", "حوالہ") to payment.reference.ifBlank { "—" },
     )
     val receipt = buildString {

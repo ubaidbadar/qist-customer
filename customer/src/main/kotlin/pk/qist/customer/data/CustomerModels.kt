@@ -16,12 +16,16 @@ internal data class CustomerPayment(
     val id: String, val receiptNumber: Long, val amount: Long, val method: String, val receivedOn: String,
     val receivedByName: String, val kind: String, val reference: String, val installmentNumbers: List<Int>,
 )
+internal data class CustomerPaymentMethod(
+    val id: String, val kind: String, val accountTitle: String = "", val accountNumber: String = "", val bankName: String = "",
+)
 internal data class PaymentPage(val items: List<CustomerPayment>, val nextCursor: String?)
 internal data class CustomerPlan(
     val id: String, val deviceLabel: String, val retailer: String, val status: String,
     val downPayment: Long, val totalPayable: Long, val paidTotal: Long, val lateFees: Long,
     val count: Int, val frequency: String, val retailerPhone: String, val retailerAddress: String,
     val deviceLockState: String?, val installments: List<CustomerInstallment>,
+    val paymentMethods: List<CustomerPaymentMethod> = emptyList(),
 ) {
     val remaining: Long get() = if (status == "cancelled") 0 else (totalPayable + lateFees - paidTotal).coerceAtLeast(0)
     val totalPaid: Long get() = if (status == "cancelled") 0 else downPayment + paidTotal

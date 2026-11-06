@@ -93,6 +93,9 @@ internal fun parseOverview(data: JSONObject): CustomerOverview {
             contract.nullableString("deviceLockState"), contract.getJSONArray("installments").rows { row ->
                 CustomerInstallment(row.getInt("number"), row.getString("dueDate"), row.getLong("amount"), row.getLong("lateFee"), row.getLong("paidAmount"), row.getString("status"))
             },
+            contract.optJSONArray("paymentMethods")?.rows { method ->
+                CustomerPaymentMethod(method.getString("id"), method.getString("kind"), method.optString("accountTitle"), method.optString("accountNumber"), method.optString("bankName"))
+            }.orEmpty(),
         )
     }
     return CustomerOverview(profile.getString("name"), profile.getString("phone"), data.getJSONArray("contracts").rows {

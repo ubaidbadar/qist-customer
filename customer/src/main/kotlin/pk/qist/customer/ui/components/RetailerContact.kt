@@ -14,7 +14,7 @@ import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
-internal fun RetailerContactActions(phone: String) {
+internal fun RetailerContactActions(phone: String, paymentProof: Boolean = false, retailer: String = "") {
     val context = LocalContext.current
     val unavailable = copy("No app is available to open this action.", "یہ عمل کھولنے کے لیے ایپ دستیاب نہیں۔")
     var missing by remember { mutableStateOf(false) }
@@ -27,7 +27,10 @@ internal fun RetailerContactActions(phone: String) {
         try { context.startActivity(intent) }
         catch (_: ActivityNotFoundException) { Toast.makeText(context, unavailable, Toast.LENGTH_SHORT).show() }
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+    if (paymentProof) {
+        Pill(copy("Call $retailer", "$retailer کو کال کریں"), { open(false) })
+        SecondaryAction(copy("Send payment proof on WhatsApp", "واٹس ایپ پر ادائیگی کا ثبوت بھیجیں"), { open(true) })
+    } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
         Button(onClick = { open(false) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text(copy("Call", "کال کریں")) }
         OutlinedButton(onClick = { open(true) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) { Text(copy("WhatsApp", "واٹس ایپ")) }
     }
