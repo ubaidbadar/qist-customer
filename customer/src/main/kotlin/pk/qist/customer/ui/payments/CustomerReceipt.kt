@@ -33,18 +33,19 @@ import pk.qist.customer.ui.theme.QistSpacing
 internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val id = "DEMO-${payment.number.toString().padStart(3, '0')}"
+    val id = payment.receiptNumber.toString()
     val amount = copy("Rs. ${payment.amount}", "روپے ${payment.amount}")
     val title = copy("Receipt", "رسید")
     val facts = listOf(
-        copy("Installment", "قسط") to copy("${payment.number} of ${data.total}", "${data.total} میں سے ${payment.number}"),
+        copy("Installment", "قسط") to payment.label,
         copy("Phone", "فون") to data.model,
-        copy("Payment method", "ادائیگی کا طریقہ") to copy(payment.method, "نقد"),
-        copy("Received by", "وصول کنندہ") to data.retailer,
+        copy("Payment method", "ادائیگی کا طریقہ") to payment.method,
+        copy("Received by", "وصول کنندہ") to payment.receivedBy.ifBlank { data.retailer },
         copy("Receipt no.", "رسید نمبر") to id,
+        copy("Reference", "حوالہ") to payment.reference.ifBlank { "—" },
     )
     val receipt = buildString {
-        appendLine("Qist · " + copy("Demo receipt", "نمونہ رسید"))
+        appendLine("Qist · " + copy("Receipt", "رسید"))
         appendLine("$amount · ${payment.date}")
         facts.forEach { (label, value) -> appendLine("$label: $value") }
     }

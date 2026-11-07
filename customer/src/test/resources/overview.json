@@ -1,0 +1,21 @@
+{
+  "profile": {"name": "Customer", "phone": "03001234567"},
+  "today": "2026-11-07",
+  "contracts": [{"id": "plan-a", "deviceLabel": "Phone", "retailer": "Shop", "status": "active"}, {"id": "plan-b", "deviceLabel": "Other phone", "retailer": "Other shop", "status": "completed"}],
+  "contract": {
+    "id": "plan-a", "deviceLabel": "Phone", "retailer": "Shop", "status": "active",
+    "downPayment": 1000000, "totalPayable": 4000050, "paidTotal": 1250000, "lateFees": 5000,
+    "count": 3, "frequency": "weekly", "deviceLockState": null,
+    "retailerPhone": "03001111111", "retailerAddress": "Shop address",
+    "paymentMethods": [{"kind": "jazzcash", "accountTitle": "Shop", "accountNumber": "03001111111", "enabled": true}],
+    "installments": [
+      {"number": 1, "dueDate": "2026-10-31", "amount": 1000000, "paidAmount": 250000, "lateFee": 5000, "status": "partial"},
+      {"number": 2, "dueDate": "2026-11-07", "amount": 1000000, "paidAmount": 1000000, "lateFee": 0, "status": "paid"},
+      {"number": 3, "dueDate": "2026-11-14", "amount": 2000050, "paidAmount": 0, "lateFee": 0, "status": "pending"}
+    ]
+  },
+  "payments": {"items": [
+    {"id": "payment-a", "receiptNumber": 42, "amount": 1250000, "method": "jazzcash", "receivedOn": "2026-11-06", "receivedByName": "Staff", "kind": "installment", "reference": "REF-1", "allocations": [{"number": 1, "amount": 250000}, {"number": 2, "amount": 1000000}]},
+    {"id": "payment-b", "receiptNumber": 41, "amount": 1000000, "method": "cash", "receivedOn": "2026-10-01", "receivedByName": "Staff", "kind": "down_payment", "reference": "", "allocations": []}
+  ], "nextCursor": "payment-b"}
+}

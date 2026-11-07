@@ -73,6 +73,7 @@ internal fun AuthScreen(
     onBack: () -> Unit,
     onAction: () -> Unit,
     footer: String? = null,
+    enabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().imePadding().padding(QistSpacing.AuthScreen)) {
@@ -88,7 +89,7 @@ internal fun AuthScreen(
             Spacer(Modifier.height(22.dp))
             content()
         }
-        Pill(action, onAction)
+        Pill(action, onAction, enabled = enabled)
         if (footer != null) {
             Spacer(Modifier.height(12.dp))
             Text(footer, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -162,7 +163,7 @@ internal fun CodeField(code: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-internal fun Resend(deadline: Long, onResend: () -> Unit) {
+internal fun Resend(deadline: Long, onResend: () -> Unit, enabled: Boolean = true) {
     var now by remember(deadline) { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     LaunchedEffect(deadline) {
         while (now < deadline) {
@@ -173,9 +174,24 @@ internal fun Resend(deadline: Long, onResend: () -> Unit) {
     val seconds = ((deadline - now + 999) / 1000).coerceAtLeast(0)
     Spacer(Modifier.height(12.dp))
     if (seconds == 0L) {
-        TextButton(onClick = onResend) { Text(copy("Resend code", "کوڈ دوبارہ بھیجیں")) }
+        TextButton(onClick = onResend, enabled = enabled) { Text(copy("Resend code", "کوڈ دوبارہ بھیجیں")) }
     } else {
         val time = "0:" + seconds.toString().padStart(2, '0')
         Text(copy("Resend code in $time", "کوڈ دوبارہ بھیجیں $time"), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+@Composable
+internal fun PasswordField(password: String, onChange: (String) -> Unit) {
+    var visible by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(12.dp))
+    OutlinedTextField(
+        value = password, onValueChange = { if (it.length <= 128) onChange(it) },
+        label = { Text(copy("Password", "پاس ورڈ")) }, singleLine = true,
+        modifier = Modifier.fillMaxWidth(), shape = QistShapes.Input,
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        trailingIcon = { TextButton(onClick = { visible = !visible }) { Text(copy(if (visible) "Hide" else "Show", if (visible) "چھپائیں" else "دکھائیں")) } },
+        colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White),
+    )
 }

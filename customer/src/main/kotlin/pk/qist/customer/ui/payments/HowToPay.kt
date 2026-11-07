@@ -27,15 +27,26 @@ import pk.qist.customer.ui.theme.QistSpacing
 @Composable
 internal fun HowToPay(data: DashboardSample, onBack: () -> Unit) {
     var contact by rememberSaveable { mutableStateOf(false) }
+    var whatsApp by remember { mutableStateOf(false) }
     PaymentPage(copy("How to pay", "ادائیگی کیسے کریں"), onBack, actions = {
-        Pill(copy("Call ${data.retailer}", "${data.retailer} کو کال کریں"), { contact = true })
-        SecondaryAction(copy("WhatsApp", "واٹس ایپ")) { contact = true }
+        Pill(copy("Call ${data.retailer}", "${data.retailer} کو کال کریں"), { whatsApp = false; contact = true })
+        SecondaryAction(copy("WhatsApp", "واٹس ایپ")) { whatsApp = true; contact = true }
     }) {
         Surface(color = Navy, contentColor = Color.White, shape = QistShapes.Card) {
             Column(Modifier.fillMaxWidth().padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(copy("Amount due", "واجب الادا رقم"), color = Muted)
                 Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
                 Text(copy("Due ${data.dueDate}", "${data.dueDate} تک واجب"), color = Muted)
+            }
+        }
+        if (data.paymentMethods.isNotEmpty()) Panel {
+            Text(copy("Payment methods", "ادائیگی کے طریقے"), style = MaterialTheme.typography.titleLarge)
+            data.paymentMethods.forEach { method ->
+                Text(method.bank.ifBlank { method.kind.replaceFirstChar { it.uppercase() } }, style = MaterialTheme.typography.titleMedium)
+                if (method.title.isNotEmpty()) Caption(method.title)
+                if (method.number.isNotEmpty()) androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.ui.platform.LocalLayoutDirection provides LayoutDirection.Ltr,
+                ) { androidx.compose.foundation.text.selection.SelectionContainer { Text(method.number) } }
             }
         }
         Panel {
@@ -47,7 +58,7 @@ internal fun HowToPay(data: DashboardSample, onBack: () -> Unit) {
         }
     }
     if (contact) {
-        RetailerContactDialog { contact = false }
+        RetailerContactDialog(data.retailerPhone, whatsApp) { contact = false }
     }
 }
 

@@ -51,11 +51,15 @@ internal fun Dashboard(
     preferences: CustomerPreferences,
     onLanguage: () -> Unit,
     onLogout: () -> Unit,
+    busy: Boolean,
+    onRefresh: () -> Unit,
+    onPlan: (String) -> Unit,
+    onMore: () -> Unit,
 ) {
     var allowed by remember { mutableStateOf(preferences.notificationsEnabled) }
-    var showPrompt by rememberSaveable { mutableStateOf(!preferences.hasNotificationPreference) }
+    var showPrompt by rememberSaveable { mutableStateOf(false) }
     var inbox by rememberSaveable { mutableStateOf(false) }
-    var unread by rememberSaveable { mutableIntStateOf(3) }
+    var unread by rememberSaveable { mutableIntStateOf(0) }
 
     fun setNotifications(enabled: Boolean) {
         allowed = enabled
@@ -80,11 +84,11 @@ internal fun Dashboard(
 
     val tabs = listOf(copy("Home", "گھر"), copy("Payments", "ادائیگیاں"), copy("Plan", "منصوبہ"), copy("Profile", "پروفائل"))
     val icons = listOf(R.drawable.tab_home, R.drawable.tab_payments, R.drawable.tab_plan, R.drawable.tab_profile)
-    var receiptNumber by rememberSaveable { mutableIntStateOf(0) }
-    val receipt = data.payments.firstOrNull { it.number == receiptNumber }
-    BackHandler(receipt != null) { receiptNumber = 0 }
+    var receiptNumber by rememberSaveable(data.contractId) { mutableStateOf("") }
+    val receipt = data.payments.firstOrNull { it.id == receiptNumber }
+    BackHandler(receipt != null) { receiptNumber = "" }
     if (receipt != null) {
-        CustomerReceipt(data, receipt) { receiptNumber = 0 }
+        CustomerReceipt(data, receipt) { receiptNumber = "" }
         return
     }
 
@@ -126,10 +130,13 @@ internal fun Dashboard(
                                 Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
                                 Text(data.name, color = Color.White, style = MaterialTheme.typography.headlineMedium)
                             }
+                            TextButton(onClick = onRefresh, enabled = !busy) { Text(copy("Refresh", "تازہ کریں"), color = Muted) }
                             HomeNotificationsButton(unread != 0) { inbox = true }
                         }
-                        InstallmentCard(data, onHelp)
-                        Panel {
+                        AccountActions(data, busy, onPlan)
+                        if (data.contractId != null) InstallmentCard(data, onHelp)
+                        else Panel { Text(copy("No plans yet. Ask your retailer to check your registered number.", "ابھی کوئی منصوبہ نہیں۔ دکاندار سے رجسٹرڈ نمبر چیک کروائیں۔")) }
+                        if (data.contractId != null) Panel {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                                 Box(Modifier.size(44.dp).background(Blue.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
                                     Icon(painterResource(R.drawable.phone_outline), contentDescription = null, tint = Blue)
@@ -139,7 +146,7 @@ internal fun Dashboard(
                                     Text(copy("Your phone", "آپ کا فون"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Text(
-                                    copy("✓ Active", "✓ فعال"),
+                                    copy(data.status.replaceFirstChar { it.uppercase() }, data.status),
                                     Modifier.background(PaidBackground, CircleShape).padding(horizontal = 10.dp, vertical = 6.dp),
                                     color = PaidGreen,
                                     style = MaterialTheme.typography.labelMedium,
@@ -151,10 +158,14 @@ internal fun Dashboard(
                 }
             } else {
                 Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                    Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabs[tab.ordinal], style = MaterialTheme.typography.headlineMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabs[tab.ordinal], Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium)
+                        TextButton(onClick = onRefresh, enabled = !busy) { Text(copy("Refresh", "تازہ کریں")) }
+                    }
+                    AccountActions(data, busy, onPlan)
                     when (tab) {
-                        CustomerTab.Payments -> PaymentHistory(data) { receiptNumber = it.number }
-                        CustomerTab.Plan -> PlanDetails(data)
+                        CustomerTab.Payments -> if (data.contractId == null) Panel { Text(copy("No plan available.", "کوئی منصوبہ دستیاب نہیں۔")) } else PaymentHistory(data, busy, onMore) { receiptNumber = it.id }
+                        CustomerTab.Plan -> if (data.contractId == null) Panel { Text(copy("No plan available.", "کوئی منصوبہ دستیاب نہیں۔")) } else PlanDetails(data)
                         CustomerTab.Profile -> CustomerProfile(data, phone, onLanguage, onLogout, allowed, ::setNotifications) { profilePage = it }
                         CustomerTab.Home -> Unit
                     }
@@ -171,10 +182,14 @@ private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(8.dp))
-        Text(copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی"))
+        Text(when {
+            data.remaining == 0L -> copy("Nothing due", "کوئی رقم واجب نہیں")
+            data.days < 0 -> copy("Due ${data.dueDate} · ${-data.days} days overdue", "${data.dueDate} تک واجب · ${-data.days} دن تاخیر")
+            else -> copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی")
+        })
         Spacer(Modifier.height(16.dp))
         LinearProgressIndicator(
-            progress = { (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
+            progress = { if (data.total == 0) 0f else (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth().height(8.dp),
             color = Blue,
             trackColor = Divider,
@@ -193,11 +208,12 @@ private fun PaymentsCard(payments: List<PaymentSample>, onViewAll: (() -> Unit)?
             Text(copy("Recent payments", "حالیہ ادائیگیاں"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
             if (onViewAll != null) TextButton(onClick = onViewAll) { Text(copy("View all", "تمام دیکھیں")) }
         }
-        payments.forEach { payment ->
+        if (payments.isEmpty()) Text(copy("No payments recorded yet.", "ابھی کوئی ادائیگی درج نہیں۔"))
+        payments.take(3).forEach { payment ->
             HorizontalDivider(color = Divider)
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(copy("Installment ${payment.number}", "قسط ${payment.number}"), style = MaterialTheme.typography.titleMedium)
+                    Text(copy(payment.label, payment.label), style = MaterialTheme.typography.titleMedium)
                     Text(copy("Paid ${payment.date}", "ادا شدہ ${payment.date}"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(copy("Rs. ${payment.amount}", "روپے ${payment.amount}"), color = PaidGreen, style = MaterialTheme.typography.titleMedium)
@@ -217,6 +233,21 @@ private fun HomeNotificationsButton(unread: Boolean, onClick: () -> Unit) {
             Icon(painterResource(R.drawable.detail_bell), contentDescription = copy("Notifications", "اطلاعات"))
             if (unread) {
                 Box(Modifier.align(Alignment.TopEnd).size(10.dp).background(Cyan, QistShapes.UnreadBadge))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountActions(data: DashboardSample, busy: Boolean, onPlan: (String) -> Unit) {
+    if (data.contracts.size > 1) {
+        var expanded by remember { mutableStateOf(false) }
+        Box {
+            OutlinedButton(onClick = { expanded = true }, enabled = !busy) { Text(copy("Choose plan", "منصوبہ منتخب کریں")) }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                data.contracts.forEach { plan ->
+                    DropdownMenuItem(text = { Text("${plan.label} · ${plan.retailer}") }, onClick = { expanded = false; onPlan(plan.id) })
+                }
             }
         }
     }
