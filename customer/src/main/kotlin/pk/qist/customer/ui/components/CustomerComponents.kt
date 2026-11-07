@@ -2,7 +2,6 @@ package pk.qist.customer.ui.components
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -11,19 +10,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import java.text.NumberFormat
-import java.util.Locale
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Blue
-import pk.qist.customer.ui.theme.Cyan
-import pk.qist.customer.ui.theme.InputBorder
-import pk.qist.customer.ui.theme.Navy
-import pk.qist.customer.ui.theme.QistShapes
-import pk.qist.customer.ui.theme.QistSpacing
+import pk.qist.customer.ui.theme.*
 
 @Composable
 internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier = modifier.fillMaxWidth(), color = Color.White, shape = QistShapes.Card) {
+    Surface(modifier = modifier.fillMaxWidth(), color = CardSurface, shape = QistShapes.Card) {
         Column(Modifier.padding(QistSpacing.Screen), content = content)
     }
 }
@@ -32,30 +24,30 @@ internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnSco
 internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false) {
     Button(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-        shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = if (cyan) Cyan else Blue, contentColor = if (cyan) Navy else Color.White),
+        modifier = Modifier.fillMaxWidth().heightIn(min = if (cyan) QistSize.AuthButton else QistSize.Button),
+        shape = QistShapes.Pill,
+        colors = ButtonDefaults.buttonColors(containerColor = if (cyan) Cyan else Blue, contentColor = if (cyan) AccentText else CardSurface),
     ) { Text(label, style = MaterialTheme.typography.labelLarge) }
 }
 
 @Composable
 internal fun SecondaryAction(label: String, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), border = BorderStroke(1.dp, InputBorder)) {
+    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = QistSize.Button), border = BorderStroke(QistSize.Border, InputBorder)) {
         Text(label, color = Navy)
     }
 }
 
 @Composable
-internal fun ScreenBadge(icon: Int, color: Color, background: Color, size: Int) {
-    Box(Modifier.size(size.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
-        Icon(painterResource(icon), contentDescription = null, tint = color)
+internal fun ScreenBadge(icon: Int, color: Color, background: Color, size: Dp) {
+    Box(Modifier.size(size).background(background, QistShapes.Pill), contentAlignment = Alignment.Center) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(QistSize.IconMax), tint = color)
     }
 }
 
 @Composable
 internal fun Badge(icon: Int, tint: Color, background: Color) {
-    Box(Modifier.size(36.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
-        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(19.dp), tint = tint)
+    Box(Modifier.size(QistSize.CircleSmall).background(background, QistShapes.Pill), contentAlignment = Alignment.Center) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(QistSize.Icon), tint = tint)
     }
 }
 
@@ -66,19 +58,19 @@ internal fun Caption(text: String) {
 
 @Composable
 internal fun Chevron() {
-    Icon(painterResource(pk.qist.customer.R.drawable.chevron_forward), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    Icon(painterResource(pk.qist.customer.R.drawable.chevron_forward), null, Modifier.size(QistSize.IconMedium), tint = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
 internal fun DetailRow(
     title: String, subtitle: String, value: String, icon: Int,
-    tint: Color = Blue, background: Color = Blue.copy(alpha = 0.08f),
+    tint: Color = Blue, background: Color = BlueBackground,
     valueColor: Color = Navy, status: String? = null, onClick: (() -> Unit)? = null,
 ) {
     Row(
-        Modifier.fillMaxWidth().then(if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)).padding(vertical = 12.dp),
+        Modifier.fillMaxWidth().then(if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)).padding(vertical = QistSpacing.Item),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(QistSpacing.IconGap),
     ) {
         Badge(icon, tint, background)
         Column(Modifier.weight(1f)) {
@@ -127,9 +119,9 @@ internal fun money(amount: Long): String {
 internal fun CustomerBackButton(onBack: () -> Unit) {
     FilledIconButton(
         onClick = onBack,
-        modifier = Modifier.size(48.dp),
-        colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White, contentColor = Navy),
+        modifier = Modifier.size(QistSize.TouchTarget),
+        colors = IconButtonDefaults.filledIconButtonColors(containerColor = CardSurface, contentColor = Navy),
     ) {
-        Icon(painterResource(pk.qist.customer.R.drawable.notice_back), contentDescription = copy("Back", "واپس"))
+        Icon(painterResource(pk.qist.customer.R.drawable.notice_back), contentDescription = copy("Back", "واپس"), modifier = Modifier.size(QistSize.IconMax))
     }
 }

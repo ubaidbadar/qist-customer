@@ -4,13 +4,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.*
@@ -34,18 +32,7 @@ import pk.qist.customer.ui.payments.PaymentHistory
 import pk.qist.customer.ui.plan.PlanDetails
 import pk.qist.customer.ui.profile.CustomerProfile
 import pk.qist.customer.ui.profile.ProfileInformation
-import pk.qist.customer.ui.theme.Blue
-import pk.qist.customer.ui.theme.DueBackground
-import pk.qist.customer.ui.theme.Canvas
-import pk.qist.customer.ui.theme.Cyan
-import pk.qist.customer.ui.theme.DeepSurface
-import pk.qist.customer.ui.theme.Divider
-import pk.qist.customer.ui.theme.Muted
-import pk.qist.customer.ui.theme.Navy
-import pk.qist.customer.ui.theme.PaidBackground
-import pk.qist.customer.ui.theme.PaidGreen
-import pk.qist.customer.ui.theme.QistShapes
-import pk.qist.customer.ui.theme.QistSpacing
+import pk.qist.customer.ui.theme.*
 
 @Composable
 internal fun Dashboard(
@@ -105,17 +92,17 @@ internal fun Dashboard(
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize().padding(padding)) {
             val scroll = key(tab, data.id) { rememberScrollState() }
             Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
-                if (message != null) Surface(color = DueBackground, shape = QistShapes.Input, modifier = Modifier.padding(16.dp)) {
-                    Text(message, Modifier.padding(12.dp), color = Navy)
+                if (message != null) Surface(color = DueBackground, shape = QistShapes.Input, modifier = Modifier.padding(QistSpacing.Section)) {
+                    Text(message, Modifier.padding(QistSpacing.Item), color = Navy)
                 }
                 if (tab == CustomerTab.Home) {
                     Box {
-                        Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
+                        Box(Modifier.fillMaxWidth().height(QistSize.HomeBackdrop).background(Navy))
                         Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().padding(vertical = QistSpacing.Small), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
-                                    Text(data.name, color = Color.White, style = MaterialTheme.typography.titleLarge)
+                                    Text(data.name, color = CardSurface, style = MaterialTheme.typography.titleLarge)
                                 }
                                 HomeNotificationsButton(unread != 0) { inbox = true }
                             }
@@ -123,8 +110,8 @@ internal fun Dashboard(
                             else Panel { Text(copy("No plans available. Contact your retailer.", "کوئی منصوبہ دستیاب نہیں۔ دکاندار سے رابطہ کریں۔")) }
                             if (data.id != null) Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں")) { phonePicker = true }) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-                                    Box(Modifier.size(44.dp).background(Blue.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
-                                        Icon(painterResource(R.drawable.phone_outline), contentDescription = null, tint = Blue)
+                                    Box(Modifier.size(QistSize.CircleLarge).background(BlueBackground, QistShapes.Pill), contentAlignment = Alignment.Center) {
+                                        Icon(painterResource(R.drawable.phone_outline), contentDescription = null, modifier = Modifier.size(QistSize.IconMax), tint = Blue)
                                     }
                                     Column(Modifier.weight(1f)) {
                                         Text(data.model, style = MaterialTheme.typography.titleMedium)
@@ -157,25 +144,25 @@ internal fun Dashboard(
 private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit) {
     Panel {
         Text(copy("Next installment", "اگلی قسط"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(QistSpacing.Small))
         Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(QistSpacing.Small))
         Text(when {
             data.status == "cancelled" -> copy("Plan cancelled", "منصوبہ منسوخ ہو گیا")
             data.remaining == 0L -> copy("Nothing due", "کوئی رقم واجب نہیں")
             data.days < 0 -> copy("Due ${data.dueDate} · ${-data.days} days overdue", "${data.dueDate} تک واجب · ${-data.days} دن تاخیر")
             else -> copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی")
         })
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(QistSpacing.Section))
         LinearProgressIndicator(
             progress = { if (data.total == 0) 0f else (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth().height(8.dp),
+            modifier = Modifier.fillMaxWidth().height(QistSize.Progress),
             color = Blue,
             trackColor = Divider,
         )
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(QistSpacing.Compact))
         Text(copy("${data.paid} of ${data.total} installments paid", "${data.total} میں سے ${data.paid} اقساط ادا ہوئیں"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(QistSpacing.Section))
         Pill(copy("How to pay", "ادائیگی کیسے کریں"), onHelp)
     }
 }
@@ -189,7 +176,7 @@ private fun PaymentsCard(payments: List<PaymentSample>, onViewAll: (() -> Unit)?
         }
         payments.take(2).forEach { payment ->
             HorizontalDivider(color = Divider)
-            Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(vertical = QistSpacing.Item), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(copy(payment.label, payment.label), style = MaterialTheme.typography.titleMedium)
                     Text(copy("Paid ${payment.date}", "ادا شدہ ${payment.date}"), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -204,13 +191,13 @@ private fun PaymentsCard(payments: List<PaymentSample>, onViewAll: (() -> Unit)?
 private fun HomeNotificationsButton(unread: Boolean, onClick: () -> Unit) {
     FilledIconButton(
         onClick = onClick,
-        modifier = Modifier.size(48.dp),
-        colors = IconButtonDefaults.filledIconButtonColors(containerColor = DeepSurface, contentColor = Color.White),
+        modifier = Modifier.size(QistSize.TouchTarget),
+        colors = IconButtonDefaults.filledIconButtonColors(containerColor = DeepSurface, contentColor = CardSurface),
     ) {
-        Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
-            Icon(painterResource(R.drawable.detail_bell), contentDescription = copy("Notifications", "اطلاعات"))
+        Box(Modifier.size(QistSize.IconMax), contentAlignment = Alignment.Center) {
+            Icon(painterResource(R.drawable.detail_bell), contentDescription = copy("Notifications", "اطلاعات"), modifier = Modifier.size(QistSize.IconMax))
             if (unread) {
-                Box(Modifier.align(Alignment.TopEnd).size(10.dp).background(Cyan, QistShapes.UnreadBadge))
+                Box(Modifier.align(Alignment.TopEnd).size(QistSize.UnreadDot).background(Cyan, QistShapes.UnreadBadge))
             }
         }
     }

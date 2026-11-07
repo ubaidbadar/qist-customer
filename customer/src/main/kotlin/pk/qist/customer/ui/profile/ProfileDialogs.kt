@@ -4,12 +4,10 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -20,14 +18,7 @@ import pk.qist.customer.R
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Blue
-import pk.qist.customer.ui.theme.BlueBackground
-import pk.qist.customer.ui.theme.Destructive
-import pk.qist.customer.ui.theme.DestructiveBackground
-import pk.qist.customer.ui.theme.InputBorder
-import pk.qist.customer.ui.theme.Navy
-import pk.qist.customer.ui.theme.QistShapes
-import pk.qist.customer.ui.theme.QistSpacing
+import pk.qist.customer.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,15 +27,15 @@ internal fun LanguagePicker(selectedUrdu: Boolean, onDismiss: () -> Unit, onAppl
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color.White,
+        containerColor = CardSurface,
         shape = QistShapes.Sheet,
-        scrimColor = Navy.copy(alpha = 0.60f),
+        scrimColor = SheetScrim,
     ) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = QistSpacing.AuthScreen, end = QistSpacing.AuthScreen, bottom = QistSpacing.AuthScreen),
             verticalArrangement = Arrangement.spacedBy(QistSpacing.Section),
         ) {
-            Text(copy("Choose language", "زبان منتخب کریں"), style = MaterialTheme.typography.headlineMedium)
+            Text(copy("Choose language", "زبان منتخب کریں"), style = MaterialTheme.typography.headlineSmall)
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                 LanguageOption("English", "English", !urdu) { urdu = false }
                 LanguageOption("اردو", "Urdu", urdu) { urdu = true }
@@ -58,11 +49,11 @@ internal fun LanguagePicker(selectedUrdu: Boolean, onDismiss: () -> Unit, onAppl
 private fun LanguageOption(title: String, subtitle: String, selected: Boolean, onSelect: () -> Unit) {
     Surface(
         shape = QistShapes.Option,
-        color = if (selected) BlueBackground else Color.White,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Blue else InputBorder),
+        color = if (selected) BlueBackground else CardSurface,
+        border = BorderStroke(if (selected) QistSize.FocusBorder else QistSize.Border, if (selected) Blue else InputBorder),
     ) {
         Row(
-            Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton, onClick = onSelect).padding(16.dp),
+            Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton, onClick = onSelect).padding(QistSpacing.Section),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -78,30 +69,30 @@ private fun LanguageOption(title: String, subtitle: String, selected: Boolean, o
 internal fun LogoutConfirmation(onDismiss: () -> Unit, onLogout: () -> Unit) {
     val destructive = Destructive
     Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = QistShapes.Dialog, color = Color.White) {
+        Surface(shape = QistShapes.Dialog, color = CardSurface) {
             Column(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(QistSpacing.AuthScreen),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(QistSpacing.Section),
             ) {
-                Box(Modifier.size(64.dp).background(DestructiveBackground, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(painterResource(R.drawable.detail_logout), contentDescription = null, tint = destructive, modifier = Modifier.size(30.dp))
+                Box(Modifier.size(QistSize.HeroBadge).background(DestructiveBackground, QistShapes.Pill), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(R.drawable.detail_logout), contentDescription = null, tint = destructive, modifier = Modifier.size(QistSize.IconMax))
                 }
-                Text(copy("Log out?", "لاگ آؤٹ کریں؟"), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+                Text(copy("Log out?", "لاگ آؤٹ کریں؟"), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
                 Text(
                     copy("You will need your phone number and password to sign in again.", "دوبارہ سائن ان کرنے کے لیے فون نمبر اور پاس ورڈ درکار ہوگا۔"),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = QistSize.TouchTarget), contentPadding = PaddingValues(horizontal = QistSpacing.Small)) {
                         Text(copy("Cancel", "منسوخ"))
                     }
                     Button(
                         onClick = onLogout,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = destructive, contentColor = Color.White),
-                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = QistSize.TouchTarget),
+                        colors = ButtonDefaults.buttonColors(containerColor = destructive, contentColor = CardSurface),
+                        contentPadding = PaddingValues(horizontal = QistSpacing.Small),
                     ) { Text(copy("Log out", "لاگ آؤٹ")) }
                 }
             }

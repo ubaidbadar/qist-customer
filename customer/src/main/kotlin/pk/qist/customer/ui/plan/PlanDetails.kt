@@ -11,31 +11,25 @@ import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.DetailRow
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.ScreenBadge
-import pk.qist.customer.ui.theme.Blue
-import pk.qist.customer.ui.theme.BlueBackground
 import androidx.compose.ui.res.painterResource
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.money
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Divider
-import pk.qist.customer.ui.theme.DueAmber
-import pk.qist.customer.ui.theme.DueBackground
-import pk.qist.customer.ui.theme.PaidBackground
-import pk.qist.customer.ui.theme.PaidGreen
+import pk.qist.customer.ui.theme.*
 
 @Composable
 internal fun PlanDetails(data: DashboardSample, onChange: () -> Unit) {
     Panel {
-        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ScreenBadge(R.drawable.phone_outline, Blue, BlueBackground, 44)
+        Row(Modifier.fillMaxWidth().padding(bottom = QistSpacing.Item), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+            ScreenBadge(R.drawable.phone_outline, Blue, BlueBackground, QistSize.CircleLarge)
             Column(Modifier.weight(1f)) {
                 Text(data.model, style = MaterialTheme.typography.titleMedium)
                 Caption(data.retailer)
             }
-            TextButton(onClick = onChange, contentPadding = PaddingValues(horizontal = 4.dp)) {
+            TextButton(onClick = onChange, contentPadding = PaddingValues(horizontal = QistSpacing.Tiny)) {
                 Text(copy("Change", "بدلیں"))
-                Spacer(Modifier.width(4.dp))
-                Icon(painterResource(R.drawable.chevron_forward), null, Modifier.size(18.dp))
+                Spacer(Modifier.width(QistSpacing.Tiny))
+                Icon(painterResource(R.drawable.chevron_forward), null, Modifier.size(QistSize.IconMedium))
             }
         }
         Fact(copy("Total price", "کل قیمت"), money(data.totalPrice))
@@ -68,7 +62,7 @@ internal fun PlanDetails(data: DashboardSample, onChange: () -> Unit) {
 @Composable
 private fun Fact(label: String, value: String) {
     HorizontalDivider(color = Divider)
-    Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().padding(vertical = QistSpacing.Content), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Small)) {
         Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.titleMedium)
     }

@@ -5,7 +5,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
@@ -20,21 +19,21 @@ internal fun HowToPay(data: DashboardSample, onBack: () -> Unit) {
     var whatsApp by remember { mutableStateOf(false) }
     var methods by rememberSaveable { mutableStateOf(false) }
     PaymentPage(copy("How to pay", "ادائیگی کیسے کریں"), onBack, actions = {
-        Button(onClick = { whatsApp = false; contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape) {
-            Icon(painterResource(R.drawable.payment_call), null, Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
+        Button(onClick = { whatsApp = false; contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = QistSize.Button), shape = QistShapes.Pill) {
+            Icon(painterResource(R.drawable.payment_call), null, Modifier.size(QistSize.Icon))
+            Spacer(Modifier.width(QistSpacing.Small))
             Text(copy("Call ${data.retailer}", "${data.retailer} کو کال کریں"))
         }
-        OutlinedButton(onClick = { whatsApp = true; contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape,
-            border = androidx.compose.foundation.BorderStroke(1.dp, InputBorder)) {
-            Icon(painterResource(R.drawable.payment_chat), null, Modifier.size(20.dp), tint = Navy)
-            Spacer(Modifier.width(8.dp))
+        OutlinedButton(onClick = { whatsApp = true; contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = QistSize.Button), shape = QistShapes.Pill,
+            border = androidx.compose.foundation.BorderStroke(QistSize.Border, InputBorder)) {
+            Icon(painterResource(R.drawable.payment_chat), null, Modifier.size(QistSize.Icon), tint = Navy)
+            Spacer(Modifier.width(QistSpacing.Small))
             Text(copy("Send payment proof on WhatsApp", "واٹس ایپ پر ادائیگی کا ثبوت بھیجیں"), color = Navy)
         }
     }) {
-        Surface(color = Navy, contentColor = Color.White, shape = QistShapes.Card) {
-            FlowRow(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Surface(color = Navy, contentColor = CardSurface, shape = QistShapes.Card) {
+            FlowRow(Modifier.fillMaxWidth().padding(QistSpacing.Screen), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(QistSpacing.Small)) {
                 Column {
                     Text(copy("Amount due", "واجب الادا رقم"), color = Muted)
                     Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
