@@ -2,10 +2,12 @@ package pk.qist.customer.ui.profile
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
@@ -15,16 +17,21 @@ import pk.qist.customer.ui.components.Chevron
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.RetailerContactDialog
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.*
+import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.Destructive
+import pk.qist.customer.ui.theme.DestructiveBackground
+import pk.qist.customer.ui.theme.Divider
+import pk.qist.customer.ui.theme.Navy
+import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
 internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: () -> Unit, onLogout: () -> Unit, notifications: Boolean, onNotifications: (Boolean) -> Unit, onOpenPage: (String) -> Unit) {
     var dialog by rememberSaveable { mutableStateOf("") }
     val language = copy("English", "اردو")
     Panel {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Content)) {
-            Box(Modifier.size(QistSize.Avatar).background(Navy, QistShapes.Pill), contentAlignment = Alignment.Center) {
-                Text(data.name.take(1), color = CardSurface, style = MaterialTheme.typography.titleLarge)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(Modifier.size(52.dp).background(Navy, CircleShape), contentAlignment = Alignment.Center) {
+                Text(data.name.take(1), color = Color.White, style = MaterialTheme.typography.titleLarge)
             }
             Column(Modifier.weight(1f)) {
                 Text(data.name, style = MaterialTheme.typography.titleLarge)
@@ -35,12 +42,12 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
     Panel {
         Caption(copy("Your retailer", "آپ کا دکاندار"))
         Text(data.retailer, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(QistSpacing.Content))
+        Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-            Button(onClick = { dialog = "contact" }, modifier = Modifier.weight(1f).heightIn(min = QistSize.TouchTarget)) {
+            Button(onClick = { dialog = "contact" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                 Text(copy("Call", "کال کریں"))
             }
-            OutlinedButton(onClick = { dialog = "whatsapp" }, modifier = Modifier.weight(1f).heightIn(min = QistSize.TouchTarget), contentPadding = PaddingValues(horizontal = QistSpacing.Small)) {
+            OutlinedButton(onClick = { dialog = "whatsapp" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
                 Text(copy("WhatsApp", "واٹس ایپ"), color = Navy)
             }
         }
@@ -81,11 +88,11 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
 @Composable
 private fun SettingsRow(title: String, icon: Int, destructive: Boolean = false, onClick: (() -> Unit)? = null, trailing: @Composable RowScope.() -> Unit) {
     val color = if (destructive) Destructive else Blue
-    val background = if (destructive) DestructiveBackground else BlueBackground
+    val background = if (destructive) DestructiveBackground else Blue.copy(alpha = 0.08f)
     Row(
-        Modifier.fillMaxWidth().then(if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)).heightIn(min = QistSize.AuthButton),
+        Modifier.fillMaxWidth().then(if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)).heightIn(min = 56.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(QistSpacing.IconGap),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Badge(icon, color, background)
         Text(title, Modifier.weight(1f), color = if (destructive) color else Navy, style = MaterialTheme.typography.titleMedium)

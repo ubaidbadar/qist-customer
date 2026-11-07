@@ -22,7 +22,6 @@ import pk.qist.customer.ui.localization.LocalUrdu
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.payments.HowToPay
 import pk.qist.customer.ui.profile.PrivacyPolicy
-import pk.qist.customer.ui.theme.*
 
 internal enum class CustomerRoute { Welcome, Phone, Password, Verify, SetPassword, Consent, Home }
 internal enum class CustomerTab { Home, Payments, Plan, Profile }
@@ -108,5 +107,5 @@ internal fun CustomerShell() {
 
 @Composable
 private fun AuthError(message: String?) {
-    if (message != null) Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = QistSpacing.Item).semantics { liveRegion = LiveRegionMode.Polite })
+    if (message != null) Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp).semantics { liveRegion = LiveRegionMode.Polite })
 }

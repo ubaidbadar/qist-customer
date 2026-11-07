@@ -14,7 +14,6 @@ import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.money
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.*
 
 @Composable
 internal fun PrivacyPolicy() {
@@ -33,9 +32,9 @@ internal fun PrivacyPolicy() {
         Text(copy("Privacy policy", "رازداری کی پالیسی"), style = MaterialTheme.typography.titleLarge)
         Caption(copy("Last updated 7 November 2026", "آخری تازہ کاری 7 نومبر 2026"))
         sections.forEach { (title, body) ->
-            Spacer(Modifier.height(QistSpacing.Section))
+            Spacer(Modifier.height(16.dp))
             Text(title, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(QistSpacing.Compact))
+            Spacer(Modifier.height(6.dp))
             Caption(body)
         }
     }
@@ -48,6 +47,6 @@ internal fun PrivacyPolicy() {
                 Toast.makeText(context, browserError, Toast.LENGTH_SHORT).show()
             }
         },
-        modifier = Modifier.fillMaxWidth().heightIn(min = QistSize.Button),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
     ) { Text(copy("Open full policy in browser", "مکمل پالیسی براؤزر میں کھولیں")) }
 }

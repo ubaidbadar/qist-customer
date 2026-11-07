@@ -12,8 +12,8 @@
                 android:startY="0"
                 android:endX="108"
                 android:endY="108">
-                <item android:offset="0" android:color="@color/qist_logo_cyan" />
-                <item android:offset="1" android:color="@color/qist_logo_blue" />
+                <item android:offset="0" android:color="#06B6D4" />
+                <item android:offset="1" android:color="#2F3FE0" />
             </gradient>
         </aapt:attr>
     </path>

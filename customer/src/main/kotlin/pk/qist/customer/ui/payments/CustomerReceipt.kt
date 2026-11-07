@@ -24,7 +24,10 @@ import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.components.ScreenBadge
 import pk.qist.customer.ui.components.SecondaryAction
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.*
+import pk.qist.customer.ui.theme.Divider
+import pk.qist.customer.ui.theme.PaidBackground
+import pk.qist.customer.ui.theme.PaidGreen
+import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
 internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBack: () -> Unit) {
@@ -69,8 +72,8 @@ internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBa
         SecondaryAction(copy("Download", "ڈاؤن لوڈ کریں")) { download.launch("qist-receipt-$id.txt") }
     }) {
         Panel {
-            Column(Modifier.fillMaxWidth().padding(vertical = QistSpacing.Tiny), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(QistSpacing.Compact)) {
-                ScreenBadge(R.drawable.detail_check, PaidGreen, PaidBackground, QistSize.HeroBadge)
+            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ScreenBadge(R.drawable.detail_check, PaidGreen, PaidBackground, 64)
                 Caption(copy("Payment received", "ادائیگی موصول ہوئی"))
                 Text(amount, style = MaterialTheme.typography.headlineLarge)
                 Caption(payment.date)
@@ -79,7 +82,7 @@ internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBa
         Panel {
             facts.forEachIndexed { index, (label, value) ->
                 if (index > 0) HorizontalDivider(color = Divider)
-                Row(Modifier.fillMaxWidth().padding(vertical = QistSpacing.Item), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                     Box(Modifier.weight(1f)) { Caption(label) }
                     Text(value, style = MaterialTheme.typography.titleMedium)
                 }
