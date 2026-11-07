@@ -1,6 +1,7 @@
 package pk.qist.customer.ui
 
 import android.os.SystemClock
+import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,6 +43,21 @@ internal fun CustomerShell() {
     val preferences = remember(appContext) { CustomerPreferences(appContext) }
     var consentPolicy by rememberSaveable { mutableStateOf(false) }
     val repository: CustomerRepository = DemoCustomerRepository
+    var plans by remember { mutableStateOf(repository.phones()) }
+    var selectedPlan by rememberSaveable { mutableStateOf(plans.first().id) }
+    val selected = plans.firstOrNull { it.id == selectedPlan } ?: plans.first()
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    fun refresh() {
+        if (refreshing) return
+        refreshing = true
+        scope.launch {
+            try {
+                withFrameNanos { }
+                plans = repository.phones()
+            } finally { refreshing = false }
+        }
+    }
 
     fun back() {
         error = false
@@ -97,7 +113,7 @@ internal fun CustomerShell() {
                 Resend(deadline, ::requestCode)
             }
             CustomerRoute.Consent -> if (consentPolicy) {
-                ProfileInformation(repository.dashboard(), privacy = true) { consentPolicy = false }
+                ProfileInformation(selected, privacy = true) { consentPolicy = false }
             } else {
                 PrivacyConsent(
                     onPolicy = { consentPolicy = true },
@@ -112,13 +128,18 @@ internal fun CustomerShell() {
                 )
             }
             CustomerRoute.Home -> if (paymentHelp) {
-                HowToPay(repository.dashboard()) { paymentHelp = false }
+                HowToPay(selected) { paymentHelp = false }
             } else Dashboard(
-                repository.dashboard(), tab, { tab = it }, { paymentHelp = true },
+                selected, tab, { tab = it }, { paymentHelp = true },
+                plans = plans,
+                onSelectPhone = { selectedPlan = it },
+                refreshing = refreshing,
+                onRefresh = ::refresh,
                 phone = phone,
                 preferences = preferences,
                 onLanguage = { urdu = !urdu },
                 onLogout = {
+                    selectedPlan = plans.first().id
                     phone = ""
                     code = ""
                     error = false

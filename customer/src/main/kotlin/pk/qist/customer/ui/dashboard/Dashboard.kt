@@ -6,6 +6,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
@@ -19,6 +20,9 @@ import pk.qist.customer.data.CustomerPreferences
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentSample
 import pk.qist.customer.ui.CustomerTab
+import pk.qist.customer.ui.phones.PhonePicker
+import pk.qist.customer.ui.phones.PlanStatusBadge
+import pk.qist.customer.ui.components.Chevron
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.localization.copy
@@ -47,11 +51,17 @@ internal fun Dashboard(
     tab: CustomerTab,
     onTab: (CustomerTab) -> Unit,
     onHelp: () -> Unit,
+    plans: List<DashboardSample>,
+    onSelectPhone: (String) -> Unit,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
     phone: String,
     preferences: CustomerPreferences,
     onLanguage: () -> Unit,
     onLogout: () -> Unit,
 ) {
+    var phonePicker by rememberSaveable { mutableStateOf(false) }
+    if (phonePicker) PhonePicker(plans, data.id, { onSelectPhone(it); phonePicker = false }, { phonePicker = false })
     var allowed by remember { mutableStateOf(preferences.notificationsEnabled) }
     var showPrompt by rememberSaveable { mutableStateOf(!preferences.hasNotificationPreference) }
     var inbox by rememberSaveable { mutableStateOf(false) }
@@ -80,7 +90,7 @@ internal fun Dashboard(
 
     val tabs = listOf(copy("Home", "گھر"), copy("Payments", "ادائیگیاں"), copy("Plan", "منصوبہ"), copy("Profile", "پروفائل"))
     val icons = listOf(R.drawable.tab_home, R.drawable.tab_payments, R.drawable.tab_plan, R.drawable.tab_profile)
-    var receiptNumber by rememberSaveable { mutableIntStateOf(0) }
+    var receiptNumber by rememberSaveable(data.id) { mutableIntStateOf(0) }
     val receipt = data.payments.firstOrNull { it.number == receiptNumber }
     BackHandler(receipt != null) { receiptNumber = 0 }
     if (receipt != null) {
@@ -102,61 +112,64 @@ internal fun Dashboard(
             Spacer(Modifier.fillMaxWidth().background(if (home) Navy else Canvas).statusBarsPadding())
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
                 CustomerTab.entries.forEachIndexed { index, item ->
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { onTab(item) },
-                        icon = { Icon(painterResource(icons[index]), contentDescription = null) },
-                        label = { Text(tabs[index], maxLines = 1) },
+                        icon = { Icon(painterResource(icons[index]), contentDescription = null, modifier = Modifier.size(24.dp)) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Blue, selectedTextColor = Blue,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor = Color.Transparent,
+                        ),
+                        label = { Text(tabs[index], maxLines = 1, style = MaterialTheme.typography.labelMedium) },
                     )
                 }
             }
         },
     ) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
-        ) {
-            if (tab == CustomerTab.Home) {
-                Box {
-                    Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
-                    Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
-                                Text(data.name, color = Color.White, style = MaterialTheme.typography.headlineMedium)
-                            }
-                            HomeNotificationsButton(unread != 0) { inbox = true }
-                        }
-                        InstallmentCard(data, onHelp)
-                        Panel {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-                                Box(Modifier.size(44.dp).background(Blue.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
-                                    Icon(painterResource(R.drawable.phone_outline), contentDescription = null, tint = Blue)
-                                }
+        PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize().padding(padding)) {
+            val scroll = key(tab, data.id) { rememberScrollState() }
+            Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                if (tab == CustomerTab.Home) {
+                    Box {
+                        Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
+                        Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
+                            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(data.model, style = MaterialTheme.typography.titleMedium)
-                                    Text(copy("Your phone", "آپ کا فون"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
+                                    Text(data.name, color = Color.White, style = MaterialTheme.typography.titleLarge)
                                 }
-                                Text(
-                                    copy("✓ Active", "✓ فعال"),
-                                    Modifier.background(PaidBackground, CircleShape).padding(horizontal = 10.dp, vertical = 6.dp),
-                                    color = PaidGreen,
-                                    style = MaterialTheme.typography.labelMedium,
-                                )
+                                HomeNotificationsButton(unread != 0) { inbox = true }
                             }
+                            InstallmentCard(data, onHelp)
+                            Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں")) { phonePicker = true }) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                                    Box(Modifier.size(44.dp).background(Blue.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
+                                        Icon(painterResource(R.drawable.phone_outline), contentDescription = null, tint = Blue)
+                                    }
+                                    Column(Modifier.weight(1f)) {
+                                        Text(data.model, style = MaterialTheme.typography.titleMedium)
+                                        Text(copy("${plans.size} phones · Tap to switch", "${plans.size} فون · بدلنے کے لیے ٹیپ کریں"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                    PlanStatusBadge(data)
+                                    Chevron()
+                                }
+                            }
+                            PaymentsCard(data.payments) { onTab(CustomerTab.Payments) }
                         }
-                        PaymentsCard(data.payments) { onTab(CustomerTab.Payments) }
                     }
-                }
-            } else {
-                Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                    Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabs[tab.ordinal], style = MaterialTheme.typography.headlineMedium)
-                    when (tab) {
-                        CustomerTab.Payments -> PaymentHistory(data) { receiptNumber = it.number }
-                        CustomerTab.Plan -> PlanDetails(data)
-                        CustomerTab.Profile -> CustomerProfile(data, phone, onLanguage, onLogout, allowed, ::setNotifications) { profilePage = it }
-                        CustomerTab.Home -> Unit
+                } else {
+                    Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
+                        Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabs[tab.ordinal], style = MaterialTheme.typography.headlineMedium)
+                        when (tab) {
+                            CustomerTab.Payments -> PaymentHistory(data) { receiptNumber = it.number }
+                            CustomerTab.Plan -> PlanDetails(data) { phonePicker = true }
+                            CustomerTab.Profile -> CustomerProfile(data, phone, onLanguage, onLogout, allowed, ::setNotifications) { profilePage = it }
+                            CustomerTab.Home -> Unit
+                        }
                     }
                 }
             }
@@ -171,10 +184,10 @@ private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(8.dp))
-        Text(copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی"))
+        Text(if (data.completed) copy("Plan completed", "منصوبہ مکمل ہو گیا") else copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی"))
         Spacer(Modifier.height(16.dp))
         LinearProgressIndicator(
-            progress = { (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
+            progress = { if (data.total == 0) 0f else (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth().height(8.dp),
             color = Blue,
             trackColor = Divider,
@@ -193,7 +206,7 @@ private fun PaymentsCard(payments: List<PaymentSample>, onViewAll: (() -> Unit)?
             Text(copy("Recent payments", "حالیہ ادائیگیاں"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
             if (onViewAll != null) TextButton(onClick = onViewAll) { Text(copy("View all", "تمام دیکھیں")) }
         }
-        payments.forEach { payment ->
+        payments.take(2).forEach { payment ->
             HorizontalDivider(color = Divider)
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

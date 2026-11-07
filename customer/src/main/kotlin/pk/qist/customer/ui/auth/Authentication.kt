@@ -179,3 +179,22 @@ internal fun Resend(deadline: Long, onResend: () -> Unit) {
         Text(copy("Resend code in $time", "کوڈ دوبارہ بھیجیں $time"), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+/** Prepared for the password screen; current demo code login stays unchanged. */
+@Composable
+internal fun PasswordField(password: String, onChange: (String) -> Unit) {
+    var visible by remember { mutableStateOf(false) }
+    OutlinedTextField(
+        value = password, onValueChange = onChange, modifier = Modifier.fillMaxWidth(), singleLine = true,
+        label = { Text(copy("Password", "پاس ورڈ")) }, shape = QistShapes.Input,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            IconButton(onClick = { visible = !visible }) {
+                Icon(painterResource(if (visible) R.drawable.password_eye_off else R.drawable.password_eye),
+                    contentDescription = if (visible) copy("Hide password", "پاس ورڈ چھپائیں") else copy("Show password", "پاس ورڈ دکھائیں"))
+            }
+        },
+        colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White),
+    )
+}

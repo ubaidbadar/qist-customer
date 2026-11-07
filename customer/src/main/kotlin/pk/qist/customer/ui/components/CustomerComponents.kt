@@ -66,7 +66,7 @@ internal fun Caption(text: String) {
 
 @Composable
 internal fun Chevron() {
-    Text(copy("›", "‹"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleLarge)
+    Icon(painterResource(pk.qist.customer.R.drawable.chevron_forward), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

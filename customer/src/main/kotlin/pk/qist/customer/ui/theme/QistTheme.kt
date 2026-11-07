@@ -27,7 +27,7 @@ internal val Coral = Color(0xFFFFA383)
 
 internal val PaidGreen = Color(0xFF08674D)
 
-internal val PaidBackground = Color(0xFFD9F4EB)
+internal val PaidBackground = Color(0xFFDDF6EC)
 
 internal val Divider = Color(0xFFE4E9F4)
 
@@ -35,7 +35,7 @@ internal val DueAmber = Color(0xFF795000)
 internal val DueBackground = Color(0xFFFFF1D5)
 internal val Destructive = Color(0xFFAA381D)
 internal val DestructiveBackground = Color(0xFFFFE8E0)
-internal val BlueBackground = Color(0xFFEDF0FF)
+internal val BlueBackground = Color(0xFFEEF1FF)
 internal val InputBorder = Color(0xFFBFCBE4)
 internal val BrandGradientStart = Color(0xFF06B6D4)
 
@@ -74,7 +74,7 @@ internal fun QistTheme(content: @Composable () -> Unit) {
             onBackground = Navy,
             surface = Color.White,
             onSurface = Navy,
-            onSurfaceVariant = Color(0xFF46577F),
+            onSurfaceVariant = Color(0xFF4A5A80),
         ),
         typography = type.copy(
             headlineLarge = type.headlineLarge.copy(fontFamily = inter, fontWeight = FontWeight.Bold),

@@ -9,6 +9,11 @@ import androidx.compose.ui.unit.*
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.DetailRow
+import pk.qist.customer.ui.components.Caption
+import pk.qist.customer.ui.components.ScreenBadge
+import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.BlueBackground
+import androidx.compose.ui.res.painterResource
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.money
 import pk.qist.customer.ui.localization.copy
@@ -19,9 +24,20 @@ import pk.qist.customer.ui.theme.PaidBackground
 import pk.qist.customer.ui.theme.PaidGreen
 
 @Composable
-internal fun PlanDetails(data: DashboardSample) {
+internal fun PlanDetails(data: DashboardSample, onChange: () -> Unit) {
     Panel {
-        DetailRow(data.model, data.retailer, "", R.drawable.phone_outline)
+        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScreenBadge(R.drawable.phone_outline, Blue, BlueBackground, 44)
+            Column(Modifier.weight(1f)) {
+                Text(data.model, style = MaterialTheme.typography.titleMedium)
+                Caption(data.retailer)
+            }
+            TextButton(onClick = onChange, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                Text(copy("Change", "بدلیں"))
+                Spacer(Modifier.width(4.dp))
+                Icon(painterResource(R.drawable.chevron_forward), null, Modifier.size(18.dp))
+            }
+        }
         Fact(copy("Total price", "کل قیمت"), money(data.advance + data.total * data.installment))
         Fact(copy("Advance paid", "پیشگی ادائیگی"), money(data.advance))
         Fact(copy("Installment", "قسط"), money(data.installment))

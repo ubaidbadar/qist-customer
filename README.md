@@ -58,3 +58,15 @@ Build/lint checks do not verify visual fidelity or Android lifecycle behavior. B
 7. Rotation, background/resume, process recreation, small displays, large font settings, and TalkBack.
 
 Performance has not been measured. For a before/after comparison, use the same device, release-like build, and journey in Android Studio Profiler/System Trace. Check main-thread stalls, frame times, and retained Activities; use Layout Inspector for recomposition and layout checks.
+
+## Customer design reference update
+
+The design branch adds the phone-switch card on Home, Change action on My plan, the My phones bottom sheet (active/completed groups), and the payment instructions page plus compact Payment methods sheet. Open the compact sheet from the wallet icon beside the payment-method heading. Both payment presentations reuse one card component and copy placeholder demo account details. Call/WhatsApp actions retain the existing demo contact notice.
+
+Phone selection is shared across Home, Payments, Plan, Profile and How to pay, and survives screen recreation. Pull down from the top of a main tab to reload the local demo collection without changing the selected phone/tab. There is no refresh button or network request.
+
+The bottom navigation uses a white background, blue active icon/label, muted inactive items, and no selection pill, with system navigation insets. It is shared by all four main tabs; full-page payment/help/receipt views and modal sheets retain their own back/dismiss handling.
+
+Current phone/code demo login is unchanged. An optional PasswordField component is prepared with an accessible eye/eye-off icon instead of Show/Hide text; it is not inserted into code login. No API integration, password authentication, dependency upgrades, merge or deployment is included.
+
+Validation for this update: `git diff --check`, resource XML parsing, source/resource-reference checks and review of the changed navigation/callback paths. `./gradlew :customer:assembleDebug :customer:lintDebug` was attempted but failed before compilation because the Gradle distribution download is blocked (`Network is unreachable`). Compilation and device/visual verification remain outstanding; no runtime or screenshot-match claims are made.
