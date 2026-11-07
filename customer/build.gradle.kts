@@ -53,11 +53,17 @@ android {
         applicationId = "pk.qist.customer"
         minSdk = 24
         targetSdk = 37
+        val defaultVersionCode = listOf(
+            rootProject.file("../build-customer.txt"),
+            rootProject.file("build-customer.txt"),
+            project.file("build-customer.txt")
+        ).find { it.isFile }?.readText()?.trim()?.toIntOrNull() ?: 1
+
         versionCode = providers.gradleProperty("qist.customer.versionCode")
             .map { it.toInt() }
             .orElse(
                 providers.provider {
-                    resolveEnv("VERSION_CODE")?.toIntOrNull() ?: 1
+                    resolveEnv("VERSION_CODE")?.toIntOrNull() ?: defaultVersionCode
                 }
             )
             .get()
