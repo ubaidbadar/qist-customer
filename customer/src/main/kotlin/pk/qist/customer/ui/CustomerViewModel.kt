@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pk.qist.customer.data.CustomerApiException
 import pk.qist.customer.data.CustomerRepository
 import pk.qist.customer.data.DashboardSample
+import pk.qist.customer.data.CustomerNetworkException
+import pk.qist.customer.data.ServiceGate
 
 internal data class CustomerState(
     val route: CustomerRoute = CustomerRoute.Welcome,
@@ -21,18 +24,23 @@ internal data class CustomerState(
     val data: DashboardSample? = null,
     val message: String? = null,
     val deadline: Long = 0L,
+    val serviceGate: ServiceGate? = null,
+    val checkingService: Boolean = false,
 )
 
 internal class CustomerViewModel(
     private val repository: CustomerRepository,
     private val acceptedPrivacy: Boolean,
+    private val appVersionCode: Long = 1,
     private val clock: () -> Long = { android.os.SystemClock.elapsedRealtime() },
 ) : ViewModel() {
     private val mutable = MutableStateFlow(CustomerState())
     val state = mutable.asStateFlow()
     private var setupToken: String? = null
     private var recovering = false
+    private var availabilityJob: Job? = null
     init {
+        checkServiceStatus()
         perform {
             if (repository.restore()) {
                 mutable.value = mutable.value.copy(route = if (acceptedPrivacy) CustomerRoute.Home else CustomerRoute.Consent)
@@ -40,16 +48,41 @@ internal class CustomerViewModel(
             }
         }
     }
+    fun checkServiceStatus(userInitiated: Boolean = false) {
+        availabilityJob?.cancel()
+        availabilityJob = viewModelScope.launch {
+            mutable.value = mutable.value.copy(checkingService = true)
+            try {
+                val availability = repository.availability()
+                val gate = availability.gate(appVersionCode)
+                if (gate != null || userInitiated) mutable.value = mutable.value.copy(serviceGate = gate, message = null)
+                if (userInitiated && gate == null && mutable.value.route == CustomerRoute.Home) refresh()
+            } catch (error: CancellationException) { throw error }
+            catch (_: IOException) {
+                if (userInitiated) mutable.value = mutable.value.copy(message = "Could not check availability. Check your internet and try again.")
+            } catch (_: IllegalArgumentException) {
+                if (userInitiated) mutable.value = mutable.value.copy(message = "Could not check availability. Please try again.")
+            } finally { mutable.value = mutable.value.copy(checkingService = false) }
+        }
+    }
     private fun perform(block: suspend () -> Unit) {
         if (mutable.value.busy) return
         mutable.value = mutable.value.copy(busy = true, message = null)
         viewModelScope.launch {
             try { block() } catch (error: CancellationException) { throw error } catch (error: CustomerApiException) {
+                val gate = when (error.code) {
+                    "MAINTENANCE_MODE" -> ServiceGate.Maintenance
+                    "CLIENT_UPDATE_REQUIRED" -> ServiceGate.UpdateRequired
+                    else -> null
+                }
+                if (gate != null) mutable.value = mutable.value.copy(serviceGate = gate)
                 if (error.status == 401 && mutable.value.route == CustomerRoute.Home) {
                     repository.clearSession()
                     mutable.value = mutable.value.copy(route = CustomerRoute.Phone, data = null)
                 }
                 mutable.value = mutable.value.copy(message = error.message)
+            } catch (_: CustomerNetworkException) {
+                mutable.value = mutable.value.copy(data = mutable.value.data?.copy(fromCache = true), message = "Could not connect. Showing saved data where available.")
             } catch (_: IOException) { mutable.value = mutable.value.copy(message = "Could not connect. Check your internet and try again.") } catch (_: java.security.GeneralSecurityException) { mutable.value = mutable.value.copy(message = "Could not securely save your session. Please try again.") } catch (_: NoSuchElementException) { invalidResponse() } catch (_: java.text.ParseException) { invalidResponse() } catch (_: IllegalArgumentException) { invalidResponse() } finally { mutable.value = mutable.value.copy(busy = false, restoring = false, switchingPlan = false, refreshing = false) }
         }
     }
@@ -120,6 +153,7 @@ internal class CustomerViewModel(
     }
     fun acceptPrivacy() = perform { mutable.value = mutable.value.copy(route = CustomerRoute.Home); load(null) }
     fun declinePrivacy() = perform { repository.clearSession(); mutable.value = CustomerState(restoring = false) }
+    fun deleteAccount() = perform { repository.deleteAccount(); setupToken = null; mutable.value = CustomerState(restoring = false) }
     fun logout() = perform { repository.logout(); mutable.value = CustomerState(restoring = false) }
     private suspend fun load(id: String?) {
         val data = repository.dashboard(id)

@@ -44,16 +44,29 @@ internal data class DashboardSample(
     val status: String, val lockState: String?, val retailerPhone: String, val retailerAddress: String,
     val paymentMethods: List<PaymentMethodSample>, val contractId: String?, val contracts: List<PlanChoice>,
     val nextCursor: String?,
+    val fromCache: Boolean = false,
+    val savedAt: Long? = null,
 ) {
     val id: String? get() = contractId
     val completed: Boolean get() = status == "completed"
 }
 internal data class PaymentPage(val items: List<PaymentSample>, val nextCursor: String?)
-internal class CustomerApiException(val status: Int, message: String) : IOException(message)
+internal class CustomerApiException(val status: Int, message: String, val code: String? = null) : IOException(message)
+internal class CustomerNetworkException(cause: IOException) : IOException("Could not connect", cause)
+internal enum class ServiceGate { UpdateRequired, Maintenance }
+internal data class AppAvailability(val maintenance: Boolean = false, val minimumVersionCode: Long = 0) {
+    fun gate(version: Long): ServiceGate? = when {
+        maintenance -> ServiceGate.Maintenance
+        minimumVersionCode > version -> ServiceGate.UpdateRequired
+        else -> null
+    }
+}
 
 internal data class AuthStart(val next: String, val retryAfterSeconds: Int)
 
 internal interface CustomerRepository {
+    suspend fun availability(): AppAvailability
+    suspend fun deleteAccount()
     suspend fun start(phone: String): AuthStart
     suspend fun verifyCode(phone: String, code: String): String
     suspend fun setPassword(phone: String, setupToken: String, password: String)
@@ -73,6 +86,8 @@ internal class HttpCustomerRepository(
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(25, TimeUnit.SECONDS)
         .callTimeout(35, TimeUnit.SECONDS).retryOnConnectionFailure(false).build(),
+    private val overviewCache: OverviewCache? = null,
+    private val appVersionCode: Long = 1,
 ) : CustomerRepository {
     private val base = baseUrl.trimEnd('/').plus('/').toHttpUrl().also {
         require(it.isHttps) { "Customer API must use HTTPS" }
@@ -81,6 +96,7 @@ internal class HttpCustomerRepository(
 
     override suspend fun restore(): Boolean {
         token = session.read()
+        if (token == null) overviewCache?.clear()
         return token != null
     }
     override suspend fun login(phone: String, password: String) {
@@ -88,6 +104,7 @@ internal class HttpCustomerRepository(
         val accessToken = response.requiredText("accessToken")
         session.save(accessToken, response.requiredText("expiresAt"))
         token = accessToken
+        overviewCache?.clear()
     }
     override suspend fun start(phone: String): AuthStart {
         val response = request("auth/start", body = buildJsonObject { put("phone", phone) })
@@ -102,6 +119,7 @@ internal class HttpCustomerRepository(
         val response = request("auth/set-password", body = buildJsonObject { put("phone", phone); put("setupToken", setupToken); put("password", password) })
         val accessToken = response.requiredText("accessToken")
         session.save(accessToken, response.requiredText("expiresAt")); token = accessToken
+        overviewCache?.clear()
     }
     override suspend fun requestCode(phone: String): Int {
         val response = request("auth/request-code", body = buildJsonObject { put("phone", phone) })
@@ -110,8 +128,28 @@ internal class HttpCustomerRepository(
     override suspend fun resetPassword(phone: String, code: String, password: String) {
         request("auth/reset-password", body = buildJsonObject { put("phone", phone); put("code", code); put("password", password) })
     }
+    override suspend fun availability(): AppAvailability {
+        val response = request("config", timeoutSeconds = 5)
+        return AppAvailability(
+            (response["maintenance"] as? JsonPrimitive)?.booleanOrNull ?: throw IOException("Invalid app configuration"),
+            (response["minimumVersionCode"] as? JsonPrimitive)?.longOrNull ?: throw IOException("Invalid app configuration"))
+    }
     override suspend fun dashboard(contractId: String?): DashboardSample = withContext(Dispatchers.IO) {
-        parseOverview(request("overview", query = mapOf("contractId" to contractId), authorized = true))
+        val owner = token ?: throw CustomerApiException(401, "Please sign in again.")
+        val response = try { request("overview", query = mapOf("contractId" to contractId), authorized = true) }
+        catch (error: CustomerNetworkException) {
+            if (session.read() != owner) { clearSession(); throw CustomerApiException(401, "Please sign in again.") }
+            val saved = overviewCache?.read(owner, contractId) ?: throw error
+            return@withContext parseOverview(saved.data).copy(fromCache = true, savedAt = saved.savedAt)
+        }
+        val data = parseOverview(response)
+        val savedAt = System.currentTimeMillis()
+        val saved = overviewCache?.save(owner, response, savedAt) ?: false
+        data.copy(savedAt = if (saved) savedAt else null)
+    }
+    override suspend fun deleteAccount() {
+        request("account", authorized = true, deleteRequest = true)
+        clearSession()
     }
     override suspend fun payments(contractId: String, cursor: String): PaymentPage = withContext(Dispatchers.IO) {
         parsePayments(request("payments", query = mapOf("contractId" to contractId, "cursor" to cursor), authorized = true))
@@ -123,21 +161,24 @@ internal class HttpCustomerRepository(
     override suspend fun clearSession() {
         token = null
         session.clear()
+        overviewCache?.clear()
     }
-    private suspend fun request(path: String, body: JsonObject? = null, query: Map<String, String?> = emptyMap(), authorized: Boolean = false): JsonObject = withContext(Dispatchers.IO) {
+    private suspend fun request(path: String, body: JsonObject? = null, query: Map<String, String?> = emptyMap(), authorized: Boolean = false, deleteRequest: Boolean = false, timeoutSeconds: Long = 35): JsonObject = withContext(Dispatchers.IO) {
         val url = base.newBuilder().addPathSegments(path).apply {
             query.forEach { (key, value) -> if (value != null) addQueryParameter(key, value) }
         }.build()
-        val request = Request.Builder().url(url).header("Accept", "application/json").apply {
+        val request = Request.Builder().url(url).header("Accept", "application/json").header("X-Customer-App-Version", appVersionCode.toString()).apply {
             if (authorized) header("Authorization", "Bearer ${token ?: throw CustomerApiException(401, "Please sign in again.")}")
+            if (deleteRequest) delete()
             if (body != null) post(body.toString().toRequestBody("application/json".toMediaType()))
         }.build()
         val response = suspendCancellableCoroutine<okhttp3.Response> { continuation ->
             val call = client.newCall(request)
+            call.timeout().timeout(timeoutSeconds, TimeUnit.SECONDS)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : okhttp3.Callback {
                 override fun onFailure(call: okhttp3.Call, e: IOException) {
-                    if (continuation.isActive) continuation.resumeWithException(e)
+                    if (continuation.isActive) continuation.resumeWithException(CustomerNetworkException(e))
                 }
                 override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
                     continuation.resume(response) { _, value, _ -> value.close() }
@@ -152,7 +193,8 @@ internal class HttpCustomerRepository(
             }
             if (!response.isSuccessful) {
                 val message = ((envelope["error"] as? JsonObject)?.get("message") as? JsonPrimitive)?.contentOrNull
-                throw CustomerApiException(response.code, message ?: "Request failed (${response.code}). Please try again.")
+                throw CustomerApiException(response.code, message ?: "Request failed (${response.code}). Please try again.",
+                    ((envelope["error"] as? JsonObject)?.get("code") as? JsonPrimitive)?.contentOrNull)
             }
             envelope["data"] as? JsonObject ?: throw IOException("The server response is missing data.")
         }

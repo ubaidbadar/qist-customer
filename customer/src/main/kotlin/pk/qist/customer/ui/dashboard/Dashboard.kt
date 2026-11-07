@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
@@ -33,6 +35,8 @@ import pk.qist.customer.ui.payments.CustomerReceipt
 import pk.qist.customer.ui.payments.PaymentHistory
 import pk.qist.customer.ui.plan.PlanDetails
 import pk.qist.customer.ui.profile.CustomerProfile
+import pk.qist.customer.ui.profile.AboutScreen
+import pk.qist.customer.ui.profile.TermsOfService
 import pk.qist.customer.ui.profile.ProfileInformation
 import pk.qist.customer.ui.theme.Blue
 import pk.qist.customer.ui.theme.DueBackground
@@ -60,6 +64,7 @@ internal fun Dashboard(
     onMore: () -> Unit,
     busy: Boolean,
     message: String?,
+    onDeleteAccount: () -> Unit,
     phone: String,
     preferences: CustomerPreferences,
     onLanguage: () -> Unit,
@@ -79,10 +84,15 @@ internal fun Dashboard(
     }
 
     var profilePage by rememberSaveable { mutableStateOf("") }
-    BackHandler(profilePage.isNotEmpty()) { profilePage = "" }
+    fun backProfile() { profilePage = if (profilePage == "terms" || profilePage == "about-privacy") "about" else "" }
+    BackHandler(profilePage.isNotEmpty(), onBack = ::backProfile)
     BackHandler(inbox) { inbox = false }
     if (profilePage.isNotEmpty()) {
-        ProfileInformation(data, privacy = profilePage == "privacy") { profilePage = "" }
+        when (profilePage) {
+            "about" -> AboutScreen(busy, message, ::backProfile, { profilePage = "terms" }, { profilePage = "about-privacy" }, onDeleteAccount)
+            "terms" -> TermsOfService(::backProfile)
+            else -> ProfileInformation(data, privacy = profilePage == "privacy" || profilePage == "about-privacy", onBack = ::backProfile)
+        }
         return
     }
     if (inbox) {
@@ -101,11 +111,16 @@ internal fun Dashboard(
         return
     }
 
-    CustomerScaffold(tab, onTab) { padding ->
-        PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize().padding(padding)) {
+    val refreshState = rememberPullToRefreshState()
+    CustomerScaffold(tab, onTab, offline = data.fromCache) { padding ->
+        PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, state = refreshState,
+            modifier = Modifier.fillMaxSize().padding(padding), indicator = {
+                PullToRefreshDefaults.Indicator(state = refreshState, isRefreshing = refreshing,
+                    modifier = Modifier.align(Alignment.TopCenter), containerColor = Color.White, color = Blue)
+            }) {
             val scroll = key(tab, data.id) { rememberScrollState() }
             Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
-                if (message != null) Surface(color = DueBackground, shape = QistShapes.Input, modifier = Modifier.padding(16.dp)) {
+                if (message != null && !data.fromCache) Surface(color = DueBackground, shape = QistShapes.Input, modifier = Modifier.padding(16.dp)) {
                     Text(message, Modifier.padding(12.dp), color = Navy)
                 }
                 if (tab == CustomerTab.Home) {
@@ -119,7 +134,8 @@ internal fun Dashboard(
                                 }
                                 HomeNotificationsButton(unread != 0) { inbox = true }
                             }
-                            if (data.id != null) InstallmentCard(data, onHelp)
+                            if (data.lockState == "locked") PhoneLockNotice(data, data.fromCache)
+                            if (data.id != null) InstallmentCard(data, onHelp) { onTab(CustomerTab.Payments) }
                             else Panel { Text(copy("No plans available. Contact your retailer.", "کوئی منصوبہ دستیاب نہیں۔ دکاندار سے رابطہ کریں۔")) }
                             if (data.id != null) Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں")) { phonePicker = true }) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
@@ -130,7 +146,8 @@ internal fun Dashboard(
                                         Text(data.model, style = MaterialTheme.typography.titleMedium)
                                         Text(copy("${plans.size} phones · Tap to switch", "${plans.size} فون · بدلنے کے لیے ٹیپ کریں"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                                     }
-                                    PlanStatusBadge(data.status, data.days.takeIf { data.dueDate != "—" })
+                                    if (data.lockState == "locked") LockedBadge()
+                                    else PlanStatusBadge(data.status, data.days.takeIf { data.dueDate != "—" })
                                     Chevron()
                                 }
                             }
@@ -154,21 +171,28 @@ internal fun Dashboard(
 }
 
 @Composable
-private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit) {
+private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit, onReceipts: () -> Unit) {
+    val completed = data.completed && data.remaining == 0L
+    val overdue = !completed && data.remaining > 0L && data.days < 0
     Panel {
-        Text(copy("Next installment", "اگلی قسط"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
+        Text(when {
+            completed -> copy("Plan completed", "منصوبہ مکمل ہو گیا")
+            overdue -> copy("Overdue installment", "تاخیر شدہ قسط")
+            else -> copy("Next installment", "اگلی قسط")
+        }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
-        Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
+        Text(if (completed) copy("All paid", "سب ادا ہو گیا") else copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(8.dp))
         Text(when {
+            completed -> copy("You have paid every installment. Thank you!", "آپ نے تمام اقساط ادا کر دی ہیں۔ شکریہ!")
             data.status == "cancelled" -> copy("Plan cancelled", "منصوبہ منسوخ ہو گیا")
             data.remaining == 0L -> copy("Nothing due", "کوئی رقم واجب نہیں")
-            data.days < 0 -> copy("Due ${data.dueDate} · ${-data.days} days overdue", "${data.dueDate} تک واجب · ${-data.days} دن تاخیر")
+            data.days < 0 -> copy("Overdue by ${-data.days} days · was due ${data.dueDate}", "${-data.days} دن تاخیر · آخری تاریخ ${data.dueDate}")
             else -> copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی")
-        })
+        }, color = if (overdue) pk.qist.customer.ui.theme.Destructive else Navy)
         Spacer(Modifier.height(16.dp))
         LinearProgressIndicator(
-            progress = { if (data.total == 0) 0f else (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
+            progress = { if (completed) 1f else if (data.total == 0) 0f else (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth().height(8.dp),
             color = Blue,
             trackColor = Divider,
@@ -176,7 +200,7 @@ private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit) {
         Spacer(Modifier.height(6.dp))
         Text(copy("${data.paid} of ${data.total} installments paid", "${data.total} میں سے ${data.paid} اقساط ادا ہوئیں"), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(16.dp))
-        Pill(copy("How to pay", "ادائیگی کیسے کریں"), onHelp)
+        Pill(if (completed) copy("View receipts", "رسیدیں دیکھیں") else copy("How to pay", "ادائیگی کیسے کریں"), if (completed) onReceipts else onHelp)
     }
 }
 
@@ -212,6 +236,28 @@ private fun HomeNotificationsButton(unread: Boolean, onClick: () -> Unit) {
             if (unread) {
                 Box(Modifier.align(Alignment.TopEnd).size(10.dp).background(Cyan, QistShapes.UnreadBadge))
             }
+        }
+    }
+}
+
+@Composable
+private fun PhoneLockNotice(data: DashboardSample, offline: Boolean) {
+    Surface(color = pk.qist.customer.ui.theme.DestructiveBackground, shape = QistShapes.Card) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(painterResource(R.drawable.detail_lock), null, Modifier.size(20.dp), tint = pk.qist.customer.ui.theme.Destructive)
+            Text(if (offline) copy("Last saved phone status: Locked. Contact ${data.retailer} about unlocking.", "آخری محفوظ حالت: لاک۔ ان لاک کے لیے ${data.retailer} سے رابطہ کریں۔")
+                else copy("Your phone was last reported locked. Contact ${data.retailer} about unlocking.", "آپ کے فون کی آخری حالت لاک ہے۔ ان لاک کے لیے ${data.retailer} سے رابطہ کریں۔"),
+                color = pk.qist.customer.ui.theme.Destructive, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun LockedBadge() {
+    Surface(color = pk.qist.customer.ui.theme.DestructiveBackground, shape = CircleShape) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(R.drawable.detail_lock), null, Modifier.size(13.dp), tint = pk.qist.customer.ui.theme.Destructive)
+            Text(copy("Locked", "لاک"), color = pk.qist.customer.ui.theme.Destructive, style = MaterialTheme.typography.labelMedium)
         }
     }
 }

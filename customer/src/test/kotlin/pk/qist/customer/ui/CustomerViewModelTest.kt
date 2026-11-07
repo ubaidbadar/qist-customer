@@ -15,6 +15,10 @@ class CustomerViewModelTest {
     @After fun tearDown() { Dispatchers.resetMain() }
     private class Repository : CustomerRepository {
         var restored = false
+        var status = AppAvailability()
+        var deletes = 0
+        override suspend fun availability() = status
+        override suspend fun deleteAccount() { failure?.let { throw it }; deletes++ }
         var next = "otp"
         var reads = 0
         var logins = 0
@@ -94,4 +98,38 @@ class CustomerViewModelTest {
         assertEquals(CustomerRoute.SetPassword, model.state.value.route)
         repo.failure = null; model.savePassword("password123", true); runCurrent(); assertEquals(1, repo.logins)
     }
+    @Test fun `service configuration opens maintenance and can recover on retry`() = runTest(dispatcher) {
+        val repo = Repository().apply { status = AppAvailability(maintenance = true) }
+        val model = model(repo); runCurrent()
+        assertEquals(ServiceGate.Maintenance, model.state.value.serviceGate)
+        repo.status = AppAvailability(); model.checkServiceStatus(true); runCurrent()
+        assertNull(model.state.value.serviceGate)
+    }
+    @Test fun `minimum supported version opens update screen`() = runTest(dispatcher) {
+        val repo = Repository().apply { status = AppAvailability(minimumVersionCode = 2) }
+        val model = model(repo); runCurrent()
+        assertEquals(ServiceGate.UpdateRequired, model.state.value.serviceGate)
+    }
+    @Test fun `server maintenance response is not shown as an offline cache state`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        repo.failure = CustomerApiException(503, "Maintenance", "MAINTENANCE_MODE")
+        model.refresh(); runCurrent()
+        assertEquals(ServiceGate.Maintenance, model.state.value.serviceGate)
+        assertFalse(model.state.value.data?.fromCache ?: true)
+    }
+    @Test fun `deleting app account signs out and clears all visible account data`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        model.deleteAccount(); runCurrent()
+        assertEquals(1, repo.deletes)
+        assertEquals(CustomerRoute.Welcome, model.state.value.route)
+        assertNull(model.state.value.data)
+    }
+    @Test fun `failed deletion does not report success or discard account view`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        repo.failure = CustomerNetworkException(java.io.IOException("offline"))
+        model.deleteAccount(); runCurrent()
+        assertEquals(0, repo.deletes); assertEquals(CustomerRoute.Home, model.state.value.route)
+        assertNotNull(model.state.value.message); assertNotNull(model.state.value.data)
+    }
+
 }

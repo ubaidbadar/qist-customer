@@ -66,6 +66,8 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
         HorizontalDivider(color = Divider)
         SettingsRow(copy("Privacy policy", "رازداری کی پالیسی"), R.drawable.detail_shield, onClick = { onOpenPage("privacy") }) { Chevron() }
         HorizontalDivider(color = Divider)
+        SettingsRow(copy("About", "تعارف"), R.drawable.payment_info, onClick = { onOpenPage("about") }) { Chevron() }
+        HorizontalDivider(color = Divider)
         SettingsRow(copy("Log out", "لاگ آؤٹ"), R.drawable.detail_logout, destructive = true, onClick = { dialog = "logout" }) { Chevron() }
     }
     when (dialog) {

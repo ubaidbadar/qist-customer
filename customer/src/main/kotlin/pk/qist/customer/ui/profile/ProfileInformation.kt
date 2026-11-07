@@ -72,8 +72,7 @@ private fun HelpAndSupport(retailer: String, phone: String) {
             if (expanded == index) Box(Modifier.padding(bottom = 14.dp)) { Caption(answer) }
         }
     }
-    val context = LocalContext.current
-    val version = remember(context) { appVersion(context.packageManager, context.packageName) }
+    val version = pk.qist.customer.BuildConfig.VERSION_NAME
     Text(
         copy("Qist customer app · Version $version", "قسط کسٹمر ایپ · ورژن $version"),
         Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -82,7 +81,3 @@ private fun HelpAndSupport(retailer: String, phone: String) {
         RetailerContactDialog(phone, whatsApp) { contact = false }
     }
 }
-
-@Suppress("DEPRECATION")
-private fun appVersion(manager: android.content.pm.PackageManager, packageName: String): String =
-    manager.getPackageInfo(packageName, 0).versionName.orEmpty()

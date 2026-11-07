@@ -96,4 +96,64 @@ class HttpCustomerRepositoryTest {
         assertEquals("new-session", session.token)
     }
 
+    @Test fun `transport failure restores saved plan but authorization failure never does`() = runBlocking {
+        val storage = MemoryTextStore()
+        val cache = BoundOverviewCache(storage)
+        val session = MemorySession().apply { token = "stored" }
+        var mode = 200
+        val repository = HttpCustomerRepository(session, "https://example.com/", client {
+            if (mode == -1) throw java.io.IOException("offline")
+            mode to if (mode == 200) """{"data":${overviewFixture()}}""" else """{"error":{"code":"UNAUTHORIZED","message":"Expired"}}"""
+        }, overviewCache = cache)
+        repository.restore(); repository.dashboard()
+        mode = -1
+        assertTrue(repository.dashboard().fromCache)
+        mode = 401
+        try { repository.dashboard(); fail("Expected unauthorized") } catch (error: CustomerApiException) { assertEquals(401, error.status) }
+    }
+    @Test fun `account deletion uses DELETE and clears token and saved snapshot only after success`() = runBlocking {
+        val storage = MemoryTextStore(); val cache = BoundOverviewCache(storage)
+        cache.save("stored", overviewFixture(), 1)
+        val session = MemorySession().apply { token = "stored" }
+        val repository = HttpCustomerRepository(session, "https://example.com/", client { request ->
+            assertEquals("DELETE", request.method); assertEquals("/account", request.url.encodedPath)
+            assertEquals("Bearer stored", request.header("Authorization"))
+            200 to """{"data":{"ok":true}}"""
+        }, overviewCache = cache)
+        repository.restore(); repository.deleteAccount()
+        assertNull(session.token); assertTrue(storage.values.isEmpty())
+    }
+    @Test fun `service config and app version header use the public customer endpoint`() = runBlocking {
+        val repository = HttpCustomerRepository(MemorySession(), "https://example.com/", client { request ->
+            assertEquals("/config", request.url.encodedPath)
+            assertEquals("217111869", request.header("X-Customer-App-Version"))
+            assertNull(request.header("Authorization"))
+            200 to """{"data":{"maintenance":true,"minimumVersionCode":100}}"""
+        }, appVersionCode = 217111869)
+        assertTrue(repository.availability().maintenance)
+    }
+
+    @Test fun `expired session cannot read an offline snapshot`() = runBlocking {
+        val storage = MemoryTextStore(); val cache = BoundOverviewCache(storage)
+        val session = MemorySession().apply { token = "stored" }
+        cache.save("stored", overviewFixture(), 1)
+        val repository = HttpCustomerRepository(session, "https://example.com/", client { throw java.io.IOException("offline") }, overviewCache = cache)
+        repository.restore(); session.token = null
+        try { repository.dashboard(); fail("Expected expired session") }
+        catch (error: CustomerApiException) { assertEquals(401, error.status) }
+        assertTrue(storage.values.isEmpty())
+    }
+    @Test fun `maintenance error never falls back to saved data or deletes it`() = runBlocking {
+        val storage = MemoryTextStore(); val cache = BoundOverviewCache(storage)
+        val session = MemorySession().apply { token = "stored" }
+        cache.save("stored", overviewFixture(), 1)
+        val repository = HttpCustomerRepository(session, "https://example.com/", client {
+            503 to """{"error":{"code":"MAINTENANCE_MODE","message":"Maintenance"}}"""
+        }, overviewCache = cache)
+        repository.restore()
+        try { repository.dashboard(); fail("Expected maintenance") }
+        catch (error: CustomerApiException) { assertEquals("MAINTENANCE_MODE", error.code) }
+        assertNotNull(cache.read("stored", "plan-a"))
+    }
+
 }

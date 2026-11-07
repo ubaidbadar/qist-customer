@@ -22,6 +22,7 @@ import pk.qist.customer.ui.localization.LocalUrdu
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.payments.HowToPay
 import pk.qist.customer.ui.profile.PrivacyPolicy
+import pk.qist.customer.ui.profile.ServiceAvailabilityScreen
 
 internal enum class CustomerRoute { Welcome, Phone, Password, Verify, SetPassword, Consent, Home }
 internal enum class CustomerTab { Home, Payments, Plan, Profile }
@@ -30,7 +31,12 @@ internal enum class CustomerTab { Home, Payments, Plan, Profile }
 internal fun CustomerShell() {
     val context = LocalContext.current.applicationContext
     val preferences = remember(context) { CustomerPreferences(context) }
-    val model = viewModel { CustomerViewModel(HttpCustomerRepository(CustomerSessionStore(context), BuildConfig.CUSTOMER_API_URL), preferences.hasAcceptedPrivacy) }
+    val model = viewModel {
+        val storage = KeystoreTextStore(context)
+        CustomerViewModel(HttpCustomerRepository(CustomerSessionStore(storage), BuildConfig.CUSTOMER_API_URL,
+            overviewCache = BoundOverviewCache(storage), appVersionCode = BuildConfig.VERSION_CODE.toLong()),
+            preferences.hasAcceptedPrivacy, appVersionCode = BuildConfig.VERSION_CODE.toLong())
+    }
     val state by model.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(CustomerTab.Home) }
     var urdu by rememberSaveable { mutableStateOf(false) }
@@ -43,12 +49,15 @@ internal fun CustomerShell() {
         password = ""; code = ""
         if (state.route == CustomerRoute.Welcome) { tab = CustomerTab.Home; paymentHelp = false; phone = "" }
     }
-    BackHandler(state.route in listOf(CustomerRoute.Phone, CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword), onBack = model::back)
-    BackHandler(state.route == CustomerRoute.Home && tab != CustomerTab.Home) { tab = CustomerTab.Home }
-    BackHandler(state.route == CustomerRoute.Consent) { if (consentPolicy) consentPolicy = false else model.declinePrivacy() }
-    BackHandler(paymentHelp) { paymentHelp = false }
+    BackHandler(state.serviceGate == null && state.route in listOf(CustomerRoute.Phone, CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword), onBack = model::back)
+    BackHandler(state.serviceGate == null && state.route == CustomerRoute.Home && tab != CustomerTab.Home) { tab = CustomerTab.Home }
+    BackHandler(state.serviceGate == null && state.route == CustomerRoute.Consent) { if (consentPolicy) consentPolicy = false else model.declinePrivacy() }
+    BackHandler(state.serviceGate == null && paymentHelp) { paymentHelp = false }
     CompositionLocalProvider(LocalUrdu provides urdu, LocalLayoutDirection provides if (urdu) LayoutDirection.Rtl else LayoutDirection.Ltr) {
-        when (state.route) {
+        val gate = state.serviceGate
+        if (gate != null) {
+            ServiceAvailabilityScreen(gate, state.checkingService, state.message) { model.checkServiceStatus(true) }
+        } else when (state.route) {
             CustomerRoute.Welcome -> Welcome({ urdu = !urdu }, model::begin)
             CustomerRoute.Phone -> AuthScreen(
                 copy("Enter your phone number", "اپنا فون نمبر درج کریں"),
@@ -98,7 +107,7 @@ internal fun CustomerShell() {
                         refreshing = state.refreshing, busy = state.busy, onRefresh = model::refresh,
                         phone = data.phone.removePrefix("0"), preferences = preferences,
                         onLanguage = { urdu = !urdu }, onLogout = model::logout,
-                        onMore = model::morePayments, message = state.message)
+                        onMore = model::morePayments, message = state.message, onDeleteAccount = model::deleteAccount)
                 }
             }
         }

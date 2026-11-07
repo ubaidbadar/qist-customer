@@ -73,7 +73,7 @@ internal fun Chevron() {
 internal fun DetailRow(
     title: String, subtitle: String, value: String, icon: Int,
     tint: Color = Blue, background: Color = Blue.copy(alpha = 0.08f),
-    valueColor: Color = Navy, status: String? = null, onClick: (() -> Unit)? = null,
+    titleColor: Color = Navy, valueColor: Color = Navy, status: String? = null, onClick: (() -> Unit)? = null,
 ) {
     Row(
         Modifier.fillMaxWidth().then(if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)).padding(vertical = 12.dp),
@@ -82,8 +82,8 @@ internal fun DetailRow(
     ) {
         Badge(icon, tint, background)
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Caption(subtitle)
+            Text(title, color = titleColor, style = MaterialTheme.typography.titleMedium)
+            if (subtitle.isNotEmpty()) Caption(subtitle)
         }
         if (value.isNotEmpty()) {
             Column(horizontalAlignment = Alignment.End) {
