@@ -1,154 +1,111 @@
 package pk.qist.customer.ui
 
-import android.os.SystemClock
-import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.*
-import pk.qist.customer.data.CustomerPreferences
-import pk.qist.customer.data.CustomerRepository
-import pk.qist.customer.data.DemoCustomerRepository
-import pk.qist.customer.ui.auth.AuthScreen
-import pk.qist.customer.ui.auth.CodeField
-import pk.qist.customer.ui.auth.PhoneField
-import pk.qist.customer.ui.auth.PrivacyConsent
-import pk.qist.customer.ui.auth.Resend
-import pk.qist.customer.ui.auth.Welcome
-import pk.qist.customer.ui.auth.normalizePhone
-import pk.qist.customer.ui.dashboard.Dashboard
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import pk.qist.customer.BuildConfig
+import pk.qist.customer.data.*
+import pk.qist.customer.ui.auth.*
+import pk.qist.customer.ui.dashboard.*
 import pk.qist.customer.ui.localization.LocalUrdu
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.payments.HowToPay
-import pk.qist.customer.ui.profile.ProfileInformation
+import pk.qist.customer.ui.profile.PrivacyPolicy
 
-internal enum class CustomerRoute { Welcome, Phone, Verify, Consent, Home }
-
+internal enum class CustomerRoute { Welcome, Phone, Password, Verify, SetPassword, Consent, Home }
 internal enum class CustomerTab { Home, Payments, Plan, Profile }
 
 @Composable
 internal fun CustomerShell() {
-    var route by rememberSaveable { mutableStateOf(CustomerRoute.Welcome) }
+    val context = LocalContext.current.applicationContext
+    val preferences = remember(context) { CustomerPreferences(context) }
+    val model = viewModel { CustomerViewModel(HttpCustomerRepository(CustomerSessionStore(context), BuildConfig.CUSTOMER_API_URL), preferences.hasAcceptedPrivacy) }
+    val state by model.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(CustomerTab.Home) }
     var urdu by rememberSaveable { mutableStateOf(false) }
     var phone by rememberSaveable { mutableStateOf("") }
-    var code by rememberSaveable { mutableStateOf("") }
-    var error by rememberSaveable { mutableStateOf(false) }
-    var deadline by rememberSaveable { mutableLongStateOf(0L) }
+    var password by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
     var paymentHelp by rememberSaveable { mutableStateOf(false) }
-    val appContext = LocalContext.current.applicationContext
-    val preferences = remember(appContext) { CustomerPreferences(appContext) }
     var consentPolicy by rememberSaveable { mutableStateOf(false) }
-    val repository: CustomerRepository = DemoCustomerRepository
-    var plans by remember { mutableStateOf(repository.phones()) }
-    var selectedPlan by rememberSaveable { mutableStateOf(plans.first().id) }
-    val selected = plans.firstOrNull { it.id == selectedPlan } ?: plans.first()
-    var refreshing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    fun refresh() {
-        if (refreshing) return
-        refreshing = true
-        scope.launch {
-            try {
-                withFrameNanos { }
-                plans = repository.phones()
-            } finally { refreshing = false }
-        }
+    LaunchedEffect(state.route) {
+        password = ""; code = ""
+        if (state.route == CustomerRoute.Welcome) { tab = CustomerTab.Home; paymentHelp = false; phone = "" }
     }
-
-    fun back() {
-        error = false
-        route = if (route == CustomerRoute.Verify) CustomerRoute.Phone else CustomerRoute.Welcome
-    }
-    fun requestCode() {
-        error = false
-        code = ""
-        deadline = SystemClock.elapsedRealtime() + 30_000
-        route = CustomerRoute.Verify
-    }
-
-    BackHandler(route == CustomerRoute.Phone || route == CustomerRoute.Verify, onBack = ::back)
-    BackHandler(route == CustomerRoute.Home && tab != CustomerTab.Home) { tab = CustomerTab.Home }
-    BackHandler(route == CustomerRoute.Consent) {
-        if (consentPolicy) consentPolicy = false else {
-            phone = ""
-            route = CustomerRoute.Welcome
-        }
-    }
+    BackHandler(state.route in listOf(CustomerRoute.Phone, CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword), onBack = model::back)
+    BackHandler(state.route == CustomerRoute.Home && tab != CustomerTab.Home) { tab = CustomerTab.Home }
+    BackHandler(state.route == CustomerRoute.Consent) { if (consentPolicy) consentPolicy = false else model.declinePrivacy() }
     BackHandler(paymentHelp) { paymentHelp = false }
-    CompositionLocalProvider(
-        LocalUrdu provides urdu,
-        LocalLayoutDirection provides if (urdu) LayoutDirection.Rtl else LayoutDirection.Ltr,
-    ) {
-        when (route) {
-            CustomerRoute.Welcome -> Welcome({ urdu = !urdu }, { route = CustomerRoute.Phone })
+    CompositionLocalProvider(LocalUrdu provides urdu, LocalLayoutDirection provides if (urdu) LayoutDirection.Rtl else LayoutDirection.Ltr) {
+        when (state.route) {
+            CustomerRoute.Welcome -> Welcome({ urdu = !urdu }, model::begin)
             CustomerRoute.Phone -> AuthScreen(
-                title = copy("Enter your phone number", "اپنا فون نمبر درج کریں"),
-                subtitle = copy("Use the number your retailer registered. Try any valid mobile number in this demo.", "ڈیمو میں کوئی بھی درست موبائل نمبر استعمال کریں۔"),
-                action = copy("Send code", "کوڈ بھیجیں"),
-                footer = copy("Not registered? Ask your retailer to add you.", "رجسٹرڈ نہیں؟ اپنے دکاندار سے رابطہ کریں۔"),
-                onBack = ::back,
-                onAction = { if (phone.matches(Regex("3[0-9]{9}"))) requestCode() else error = true },
+                copy("Enter your phone number", "اپنا فون نمبر درج کریں"),
+                copy("Use the number registered with your retailer.", "اپنے دکاندار کے پاس رجسٹرڈ نمبر استعمال کریں۔"),
+                copy("Continue", "جاری رکھیں"), model::back, { model.start(phone) },
+                footer = copy("Not registered? Contact your retailer.", "رجسٹرڈ نہیں؟ دکاندار سے رابطہ کریں۔"), busy = state.busy,
             ) {
-                PhoneField(phone, error) { phone = normalizePhone(it); error = false }
+                PhoneField(phone, false) { if (!state.busy) phone = normalizePhone(it) }
+                AuthError(state.message)
+            }
+            CustomerRoute.Password, CustomerRoute.SetPassword -> {
+                val creating = state.route == CustomerRoute.SetPassword
+                AuthScreen(
+                    if (creating) copy("Create your password", "اپنا پاس ورڈ بنائیں") else copy("Welcome back", "واپس خوش آمدید"),
+                    if (creating) copy("Your number is verified. Choose a password with 8–128 characters.", "نمبر کی تصدیق ہو گئی۔ ۸ تا ۱۲۸ حروف کا پاس ورڈ بنائیں۔") else copy("Enter your password for +92 ${state.phone}.", "+92 ${state.phone} کا پاس ورڈ درج کریں۔"),
+                    if (creating) copy("Save and continue", "محفوظ کریں اور جاری رکھیں") else copy("Sign in", "لاگ ان کریں"),
+                    model::back, { if (creating) model.savePassword(password, preferences.hasAcceptedPrivacy) else model.login(password, preferences.hasAcceptedPrivacy) },
+                    busy = state.busy, enabled = password.length in 8..128,
+                ) {
+                    PasswordField(password) { if (!state.busy) password = it.take(128) }
+                    TextButton(onClick = { model.requestCode(true) }, enabled = !state.busy) {
+                        Text(if (creating) copy("Verify again", "دوبارہ تصدیق کریں") else copy("Forgot password?", "پاس ورڈ بھول گئے؟"))
+                    }
+                    AuthError(state.message)
+                }
             }
             CustomerRoute.Verify -> AuthScreen(
-                title = copy("Verify your number", "اپنے نمبر کی تصدیق کریں"),
-                subtitle = copy("Enter the 6-digit code for +92 $phone. Demo code: 123456.", "+92 $phone کے لیے ۶ ہندسوں کا کوڈ درج کریں۔ ڈیمو کوڈ: 123456۔"),
-                action = copy("Verify", "تصدیق کریں"),
-                onBack = ::back,
-                onAction = {
-                    if (repository.verify(code)) {
-                        tab = CustomerTab.Home
-                        code = ""
-                        route = if (preferences.hasAcceptedPrivacy) CustomerRoute.Home else CustomerRoute.Consent
-                    } else error = true
-                },
+                copy("Check your WhatsApp", "اپنا واٹس ایپ دیکھیں"),
+                copy("Enter the 6-digit code sent to +92 ${state.phone}.", "+92 ${state.phone} پر بھیجا گیا ۶ ہندسوں کا کوڈ درج کریں۔"),
+                copy("Verify", "تصدیق کریں"), model::back, { model.verify(code) }, busy = state.busy, enabled = code.length == 6,
             ) {
-                CodeField(code) { code = it; error = false }
-                if (error) Text(copy("Enter the demo code 123456.", "ڈیمو کوڈ 123456 درج کریں۔"), color = MaterialTheme.colorScheme.error)
-                Resend(deadline, ::requestCode)
+                CodeField(code) { if (!state.busy) code = it }
+                AuthError(state.message)
+                Resend(state.deadline, { code = ""; model.requestCode() }, enabled = !state.busy)
             }
             CustomerRoute.Consent -> if (consentPolicy) {
-                ProfileInformation(selected, privacy = true) { consentPolicy = false }
-            } else {
-                PrivacyConsent(
-                    onPolicy = { consentPolicy = true },
-                    onAgree = {
-                        preferences.acceptPrivacy()
-                        route = CustomerRoute.Home
-                    },
-                    onDecline = {
-                        phone = ""
-                        route = CustomerRoute.Welcome
-                    },
-                )
+                AuthScreen(copy("Privacy policy", "رازداری کی پالیسی"), "", copy("Back", "واپس"), { consentPolicy = false }, { consentPolicy = false }) { PrivacyPolicy() }
+            } else PrivacyConsent({ consentPolicy = true }, { preferences.acceptPrivacy(); model.acceptPrivacy() }, model::declinePrivacy)
+            CustomerRoute.Home -> {
+                val data = state.data
+                when {
+                    state.switchingPlan || (data == null && state.busy) -> CustomerLoading(tab, { tab = it })
+                    data == null -> CustomerLoadError(tab, { tab = it }, state.message, model::refresh, model::logout)
+                    paymentHelp -> HowToPay(data) { paymentHelp = false }
+                    else -> Dashboard(data, tab, { tab = it }, { paymentHelp = true },
+                        plans = data.contracts, onSelectPhone = model::selectPlan,
+                        refreshing = state.refreshing, busy = state.busy, onRefresh = model::refresh,
+                        phone = data.phone.removePrefix("0"), preferences = preferences,
+                        onLanguage = { urdu = !urdu }, onLogout = model::logout,
+                        onMore = model::morePayments, message = state.message)
+                }
             }
-            CustomerRoute.Home -> if (paymentHelp) {
-                HowToPay(selected) { paymentHelp = false }
-            } else Dashboard(
-                selected, tab, { tab = it }, { paymentHelp = true },
-                plans = plans,
-                onSelectPhone = { selectedPlan = it },
-                refreshing = refreshing,
-                onRefresh = ::refresh,
-                phone = phone,
-                preferences = preferences,
-                onLanguage = { urdu = !urdu },
-                onLogout = {
-                    selectedPlan = plans.first().id
-                    phone = ""
-                    code = ""
-                    error = false
-                    deadline = 0L
-                    paymentHelp = false
-                    tab = CustomerTab.Home
-                    route = CustomerRoute.Welcome
-                },
-            )
         }
     }
+}
+
+@Composable
+private fun AuthError(message: String?) {
+    if (message != null) Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp).semantics { liveRegion = LiveRegionMode.Polite })
 }

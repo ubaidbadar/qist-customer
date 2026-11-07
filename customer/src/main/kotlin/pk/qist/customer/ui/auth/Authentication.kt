@@ -73,12 +73,14 @@ internal fun AuthScreen(
     onBack: () -> Unit,
     onAction: () -> Unit,
     footer: String? = null,
+    busy: Boolean = false,
+    enabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().imePadding().padding(QistSpacing.AuthScreen)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             val backLabel = copy("Back", "واپس")
-            FilledIconButton(onClick = onBack, modifier = Modifier.size(48.dp).semantics { contentDescription = backLabel },
+            FilledIconButton(onClick = onBack, enabled = !busy, modifier = Modifier.size(48.dp).semantics { contentDescription = backLabel },
                 colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White, contentColor = Navy),
             ) { Text(copy("‹", "›"), fontSize = 28.sp) }
             Spacer(Modifier.height(28.dp))
@@ -88,7 +90,13 @@ internal fun AuthScreen(
             Spacer(Modifier.height(22.dp))
             content()
         }
-        Pill(action, onAction)
+        Button(onClick = onAction, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = CircleShape) {
+            if (busy) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(if (busy) copy("Please wait…", "انتظار کریں…") else action)
+        }
         if (footer != null) {
             Spacer(Modifier.height(12.dp))
             Text(footer, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -162,7 +170,7 @@ internal fun CodeField(code: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-internal fun Resend(deadline: Long, onResend: () -> Unit) {
+internal fun Resend(deadline: Long, onResend: () -> Unit, enabled: Boolean = true) {
     var now by remember(deadline) { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     LaunchedEffect(deadline) {
         while (now < deadline) {
@@ -173,14 +181,14 @@ internal fun Resend(deadline: Long, onResend: () -> Unit) {
     val seconds = ((deadline - now + 999) / 1000).coerceAtLeast(0)
     Spacer(Modifier.height(12.dp))
     if (seconds == 0L) {
-        TextButton(onClick = onResend) { Text(copy("Resend code", "کوڈ دوبارہ بھیجیں")) }
+        TextButton(onClick = onResend, enabled = enabled) { Text(copy("Resend code", "کوڈ دوبارہ بھیجیں")) }
     } else {
         val time = "0:" + seconds.toString().padStart(2, '0')
         Text(copy("Resend code in $time", "کوڈ دوبارہ بھیجیں $time"), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
-/** Prepared for the password screen; current demo code login stays unchanged. */
+/** Visibility stays local; passwords never enter saved instance state. */
 @Composable
 internal fun PasswordField(password: String, onChange: (String) -> Unit) {
     var visible by remember { mutableStateOf(false) }

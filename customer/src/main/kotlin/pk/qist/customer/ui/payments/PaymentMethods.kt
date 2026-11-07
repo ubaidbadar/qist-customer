@@ -35,7 +35,7 @@ internal fun PaymentMethodsSheet(data: DashboardSample, onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(copy("Payment methods", "ادائیگی کے طریقے"), style = MaterialTheme.typography.titleLarge)
             Text(copy("Pay ${data.retailer} directly using any of these.", "${data.retailer} کو ان طریقوں سے براہ راست ادائیگی کریں۔"),
-                style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             PaymentMethods(data, compact = true)
             PaymentNotice()
             Pill(copy("Close", "بند کریں"), onDismiss)
@@ -54,7 +54,7 @@ internal fun PaymentMethods(data: DashboardSample, compact: Boolean = false) {
 @Composable
 private fun PaymentMethodCard(method: PaymentMethodSample, address: String, compact: Boolean) {
     val context = LocalContext.current
-    val copied = copy("Demo account details copied", "نمونہ اکاؤنٹ کی تفصیل کاپی ہو گئی")
+    val copied = copy("Account details copied", "اکاؤنٹ کی تفصیل کاپی ہو گئی")
     Surface(color = if (compact) Canvas else Color.White, shape = if (compact) QistShapes.Option else QistShapes.Card) {
         Row(Modifier.fillMaxWidth().padding(horizontal = if (compact) 14.dp else 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 12.dp)) {

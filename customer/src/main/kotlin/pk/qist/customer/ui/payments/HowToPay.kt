@@ -17,14 +17,15 @@ import pk.qist.customer.ui.theme.*
 @Composable
 internal fun HowToPay(data: DashboardSample, onBack: () -> Unit) {
     var contact by rememberSaveable { mutableStateOf(false) }
+    var whatsApp by remember { mutableStateOf(false) }
     var methods by rememberSaveable { mutableStateOf(false) }
     PaymentPage(copy("How to pay", "ادائیگی کیسے کریں"), onBack, actions = {
-        Button(onClick = { contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape) {
+        Button(onClick = { whatsApp = false; contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape) {
             Icon(painterResource(R.drawable.payment_call), null, Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(copy("Call ${data.retailer}", "${data.retailer} کو کال کریں"))
         }
-        OutlinedButton(onClick = { contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape,
+        OutlinedButton(onClick = { whatsApp = true; contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape,
             border = androidx.compose.foundation.BorderStroke(1.dp, InputBorder)) {
             Icon(painterResource(R.drawable.payment_chat), null, Modifier.size(20.dp), tint = Navy)
             Spacer(Modifier.width(8.dp))
@@ -54,5 +55,5 @@ internal fun HowToPay(data: DashboardSample, onBack: () -> Unit) {
         PaymentNotice()
     }
     if (methods) PaymentMethodsSheet(data) { methods = false }
-    if (contact) RetailerContactDialog { contact = false }
+    if (contact) RetailerContactDialog(data.retailerPhone, whatsApp) { contact = false }
 }

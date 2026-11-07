@@ -19,6 +19,7 @@ import pk.qist.customer.R
 import pk.qist.customer.data.CustomerPreferences
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentSample
+import pk.qist.customer.data.PlanChoice
 import pk.qist.customer.ui.CustomerTab
 import pk.qist.customer.ui.phones.PhonePicker
 import pk.qist.customer.ui.phones.PlanStatusBadge
@@ -34,6 +35,7 @@ import pk.qist.customer.ui.plan.PlanDetails
 import pk.qist.customer.ui.profile.CustomerProfile
 import pk.qist.customer.ui.profile.ProfileInformation
 import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.DueBackground
 import pk.qist.customer.ui.theme.Canvas
 import pk.qist.customer.ui.theme.Cyan
 import pk.qist.customer.ui.theme.DeepSurface
@@ -51,21 +53,24 @@ internal fun Dashboard(
     tab: CustomerTab,
     onTab: (CustomerTab) -> Unit,
     onHelp: () -> Unit,
-    plans: List<DashboardSample>,
+    plans: List<PlanChoice>,
     onSelectPhone: (String) -> Unit,
     refreshing: Boolean,
     onRefresh: () -> Unit,
+    onMore: () -> Unit,
+    busy: Boolean,
+    message: String?,
     phone: String,
     preferences: CustomerPreferences,
     onLanguage: () -> Unit,
     onLogout: () -> Unit,
 ) {
     var phonePicker by rememberSaveable { mutableStateOf(false) }
-    if (phonePicker) PhonePicker(plans, data.id, { onSelectPhone(it); phonePicker = false }, { phonePicker = false })
+    if (phonePicker) PhonePicker(plans, data.id.orEmpty(), { onSelectPhone(it); phonePicker = false }, { phonePicker = false })
     var allowed by remember { mutableStateOf(preferences.notificationsEnabled) }
-    var showPrompt by rememberSaveable { mutableStateOf(!preferences.hasNotificationPreference) }
+    var showPrompt by rememberSaveable { mutableStateOf(false) }
     var inbox by rememberSaveable { mutableStateOf(false) }
-    var unread by rememberSaveable { mutableIntStateOf(3) }
+    var unread by rememberSaveable { mutableIntStateOf(0) }
 
     fun setNotifications(enabled: Boolean) {
         allowed = enabled
@@ -88,51 +93,21 @@ internal fun Dashboard(
     }
     if (showPrompt) NotificationPrompt({ setNotifications(true) }, { setNotifications(false) })
 
-    val tabs = listOf(copy("Home", "گھر"), copy("Payments", "ادائیگیاں"), copy("Plan", "منصوبہ"), copy("Profile", "پروفائل"))
-    val icons = listOf(R.drawable.tab_home, R.drawable.tab_payments, R.drawable.tab_plan, R.drawable.tab_profile)
-    var receiptNumber by rememberSaveable(data.id) { mutableIntStateOf(0) }
-    val receipt = data.payments.firstOrNull { it.number == receiptNumber }
-    BackHandler(receipt != null) { receiptNumber = 0 }
+    var receiptNumber by rememberSaveable(data.id) { mutableStateOf("") }
+    val receipt = data.payments.firstOrNull { it.id == receiptNumber }
+    BackHandler(receipt != null) { receiptNumber = "" }
     if (receipt != null) {
-        CustomerReceipt(data, receipt) { receiptNumber = 0 }
+        CustomerReceipt(data, receipt) { receiptNumber = "" }
         return
     }
 
-    val home = tab == CustomerTab.Home
-    val window = LocalActivity.current?.window
-    DisposableEffect(window, home) {
-        val controller = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
-        controller?.isAppearanceLightStatusBars = !home
-        onDispose { controller?.isAppearanceLightStatusBars = true }
-    }
-
-    Scaffold(
-        containerColor = Canvas,
-        topBar = {
-            Spacer(Modifier.fillMaxWidth().background(if (home) Navy else Canvas).statusBarsPadding())
-        },
-        bottomBar = {
-            NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
-                CustomerTab.entries.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        selected = tab == item,
-                        onClick = { onTab(item) },
-                        icon = { Icon(painterResource(icons[index]), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Blue, selectedTextColor = Blue,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            indicatorColor = Color.Transparent,
-                        ),
-                        label = { Text(tabs[index], maxLines = 1, style = MaterialTheme.typography.labelMedium) },
-                    )
-                }
-            }
-        },
-    ) { padding ->
+    CustomerScaffold(tab, onTab) { padding ->
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize().padding(padding)) {
             val scroll = key(tab, data.id) { rememberScrollState() }
             Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                if (message != null) Surface(color = DueBackground, shape = QistShapes.Input, modifier = Modifier.padding(16.dp)) {
+                    Text(message, Modifier.padding(12.dp), color = Navy)
+                }
                 if (tab == CustomerTab.Home) {
                     Box {
                         Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
@@ -144,8 +119,9 @@ internal fun Dashboard(
                                 }
                                 HomeNotificationsButton(unread != 0) { inbox = true }
                             }
-                            InstallmentCard(data, onHelp)
-                            Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں")) { phonePicker = true }) {
+                            if (data.id != null) InstallmentCard(data, onHelp)
+                            else Panel { Text(copy("No plans available. Contact your retailer.", "کوئی منصوبہ دستیاب نہیں۔ دکاندار سے رابطہ کریں۔")) }
+                            if (data.id != null) Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں")) { phonePicker = true }) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                                     Box(Modifier.size(44.dp).background(Blue.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
                                         Icon(painterResource(R.drawable.phone_outline), contentDescription = null, tint = Blue)
@@ -154,7 +130,7 @@ internal fun Dashboard(
                                         Text(data.model, style = MaterialTheme.typography.titleMedium)
                                         Text(copy("${plans.size} phones · Tap to switch", "${plans.size} فون · بدلنے کے لیے ٹیپ کریں"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                                     }
-                                    PlanStatusBadge(data)
+                                    PlanStatusBadge(data.status, data.days.takeIf { data.dueDate != "—" })
                                     Chevron()
                                 }
                             }
@@ -163,10 +139,10 @@ internal fun Dashboard(
                     }
                 } else {
                     Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                        Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabs[tab.ordinal], style = MaterialTheme.typography.headlineMedium)
+                        Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabTitle(tab), style = MaterialTheme.typography.headlineMedium)
                         when (tab) {
-                            CustomerTab.Payments -> PaymentHistory(data) { receiptNumber = it.number }
-                            CustomerTab.Plan -> PlanDetails(data) { phonePicker = true }
+                            CustomerTab.Payments -> PaymentHistory(data, busy, onMore) { receiptNumber = it.id }
+                            CustomerTab.Plan -> if (data.id == null) Panel { Text(copy("No plan available.", "کوئی منصوبہ دستیاب نہیں۔")) } else PlanDetails(data) { phonePicker = true }
                             CustomerTab.Profile -> CustomerProfile(data, phone, onLanguage, onLogout, allowed, ::setNotifications) { profilePage = it }
                             CustomerTab.Home -> Unit
                         }
@@ -184,7 +160,12 @@ private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(8.dp))
-        Text(if (data.completed) copy("Plan completed", "منصوبہ مکمل ہو گیا") else copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی"))
+        Text(when {
+            data.status == "cancelled" -> copy("Plan cancelled", "منصوبہ منسوخ ہو گیا")
+            data.remaining == 0L -> copy("Nothing due", "کوئی رقم واجب نہیں")
+            data.days < 0 -> copy("Due ${data.dueDate} · ${-data.days} days overdue", "${data.dueDate} تک واجب · ${-data.days} دن تاخیر")
+            else -> copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی")
+        })
         Spacer(Modifier.height(16.dp))
         LinearProgressIndicator(
             progress = { if (data.total == 0) 0f else (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
@@ -210,7 +191,7 @@ private fun PaymentsCard(payments: List<PaymentSample>, onViewAll: (() -> Unit)?
             HorizontalDivider(color = Divider)
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(copy("Installment ${payment.number}", "قسط ${payment.number}"), style = MaterialTheme.typography.titleMedium)
+                    Text(copy(payment.label, payment.label), style = MaterialTheme.typography.titleMedium)
                     Text(copy("Paid ${payment.date}", "ادا شدہ ${payment.date}"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(copy("Rs. ${payment.amount}", "روپے ${payment.amount}"), color = PaidGreen, style = MaterialTheme.typography.titleMedium)

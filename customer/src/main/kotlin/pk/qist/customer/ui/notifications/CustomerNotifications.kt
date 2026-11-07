@@ -47,7 +47,7 @@ internal fun NotificationPrompt(onAllow: () -> Unit, onDismiss: () -> Unit) {
             NoticeIcon(R.drawable.detail_bell, Blue, BlueBackground, large = true)
             Text(copy("Never miss a due date", "قسط کی تاریخ یاد رکھیں"), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
             Text(
-                copy("Allow notifications for installment reminders and payment confirmations. This demo saves your preference on this device.", "قسط کی یاد دہانی اور ادائیگی کی تصدیق کے لیے اطلاعات کی اجازت دیں۔ یہ ڈیمو آپ کی ترجیح اسی فون پر محفوظ کرتا ہے۔"),
+                copy("Remote installment reminders and payment confirmations are not available in this version.", "اس ورژن میں قسط کی ریموٹ یاد دہانی اور ادائیگی کی تصدیق دستیاب نہیں۔"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
@@ -79,31 +79,7 @@ internal fun NotificationInbox(
                 Text(copy("Mark all read", "سب پڑھ لیے"))
             }
         }
-        Section(copy("Today", "آج"))
-        val payment = data.payments.first()
-        NoticeCard(
-            copy("Payment received", "ادائیگی موصول ہوئی"),
-            copy("Rs. ${payment.amount} received for installment ${payment.number}. Thank you.", "قسط ${payment.number} کے لیے ${payment.amount} روپے موصول ہوئے۔ شکریہ۔"),
-            "10:30 AM", R.drawable.detail_check, PaidGreen, PaidBackground,
-            unread = unread and 1 != 0, onRead = { onRead(1) },
-        )
-        NoticeCard(
-            copy("Installment due soon", "قسط جلد واجب ہے"),
-            copy("Rs. ${data.amount} is due on ${data.dueDate}.", "${data.amount} روپے ${data.dueDate} کو واجب ہیں۔"),
-            "9:00 AM", R.drawable.detail_clock, DueAmber, DueBackground,
-            unread = unread and 2 != 0, onRead = { onRead(2) },
-        )
-        Section(copy("Earlier", "پہلے"))
-        NoticeCard(
-            copy("Payment overdue", "قسط کی تاریخ گزر گئی"),
-            copy("Your installment of Rs. ${payment.amount} was due on ${payment.date}. Please contact ${data.retailer}.", "${payment.amount} روپے کی قسط ${payment.date} کو واجب تھی۔ ${data.retailer} سے رابطہ کریں۔"),
-            payment.date, R.drawable.notice_overdue, Destructive, DestructiveBackground,
-        )
-        NoticeCard(
-            copy("Phone unlocked", "فون ان لاک ہو گیا"),
-            copy("Your phone is unlocked after your payment.", "ادائیگی کے بعد آپ کا فون ان لاک ہو گیا۔"),
-            payment.date, R.drawable.notice_unlock, Blue, BlueBackground,
-        )
+        Text(copy("No notifications available. Check Home and Payments for your latest account information.", "کوئی اطلاع دستیاب نہیں۔ تازہ معلومات کے لیے ہوم اور ادائیگیاں دیکھیں۔"), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

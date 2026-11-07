@@ -1,72 +1,29 @@
 # Qist Customer for Android
 
-Qist Customer displays installment plans, payments, receipts, and retailer guidance. The `:customer` application is independent of the copied `:app` locker module. It does not lock or manage devices.
+Customer Android app with the supplied Home, Plan, My phones and payment-method designs. The copied `:app` locker module is unchanged.
 
-The current app is a local demonstration: enter a ten-digit mobile number starting with `3`, then use verification code `123456`. There is no SMS, backend login, remote push registration, analytics, or payment processing. Financial records and retailer contact controls are demo data.
+## Login and API
 
-## Build and check
+Phone first: `auth/start` checks for a non-cancelled plan at an active retailer. Existing passwords lead to Password; first-time accounts receive a WhatsApp OTP. `auth/verify-code` verifies that code before opening Create password. A five-minute single-use proof is exchanged at `auth/set-password` for a session. Forgotten passwords use `auth/request-code` and the same verify/set sequence. There is no demo code or sample financial data in production.
 
-Use the committed Gradle wrapper and the SDK/toolchain configured in the repository:
+Configure `CUSTOMER_API_URL` or `qist.customer.apiUrl` with the full HTTPS customer endpoint base (default `https://qist.restora.live/api/v1/customer-app/`). If only `API_URL` is configured, it is the API root and `/customer-app/` is appended. The paired backend change must be available before distributing this client. WhatsApp uses the backend's existing provider settings; no secrets belong in the APK.
+
+One authenticated overview supplies profile, owned phones, selected plan/schedule, retailer contacts/payment instructions and the first payment page. Switching tabs adds no requests. Selecting a phone makes one overview request; Load more requests only the next receipt page and deduplicates ids. Pull down to refresh; there is no refresh button. Money stays integer paisa until formatting, and installments use their actual statuses, partial payments and fees.
+
+## UI and state
+
+The reference palette, typography, spacing, cards, payment page/sheet and bottom navigation are preserved. Shared navigation renders under loading, content and error states: white background, blue active icon/label, muted inactive items and no selection pill. Full-screen payment/help/receipt pages keep their own back handling.
+
+Skeleton cards appear only while signed-in content first loads or the selected phone changes. Pull-down refresh keeps loaded content visible. Failures end loading and provide useful feedback; initial failures offer retry. Buttons guard duplicate submissions. Password visibility uses the eye icon; passwords, OTPs and setup proofs stay only in memory. An app-scoped ViewModel owns request/state lifetime across rotation and HTTP calls cancel with their coroutine.
+
+Sessions are encrypted using Android Keystore under `noBackupFilesDir`; the current session is restored after reopening and removed when expired/unauthorized. Updated privacy acceptance is required. Receipt exports use real receipt identifiers and metadata. Call/WhatsApp links use the retailer's provided number. Payment methods come from the selected retailer, with no invented fallback accounts. The backend has no customer notification API, so the inbox is empty and its switch is marked coming soon.
+
+## Verification
 
 ```bash
-./gradlew :customer:assembleDebug :customer:bundleRelease :customer:lintDebug :customer:lintRelease :customer:test
+./gradlew :customer:assembleDebug :customer:testDebugUnitTest :customer:lintDebug
 ```
 
-The customer module currently contains no unit-test cases; a successful `:customer:test` task with `NO-SOURCE` is not runtime coverage. Customer CI uploads the debug APK and check reports. Release signing, branch-to-Play-track mapping, and publishing requirements are documented in [Play Store release instructions](docs/PLAY_STORE_RELEASE.md).
+23 JUnit tests passed in an isolated JVM harness using Kotlin 2.4.20 and the repository's declared library versions. The harness compiles the actual API repository, ViewModel and test sources, with the unchanged storage interface/navigation enums extracted from their Android source files. Coverage includes phone branching, OTP/password setup, duplicate submits, expiry, consent, offline refresh, resend failures, pagination, bearer paths, receipt metadata and money/date mapping. This does not compile Compose screens or the Android Keystore implementation.
 
-## Source layout
-
-Kotlin sources are under `customer/src/main/kotlin/pk/qist/customer/`. Packages match their folders.
-
-| Path | Responsibility |
-| --- | --- |
-| `MainActivity.kt` | Android entry point, edge-to-edge setup, theme |
-| `data/` | Customer models, deterministic demo repository, persisted preferences |
-| `ui/CustomerShell.kt` | Sign-in and top-level navigation state |
-| `ui/auth/` | Welcome, phone/code controls, resend timer, privacy consent |
-| `ui/dashboard/` | Dashboard navigation, overlays, Home cards |
-| `ui/payments/` | Payment history, payment instructions, receipt sharing/export |
-| `ui/plan/` | Plan facts and installment schedule |
-| `ui/profile/` | Profile, language/logout dialogs, help, privacy policy |
-| `ui/notifications/` | Demo notification prompt and inbox |
-| `ui/components/` | Shared cards, controls, captions, detail rows, contact dialog |
-| `ui/localization/` | Existing English/Urdu selection |
-| `ui/theme/` | Inter typography, existing palette, shared corners and spacing |
-
-Follow [.agent/skills/kotlin-android-excellence/SKILL.md](.agent/skills/kotlin-android-excellence/SKILL.md) for Android changes. Add reusable UI to the existing components and theme instead of creating per-screen design systems.
-
-## State and data ownership
-
-`CustomerShell` owns sign-in inputs, language, root navigation, selected tab, and payment-help visibility. `Dashboard` owns its notification prompt, unread flags, receipt selection, and profile subpage. Dialog and FAQ state stays with the screen that uses it. Existing `rememberSaveable` boundaries remain in place.
-
-`rememberSaveable` is approximately React local state with Android screen-restoration support. `remember` is approximately `useMemo`/`useRef`, scoped to the current composition. State and callbacks flow down to reusable components; there is no new DI or state-management framework.
-
-`CustomerPreferences` uses application context and preserves the existing private preference files, keys, defaults, and asynchronous `apply()` writes. It does not retain an Activity. Privacy acceptance and notification preference remain durable; transient UI state remains in Compose. The demo repository returns one read-only sample model shared by its consumers.
-
-This restructure does not add real authentication, networking, device management, or notification delivery. The privacy disclosures must be reviewed before those features are introduced.
-
-## Device verification
-
-Build/lint checks do not verify visual fidelity or Android lifecycle behavior. Before merging or distributing, check:
-
-1. Welcome → phone input → verification; local/international pasted numbers, invalid input, resend countdown, and keyboard.
-2. Consent → privacy notice → back → agree or decline, including acceptance after restarting.
-3. Home, Payments, Plan, and Profile; payment totals, receipts, back navigation, and the navy Home status bar.
-4. Notification prompt, saved notification toggle, unread markers, and mark-all-read.
-5. Help questions, retailer demo dialogs, privacy browser link, language selection/RTL, and logout confirmation.
-6. Receipt share and download, including canceling the file picker.
-7. Rotation, background/resume, process recreation, small displays, large font settings, and TalkBack.
-
-Performance has not been measured. For a before/after comparison, use the same device, release-like build, and journey in Android Studio Profiler/System Trace. Check main-thread stalls, frame times, and retained Activities; use Layout Inspector for recomposition and layout checks.
-
-## Customer design reference update
-
-The design branch adds the phone-switch card on Home, Change action on My plan, the My phones bottom sheet (active/completed groups), and the payment instructions page plus compact Payment methods sheet. Open the compact sheet from the wallet icon beside the payment-method heading. Both payment presentations reuse one card component and copy placeholder demo account details. Call/WhatsApp actions retain the existing demo contact notice.
-
-Phone selection is shared across Home, Payments, Plan, Profile and How to pay, and survives screen recreation. Pull down from the top of a main tab to reload the local demo collection without changing the selected phone/tab. There is no refresh button or network request.
-
-The bottom navigation uses a white background, blue active icon/label, muted inactive items, and no selection pill, with system navigation insets. It is shared by all four main tabs; full-page payment/help/receipt views and modal sheets retain their own back/dismiss handling.
-
-Current phone/code demo login is unchanged. An optional PasswordField component is prepared with an accessible eye/eye-off icon instead of Show/Hide text; it is not inserted into code login. No API integration, password authentication, dependency upgrades, merge or deployment is included.
-
-Validation for this update: `git diff --check`, resource XML parsing, source/resource-reference checks and review of the changed navigation/callback paths. `./gradlew :customer:assembleDebug :customer:lintDebug` was attempted but failed before compilation because the Gradle distribution download is blocked (`Network is unreachable`). Compilation and device/visual verification remain outstanding; no runtime or screenshot-match claims are made.
+The full Gradle command was attempted but failed before compilation because the Gradle 9.8.0 distribution could not be downloaded. Resource XML/reference checks and `git diff --check` pass. APK, device, Compose visual/layout, Keystore and live WhatsApp delivery checks remain outstanding. No signing/toolchain upgrades, merge or deployment are included. Review the hosted privacy policy and Play disclosures before distributing real authentication.
