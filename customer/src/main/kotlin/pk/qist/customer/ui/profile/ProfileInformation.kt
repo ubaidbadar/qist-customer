@@ -6,6 +6,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -16,9 +17,7 @@ import pk.qist.customer.ui.components.CustomerBackButton
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.RetailerContactDialog
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Canvas
-import pk.qist.customer.ui.theme.Divider
-import pk.qist.customer.ui.theme.QistSpacing
+import pk.qist.customer.ui.theme.*
 
 @Composable
 internal fun ProfileInformation(data: DashboardSample, privacy: Boolean, onBack: () -> Unit) {
@@ -30,7 +29,7 @@ internal fun ProfileInformation(data: DashboardSample, privacy: Boolean, onBack:
             CustomerBackButton(onBack)
             Text(
                 if (privacy) copy("Privacy policy", "رازداری کی پالیسی") else copy("Help and support", "مدد اور معاونت"),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineSmall,
             )
         }
         if (privacy) PrivacyPolicy() else HelpAndSupport(data.retailer, data.retailerPhone)
@@ -52,10 +51,10 @@ private fun HelpAndSupport(retailer: String, phone: String) {
     Panel {
         Caption(copy("Your retailer can help with payments", "ادائیگیوں میں آپ کا دکاندار مدد کر سکتا ہے"))
         Text(retailer, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(QistSpacing.Item))
         Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-            Button(onClick = { whatsApp = false; contact = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text(copy("Call", "کال کریں")) }
-            OutlinedButton(onClick = { whatsApp = true; contact = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) { Text(copy("WhatsApp", "واٹس ایپ")) }
+            Button(onClick = { whatsApp = false; contact = true }, modifier = Modifier.weight(1f).heightIn(min = QistSize.TouchTarget)) { Text(copy("Call", "کال کریں")) }
+            OutlinedButton(onClick = { whatsApp = true; contact = true }, modifier = Modifier.weight(1f).heightIn(min = QistSize.TouchTarget), contentPadding = PaddingValues(horizontal = QistSpacing.Small)) { Text(copy("WhatsApp", "واٹس ایپ")) }
         }
     }
     Panel {
@@ -63,13 +62,16 @@ private fun HelpAndSupport(retailer: String, phone: String) {
         questions.forEachIndexed { index, (question, answer) ->
             if (index > 0) HorizontalDivider(color = Divider)
             Row(
-                Modifier.fillMaxWidth().clickable(role = Role.Button) { expanded = if (expanded == index) -1 else index }.heightIn(min = 54.dp),
+                Modifier.fillMaxWidth().clickable(role = Role.Button) { expanded = if (expanded == index) -1 else index }.heightIn(min = QistSize.Button),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(question, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                Text(if (expanded == index) "⌃" else "⌄", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    painterResource(if (expanded == index) pk.qist.customer.R.drawable.chevron_up else pk.qist.customer.R.drawable.chevron_down),
+                    contentDescription = null, modifier = Modifier.size(QistSize.IconMedium), tint = SecondaryText,
+                )
             }
-            if (expanded == index) Box(Modifier.padding(bottom = 14.dp)) { Caption(answer) }
+            if (expanded == index) Box(Modifier.padding(bottom = QistSpacing.Content)) { Caption(answer) }
         }
     }
     val context = LocalContext.current

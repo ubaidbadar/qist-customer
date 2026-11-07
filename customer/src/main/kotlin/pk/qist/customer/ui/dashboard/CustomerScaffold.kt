@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.*
@@ -38,14 +37,14 @@ internal fun CustomerScaffold(tab: CustomerTab, onTab: (CustomerTab) -> Unit, co
     Scaffold(containerColor = Canvas,
         topBar = { Spacer(Modifier.fillMaxWidth().background(if (home) Navy else Canvas).statusBarsPadding()) },
         bottomBar = {
-            NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
+            NavigationBar(modifier = Modifier.heightIn(min = QistSize.BottomNav), containerColor = CardSurface, tonalElevation = QistSize.NoElevation) {
                 CustomerTab.entries.forEachIndexed { index, item ->
                     NavigationBarItem(selected = tab == item, onClick = { onTab(item) },
-                        icon = { Icon(painterResource(icons[index]), null, Modifier.size(24.dp)) },
+                        icon = { Icon(painterResource(icons[index]), null, Modifier.size(QistSize.IconMax)) },
                         label = { Text(tabTitle(item), maxLines = 1, style = MaterialTheme.typography.labelMedium) },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = Blue, selectedTextColor = Blue,
                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant, indicatorColor = Color.Transparent))
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant, indicatorColor = Clear))
                 }
             }
         }, content = content)
@@ -59,21 +58,21 @@ internal fun CustomerLoading(tab: CustomerTab, onTab: (CustomerTab) -> Unit) {
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).clearAndSetSemantics {
             contentDescription = label; liveRegion = LiveRegionMode.Polite
         }) {
-            if (tab == CustomerTab.Home) Box(Modifier.fillMaxWidth().height(78.dp).background(Navy).padding(20.dp)) {
-                SkeletonLine(0.6f, 22)
+            if (tab == CustomerTab.Home) Box(Modifier.fillMaxWidth().height(QistSkeletonSize.Header).background(Navy).padding(QistSpacing.Screen)) {
+                SkeletonLine(0.6f, QistSkeletonSize.Greeting)
             }
             Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                if (tab != CustomerTab.Home) SkeletonLine(0.42f, 28)
+                if (tab != CustomerTab.Home) SkeletonLine(0.42f, QistSkeletonSize.Title)
                 Panel {
-                    SkeletonLine(0.45f, 18); Spacer(Modifier.height(16.dp)); SkeletonLine(0.7f, 34)
-                    Spacer(Modifier.height(18.dp)); SkeletonLine(0.85f, 16)
-                    Spacer(Modifier.height(20.dp)); SkeletonLine(1f, if (tab == CustomerTab.Home) 54 else 16)
+                    SkeletonLine(0.45f, QistSkeletonSize.Label); Spacer(Modifier.height(QistSpacing.Section)); SkeletonLine(0.7f, QistSkeletonSize.Amount)
+                    Spacer(Modifier.height(QistSpacing.Section)); SkeletonLine(0.85f, QistSkeletonSize.Body)
+                    Spacer(Modifier.height(QistSpacing.Screen)); SkeletonLine(1f, if (tab == CustomerTab.Home) QistSize.Button else QistSkeletonSize.Body)
                 }
-                Panel { SkeletonLine(0.7f, 18); Spacer(Modifier.height(12.dp)); SkeletonLine(0.45f, 14) }
+                Panel { SkeletonLine(0.7f, QistSkeletonSize.Label); Spacer(Modifier.height(QistSpacing.Item)); SkeletonLine(0.45f, QistSkeletonSize.Caption) }
                 Panel {
                     repeat(3) { index ->
-                        if (index > 0) Spacer(Modifier.height(20.dp))
-                        SkeletonLine(0.8f, 18); Spacer(Modifier.height(8.dp)); SkeletonLine(0.55f, 14)
+                        if (index > 0) Spacer(Modifier.height(QistSpacing.Screen))
+                        SkeletonLine(0.8f, QistSkeletonSize.Label); Spacer(Modifier.height(QistSpacing.Small)); SkeletonLine(0.55f, QistSkeletonSize.Caption)
                     }
                 }
             }
@@ -82,17 +81,17 @@ internal fun CustomerLoading(tab: CustomerTab, onTab: (CustomerTab) -> Unit) {
 }
 
 @Composable
-private fun SkeletonLine(fraction: Float, height: Int) {
-    Box(Modifier.fillMaxWidth(fraction).height(height.dp).background(Divider, QistShapes.CodeCell))
+private fun SkeletonLine(fraction: Float, height: Dp) {
+    Box(Modifier.fillMaxWidth(fraction).height(height).background(Divider, QistShapes.CodeCell))
 }
 
 @Composable
 internal fun CustomerLoadError(tab: CustomerTab, onTab: (CustomerTab) -> Unit, message: String?, onRetry: () -> Unit, onLogout: () -> Unit) {
     CustomerScaffold(tab, onTab) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.Center) {
+        Column(Modifier.fillMaxSize().padding(padding).padding(QistSpacing.AuthScreen), verticalArrangement = Arrangement.Center) {
             Panel {
                 Text(copy("Could not load your account", "آپ کا اکاؤنٹ لوڈ نہیں ہو سکا"), style = MaterialTheme.typography.titleLarge)
-                Text(message ?: copy("Check your connection and try again.", "انٹرنیٹ چیک کر کے دوبارہ کوشش کریں۔"), Modifier.padding(vertical = 12.dp))
+                Text(message ?: copy("Check your connection and try again.", "انٹرنیٹ چیک کر کے دوبارہ کوشش کریں۔"), Modifier.padding(vertical = QistSpacing.Item))
                 Button(onClick = onRetry) { Text(copy("Try again", "دوبارہ کوشش کریں")) }
                 TextButton(onClick = onLogout) { Text(copy("Sign out", "لاگ آؤٹ")) }
             }
