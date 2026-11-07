@@ -20,32 +20,28 @@ import pk.qist.customer.ui.theme.PaidGreen
 import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
-internal fun PaymentHistory(data: DashboardSample, busy: Boolean, onMore: () -> Unit, onReceipt: (PaymentSample) -> Unit) {
+internal fun PaymentHistory(data: DashboardSample, onReceipt: (PaymentSample) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
         Panel(Modifier.weight(1f)) {
             Caption(copy("Total paid", "کل ادا شدہ"))
-            Text(money(data.paidTotal), color = PaidGreen, style = MaterialTheme.typography.titleLarge)
+            Text(money(data.advance + data.paid * data.installment), color = PaidGreen, style = MaterialTheme.typography.titleLarge)
         }
         Panel(Modifier.weight(1f)) {
             Caption(copy("Remaining", "باقی"))
-            Text(money(data.remaining), style = MaterialTheme.typography.titleLarge)
+            Text(money((data.total - data.paid) * data.installment), style = MaterialTheme.typography.titleLarge)
         }
     }
     Panel {
         Text(copy("History", "ادائیگیوں کی تفصیل"), style = MaterialTheme.typography.titleLarge)
-        if (data.payments.isEmpty()) Text(copy("No payments recorded yet.", "ابھی کوئی ادائیگی درج نہیں۔"))
         data.payments.forEachIndexed { index, payment ->
             if (index > 0) HorizontalDivider(color = Divider)
             DetailRow(
-                title = copy(payment.label, payment.label),
-                subtitle = "${payment.date} · ${payment.method}",
+                title = copy("Installment ${payment.number}", "قسط ${payment.number}"),
+                subtitle = "${payment.date} · ${copy(payment.method, "نقد")}",
                 value = copy("Rs. ${payment.amount}", "روپے ${payment.amount}"),
                 icon = R.drawable.detail_check, tint = PaidGreen, background = PaidBackground,
                 valueColor = PaidGreen, onClick = { onReceipt(payment) },
             )
-        }
-        if (data.nextCursor != null) TextButton(onClick = onMore, enabled = !busy) {
-            Text(copy("Load more", "مزید دکھائیں"))
         }
     }
 }

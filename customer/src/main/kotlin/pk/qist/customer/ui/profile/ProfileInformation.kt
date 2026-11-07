@@ -33,15 +33,14 @@ internal fun ProfileInformation(data: DashboardSample, privacy: Boolean, onBack:
                 style = MaterialTheme.typography.headlineMedium,
             )
         }
-        if (privacy) DemoPrivacy() else HelpAndSupport(data.retailer, data.retailerPhone)
+        if (privacy) DemoPrivacy() else HelpAndSupport(data.retailer)
     }
 }
 
 @Composable
-private fun HelpAndSupport(retailer: String, phone: String) {
+private fun HelpAndSupport(retailer: String) {
     var expanded by rememberSaveable { mutableIntStateOf(0) }
     var contact by rememberSaveable { mutableStateOf(false) }
-    var whatsApp by remember { mutableStateOf(false) }
     val questions = listOf(
         copy("When is my installment due?", "میری قسط کب واجب ہے؟") to copy("Open the Plan tab to see every due date and amount.", "ہر قسط کی تاریخ اور رقم منصوبے میں دیکھیں۔"),
         copy("How do I pay?", "میں ادائیگی کیسے کروں؟") to copy("Ask your retailer which payment methods they accept.", "ادائیگی کے طریقے اپنے دکاندار سے پوچھیں۔"),
@@ -54,8 +53,8 @@ private fun HelpAndSupport(retailer: String, phone: String) {
         Text(retailer, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-            Button(onClick = { whatsApp = false; contact = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text(copy("Call", "کال کریں")) }
-            OutlinedButton(onClick = { whatsApp = true; contact = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) { Text(copy("WhatsApp", "واٹس ایپ")) }
+            Button(onClick = { contact = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text(copy("Call", "کال کریں")) }
+            OutlinedButton(onClick = { contact = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) { Text(copy("WhatsApp", "واٹس ایپ")) }
         }
     }
     Panel {
@@ -79,7 +78,7 @@ private fun HelpAndSupport(retailer: String, phone: String) {
         Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     if (contact) {
-        RetailerContactDialog(phone, whatsApp) { contact = false }
+        RetailerContactDialog { contact = false }
     }
 }
 

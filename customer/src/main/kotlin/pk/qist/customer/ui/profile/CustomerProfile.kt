@@ -47,7 +47,7 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
             Button(onClick = { dialog = "contact" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                 Text(copy("Call", "کال کریں"))
             }
-            OutlinedButton(onClick = { dialog = "whatsapp" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
+            OutlinedButton(onClick = { dialog = "contact" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
                 Text(copy("WhatsApp", "واٹس ایپ"), color = Navy)
             }
         }
@@ -58,8 +58,8 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
             Chevron()
         }
         HorizontalDivider(color = Divider)
-        SettingsRow(copy("Notifications (coming soon)", "اطلاعات (جلد)"), R.drawable.detail_bell) {
-            Switch(checked = false, onCheckedChange = null, enabled = false)
+        SettingsRow(copy("Notifications", "اطلاعات"), R.drawable.detail_bell) {
+            Switch(checked = notifications, onCheckedChange = onNotifications)
         }
         HorizontalDivider(color = Divider)
         SettingsRow(copy("Help and support", "مدد اور معاونت"), R.drawable.detail_help, onClick = { onOpenPage("help") }) { Chevron() }
@@ -69,7 +69,7 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
         SettingsRow(copy("Log out", "لاگ آؤٹ"), R.drawable.detail_logout, destructive = true, onClick = { dialog = "logout" }) { Chevron() }
     }
     when (dialog) {
-        "contact", "whatsapp" -> RetailerContactDialog(data.retailerPhone, dialog == "whatsapp") { dialog = "" }
+        "contact" -> RetailerContactDialog { dialog = "" }
         "language" -> LanguagePicker(
             selectedUrdu = language == "اردو",
             onDismiss = { dialog = "" },

@@ -22,16 +22,16 @@ import pk.qist.customer.ui.theme.PaidGreen
 internal fun PlanDetails(data: DashboardSample) {
     Panel {
         DetailRow(data.model, data.retailer, "", R.drawable.phone_outline)
-        Fact(copy("Total price", "کل قیمت"), money(data.totalPrice))
+        Fact(copy("Total price", "کل قیمت"), money(data.advance + data.total * data.installment))
         Fact(copy("Advance paid", "پیشگی ادائیگی"), money(data.advance))
         Fact(copy("Installment", "قسط"), money(data.installment))
-        Fact(copy("Plan length", "مدت"), copy("${data.total} installments · ${data.frequency}", "${data.total} اقساط · ${data.frequency}"))
+        Fact(copy("Plan length", "مدت"), copy("${data.total} months", "${data.total} ماہ"))
     }
     Panel {
         Text(copy("Schedule", "اقساط کا شیڈول"), style = MaterialTheme.typography.titleLarge)
-        data.schedule.forEachIndexed { index, row ->
-            val paid = row.status == "paid" || row.status == "waived"
-            val due = row.status == "overdue" || row.status == "partial" || (!paid && row.date == data.schedule.firstOrNull { it.status != "paid" && it.status != "waived" }?.date)
+        data.schedule.forEachIndexed { index, date ->
+            val paid = index < data.paid
+            val due = index == data.paid
             val tint = when {
                 paid -> PaidGreen
                 due -> DueAmber
@@ -39,11 +39,11 @@ internal fun PlanDetails(data: DashboardSample) {
             }
             if (index > 0) HorizontalDivider(color = Divider)
             DetailRow(
-                copy("Installment ${row.number}", "قسط ${row.number}"), pk.qist.customer.data.displayDate(row.date), money(row.amount + row.lateFee),
+                copy("Installment ${index + 1}", "قسط ${index + 1}"), date, money(data.installment),
                 icon = when { paid -> R.drawable.detail_check; due -> R.drawable.detail_clock; else -> R.drawable.tab_plan },
                 tint = tint,
                 background = when { paid -> PaidBackground; due -> DueBackground; else -> Divider },
-                status = row.status.replaceFirstChar { it.uppercase() },
+                status = when { paid -> copy("Paid", "ادا شدہ"); due -> copy("Due soon", "جلد واجب"); else -> copy("Upcoming", "آنے والی") },
             )
         }
     }

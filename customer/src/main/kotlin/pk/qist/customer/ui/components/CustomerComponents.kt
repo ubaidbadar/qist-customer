@@ -29,10 +29,9 @@ internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnSco
 }
 
 @Composable
-internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false, enabled: Boolean = true) {
+internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false) {
     Button(
         onClick = onClick,
-        enabled = enabled,
         modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = if (cyan) Cyan else Blue, contentColor = if (cyan) Navy else Color.White),
@@ -97,30 +96,18 @@ internal fun DetailRow(
 }
 
 @Composable
-internal fun RetailerContactDialog(phone: String = "", whatsApp: Boolean = false, onDismiss: () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val unavailable = copy("No app is available for this action.", "اس عمل کے لیے کوئی ایپ دستیاب نہیں۔")
+internal fun RetailerContactDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(copy("Contact retailer", "دکاندار سے رابطہ")) },
-        text = { Text(phone.ifBlank { copy("Your retailer has not provided a phone number.", "دکاندار نے فون نمبر فراہم نہیں کیا۔") }) },
-        confirmButton = { TextButton(onClick = {
-            if (phone.isNotBlank()) {
-                val digits = phone.filter(Char::isDigit).let { if (it.startsWith("0")) "92" + it.drop(1) else it }
-                val uri = if (whatsApp) "https://wa.me/$digits" else "tel:$phone"
-                val action = if (whatsApp) android.content.Intent.ACTION_VIEW else android.content.Intent.ACTION_DIAL
-                try { context.startActivity(android.content.Intent(action, android.net.Uri.parse(uri))) }
-                catch (_: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(context, unavailable, android.widget.Toast.LENGTH_SHORT).show() }
-            }
-            onDismiss()
-        }) { Text(if (phone.isBlank()) copy("Close", "بند کریں") else if (whatsApp) copy("WhatsApp", "واٹس ایپ") else copy("Call", "کال کریں")) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(copy("Cancel", "منسوخ")) } },
+        text = { Text(copy("This demo has no retailer phone number.", "ڈیمو میں دکاندار کا نمبر موجود نہیں۔")) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(copy("Close", "بند کریں")) } },
     )
 }
 
 @Composable
-internal fun money(amount: Long): String {
-    val formatted = pk.qist.customer.data.formatAmount(amount)
+internal fun money(amount: Int): String {
+    val formatted = NumberFormat.getIntegerInstance(Locale.US).format(amount)
     return copy("Rs. $formatted", "روپے $formatted")
 }
 

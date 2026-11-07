@@ -8,7 +8,7 @@ internal class CustomerPreferences(context: Context) {
     private val notifications by lazy { appContext.getSharedPreferences("customer_notifications", Context.MODE_PRIVATE) }
 
     val hasAcceptedPrivacy: Boolean
-        get() = privacy.getBoolean("accepted_api_v1", false)
+        get() = privacy.getBoolean("accepted", false)
 
     val notificationsEnabled: Boolean
         get() = notifications.getBoolean("enabled", false)
@@ -17,7 +17,7 @@ internal class CustomerPreferences(context: Context) {
         get() = notifications.contains("enabled")
 
     fun acceptPrivacy() {
-        privacy.edit().putBoolean("accepted_api_v1", true).apply()
+        privacy.edit().putBoolean("accepted", true).apply()
     }
 
     fun setNotifications(enabled: Boolean) {

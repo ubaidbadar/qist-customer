@@ -89,7 +89,7 @@ internal fun LogoutConfirmation(onDismiss: () -> Unit, onLogout: () -> Unit) {
                 }
                 Text(copy("Log out?", "لاگ آؤٹ کریں؟"), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
                 Text(
-                    copy("You will need your phone number and password to sign in again.", "دوبارہ سائن ان کرنے کے لیے فون نمبر اور پاس ورڈ درکار ہوگا۔"),
+                    copy("You will need your phone number and a code to sign in again.", "دوبارہ سائن ان کرنے کے لیے فون نمبر اور کوڈ درکار ہوگا۔"),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )

@@ -1,42 +1,60 @@
 # Qist Customer for Android
 
-The independent `:customer` app shows real customer plans, payment history, receipts and retailer contact/payment details. The copied `:app` locker module is unchanged.
+Qist Customer displays installment plans, payments, receipts, and retailer guidance. The `:customer` application is independent of the copied `:app` locker module. It does not lock or manage devices.
 
-## Customer API
+The current app is a local demonstration: enter a ten-digit mobile number starting with `3`, then use verification code `123456`. There is no SMS, backend login, remote push registration, analytics, or payment processing. Financial records and retailer contact controls are demo data.
 
-`CUSTOMER_API_URL` (environment / `.env`), `qist.customer.apiUrl` (Gradle), sets the HTTPS customer endpoint base URL. If only `API_URL` is configured, it is the API root and `/customer-app/` is appended. The default is `https://qist.restora.live/api/v1/customer-app/`.
+## Build and check
 
-| Action | Endpoint relative to that base |
-| --- | --- |
-| Sign in with phone and password | POST `auth/login` |
-| Request a WhatsApp setup/recovery code | POST `auth/forgot-password` |
-| Save first/new password with six-digit code | POST `auth/reset-password` |
-| Load profile, plans, selected schedule, contact/payment methods and first payment page | GET `overview?contractId=...` |
-| Load the next payment page on demand | GET `payments?contractId=...&cursor=...` |
-| Revoke this session | POST `auth/logout` |
-
-The backend must have WhatsApp authentication delivery configured for password setup/recovery. Ordinary sign-in does not send a code. Passwords must contain 8–128 characters. Demo code `123456` and sample financial data are removed.
-
-## State and UI
-
-The restored `dev` theme, fonts, shapes, spacing, cards, bottom navigation, and welcome screen are preserved. Auth adds password input and recovery using the existing controls. Additional states use existing text/cards/buttons; multiple-plan selection appears only for accounts with multiple plans. Refresh sits in the existing screen header.
-
-`CustomerViewModel` owns requests across recomposition and rotation. One overview supplies all tabs and the first payment page; changing tabs does not request more data. Refresh and plan selection are explicit. Pagination requests only the next page and deduplicates receipts by server id. Mutations are guarded while in flight; failed reads preserve existing content. Unauthorized sessions clear private account content.
-
-`HttpCustomerRepository` uses existing catalog dependencies (OkHttp, serialization JSON and coroutines). It cancels active HTTP calls when their coroutine is cancelled. Money remains `Long` integer paisa until formatting; schedule statuses, partial payments, fees, payment methods, receipt numbers and receiver names come from the backend. No equal-monthly-installment or paid-row-position assumptions are used.
-
-Session tokens are encrypted with Android Keystore and stored under `noBackupFilesDir`. Passwords and codes stay only in memory and never enter saved-instance state. A valid session restores after reopening; the updated privacy notice requires new acceptance even if the old demo notice was accepted, and still appears before account data is loaded. Logout revokes the server session before removing the local token; network failures remain visible for retry.
-
-Remote notifications have no customer backend endpoint or registration contract. The existing inbox shows an empty state and its settings switch is disabled instead of displaying fabricated events or promising delivery. No polling, FCM, device-management changes, or payment processing is added.
-
-## Verification
+Use the committed Gradle wrapper and the SDK/toolchain configured in the repository:
 
 ```bash
-./gradlew :customer:assembleDebug :customer:testDebugUnitTest :customer:lintDebug
+./gradlew :customer:assembleDebug :customer:bundleRelease :customer:lintDebug :customer:lintRelease :customer:test
 ```
 
-Tests cover paisa/large values, partial and non-sequential payments, empty/completed accounts, receipt identity and metadata, bearer headers, API paths, pagination, server errors, session expiry, privacy restoration, duplicate actions, offline refresh and the recovery cooldown.
+The customer module currently contains no unit-test cases; a successful `:customer:test` task with `NO-SOURCE` is not runtime coverage. Customer CI uploads the debug APK and check reports. Release signing, branch-to-Play-track mapping, and publishing requirements are documented in [Play Store release instructions](docs/PLAY_STORE_RELEASE.md).
 
-For this change the command was attempted but blocked before compilation: the environment cannot download `gradle-9.8.0-bin.zip` (`Network is unreachable`). Tests are added, not claimed as passing. `git diff --check` passed. No device/emulator or visual runtime checks have run.
+## Source layout
 
-Before distributing, run the command above and check auth/recovery, slow/offline requests, logout, multiple/empty plans, receipt sharing, rotation/reopening, Urdu/RTL, small screens and large font sizes. Review/update the hosted privacy policy and Google Play data disclosures for real authentication before release. This change does not publish or deploy anything.
+Kotlin sources are under `customer/src/main/kotlin/pk/qist/customer/`. Packages match their folders.
+
+| Path | Responsibility |
+| --- | --- |
+| `MainActivity.kt` | Android entry point, edge-to-edge setup, theme |
+| `data/` | Customer models, deterministic demo repository, persisted preferences |
+| `ui/CustomerShell.kt` | Sign-in and top-level navigation state |
+| `ui/auth/` | Welcome, phone/code controls, resend timer, privacy consent |
+| `ui/dashboard/` | Dashboard navigation, overlays, Home cards |
+| `ui/payments/` | Payment history, payment instructions, receipt sharing/export |
+| `ui/plan/` | Plan facts and installment schedule |
+| `ui/profile/` | Profile, language/logout dialogs, help, privacy policy |
+| `ui/notifications/` | Demo notification prompt and inbox |
+| `ui/components/` | Shared cards, controls, captions, detail rows, contact dialog |
+| `ui/localization/` | Existing English/Urdu selection |
+| `ui/theme/` | Inter typography, existing palette, shared corners and spacing |
+
+Follow [.agent/skills/kotlin-android-excellence/SKILL.md](.agent/skills/kotlin-android-excellence/SKILL.md) for Android changes. Add reusable UI to the existing components and theme instead of creating per-screen design systems.
+
+## State and data ownership
+
+`CustomerShell` owns sign-in inputs, language, root navigation, selected tab, and payment-help visibility. `Dashboard` owns its notification prompt, unread flags, receipt selection, and profile subpage. Dialog and FAQ state stays with the screen that uses it. Existing `rememberSaveable` boundaries remain in place.
+
+`rememberSaveable` is approximately React local state with Android screen-restoration support. `remember` is approximately `useMemo`/`useRef`, scoped to the current composition. State and callbacks flow down to reusable components; there is no new DI or state-management framework.
+
+`CustomerPreferences` uses application context and preserves the existing private preference files, keys, defaults, and asynchronous `apply()` writes. It does not retain an Activity. Privacy acceptance and notification preference remain durable; transient UI state remains in Compose. The demo repository returns one read-only sample model shared by its consumers.
+
+This restructure does not add real authentication, networking, device management, or notification delivery. The privacy disclosures must be reviewed before those features are introduced.
+
+## Device verification
+
+Build/lint checks do not verify visual fidelity or Android lifecycle behavior. Before merging or distributing, check:
+
+1. Welcome → phone input → verification; local/international pasted numbers, invalid input, resend countdown, and keyboard.
+2. Consent → privacy notice → back → agree or decline, including acceptance after restarting.
+3. Home, Payments, Plan, and Profile; payment totals, receipts, back navigation, and the navy Home status bar.
+4. Notification prompt, saved notification toggle, unread markers, and mark-all-read.
+5. Help questions, retailer demo dialogs, privacy browser link, language selection/RTL, and logout confirmation.
+6. Receipt share and download, including canceling the file picker.
+7. Rotation, background/resume, process recreation, small displays, large font settings, and TalkBack.
+
+Performance has not been measured. For a before/after comparison, use the same device, release-like build, and journey in Android Studio Profiler/System Trace. Check main-thread stalls, frame times, and retained Activities; use Layout Inspector for recomposition and layout checks.
