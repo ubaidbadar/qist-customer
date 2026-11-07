@@ -38,7 +38,8 @@ class CustomerSnapshotTest {
     @Test fun `session expiry removes unusable sign in data`() = runBlocking {
         val storage = MemoryTextStore(); val session = CustomerSessionStore(storage)
         session.save("expired", "2000-01-01T00:00:00.000Z")
-        assertNull(session.read()); assertNull(storage.values["customer-session"])
+        try { session.read(); fail("Expected expired session") } catch (error: CustomerApiException) { assertEquals(401, error.status) }
+        assertNull(storage.values["customer-session"])
         session.save("valid", "2099-01-01T00:00:00.000Z")
         assertEquals("valid", session.read())
     }
@@ -46,9 +47,9 @@ class CustomerSnapshotTest {
         val storage = MemoryTextStore().apply { values["customer-session"] = "broken" }
         assertNull(CustomerSessionStore(storage).read())
     }
-    @Test fun `maintenance precedence matches the backend and version boundary is exact`() {
-        assertEquals(ServiceGate.Maintenance, AppAvailability(true, 100).gate(1))
-        assertEquals(ServiceGate.UpdateRequired, AppAvailability(false, 100).gate(99))
-        assertNull(AppAvailability(false, 100).gate(100))
+    @Test fun `maintenance blocks but optional version recommendations do not`() {
+        assertEquals(ServiceGate.Maintenance, AppAvailability(true).gate())
+        assertNull(AppAvailability(false).gate())
+        assertNull(AppAvailability(false).gate())
     }
 }

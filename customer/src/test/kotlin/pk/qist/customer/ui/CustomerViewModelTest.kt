@@ -19,6 +19,9 @@ class CustomerViewModelTest {
         var deletes = 0
         override suspend fun availability() = status
         override suspend fun deleteAccount() { failure?.let { throw it }; deletes++ }
+        override suspend fun registerPush(token: String) = Unit
+        override suspend fun unregisterPush() = Unit
+        override suspend fun readNotifications(ids: List<String>) = Unit
         var next = "otp"
         var reads = 0
         var logins = 0
@@ -64,9 +67,9 @@ class CustomerViewModelTest {
     }
     @Test fun `wrong OTP stays on verification and does not create session`() = runTest(dispatcher) {
         val repo = Repository(); val model = model(repo); runCurrent(); model.start("3001234567"); runCurrent()
-        repo.failure = CustomerApiException(400, "Invalid code")
+        repo.failure = CustomerApiException(400, "Invalid code", "OTP_CODE_INVALID")
         model.verify("000000"); runCurrent(); assertEquals(CustomerRoute.Verify, model.state.value.route)
-        assertEquals(0, repo.logins); assertEquals("Invalid code", model.state.value.message)
+        assertEquals(0, repo.logins); assertEquals("Invalid code", model.state.value.message); assertTrue(model.state.value.codeRejected)
     }
     @Test fun `duplicate phone submits do not send duplicate requests`() = runTest(dispatcher) {
         val repo = Repository(); val model = model(repo); runCurrent(); repo.gate = CompletableDeferred()
@@ -83,10 +86,11 @@ class CustomerViewModelTest {
         repo.failure = java.io.IOException("offline"); model.refresh(); runCurrent()
         assertEquals(old, model.state.value.data); assertFalse(model.state.value.refreshing); assertNotNull(model.state.value.message)
     }
-    @Test fun `expired session clears financial content and returns to phone`() = runTest(dispatcher) {
+    @Test fun `expired session clears financial content and shows session expiry`() = runTest(dispatcher) {
         val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
         repo.failure = CustomerApiException(401, "Expired"); model.refresh(); runCurrent()
-        assertNull(model.state.value.data); assertEquals(1, repo.clears); assertEquals(CustomerRoute.Phone, model.state.value.route)
+        assertNull(model.state.value.data); assertEquals(1, repo.clears); assertEquals(CustomerRoute.SessionExpired, model.state.value.route)
+        model.signInAgain(); assertEquals(CustomerRoute.Phone, model.state.value.route)
     }
     @Test fun `pagination deduplicates receipt ids`() = runTest(dispatcher) {
         val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent(); model.morePayments(); runCurrent()
@@ -105,10 +109,10 @@ class CustomerViewModelTest {
         repo.status = AppAvailability(); model.checkServiceStatus(true); runCurrent()
         assertNull(model.state.value.serviceGate)
     }
-    @Test fun `minimum supported version opens update screen`() = runTest(dispatcher) {
-        val repo = Repository().apply { status = AppAvailability(minimumVersionCode = 2) }
+    @Test fun `recommended version never blocks app use`() = runTest(dispatcher) {
+        val repo = Repository().apply { status = AppAvailability() }
         val model = model(repo); runCurrent()
-        assertEquals(ServiceGate.UpdateRequired, model.state.value.serviceGate)
+        assertNull(model.state.value.serviceGate)
     }
     @Test fun `server maintenance response is not shown as an offline cache state`() = runTest(dispatcher) {
         val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
@@ -130,6 +134,30 @@ class CustomerViewModelTest {
         model.deleteAccount(); runCurrent()
         assertEquals(0, repo.deletes); assertEquals(CustomerRoute.Home, model.state.value.route)
         assertNotNull(model.state.value.message); assertNotNull(model.state.value.data)
+    }
+
+    @Test fun `server retry time blocks verification and resending without another request`() = runTest(dispatcher) {
+        val repo = Repository(); val model = model(repo); runCurrent(); model.start("3001234567"); runCurrent()
+        repo.failure = CustomerApiException(429, "Too many attempts", "OTP_ATTEMPTS_EXCEEDED", 200)
+        model.verify("000000"); runCurrent()
+        assertEquals(201000L, model.state.value.verifyBlockedUntil)
+        repo.failure = null
+        model.verify("123456"); model.requestCode(); runCurrent()
+        assertEquals(CustomerRoute.Verify, model.state.value.route)
+        assertEquals(1, repo.starts); assertEquals(0, repo.logins)
+    }
+    @Test fun `unregistered number cannot be resubmitted until edited`() = runTest(dispatcher) {
+        val repo = Repository().apply { next = "unregistered" }; val model = model(repo); runCurrent()
+        model.start("3001234567"); runCurrent(); assertTrue(model.state.value.phoneNotRegistered)
+        model.start("3001234567"); runCurrent(); assertEquals(1, repo.starts)
+        model.editPhone(); model.start("3001234567"); runCurrent(); assertEquals(2, repo.starts)
+    }
+    @Test fun `real time change during a request queues exactly one follow up refresh`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        repo.gate = CompletableDeferred(); model.refresh(); runCurrent()
+        model.onRealtimeChange(); model.onRealtimeChange(); model.onRealtimeChange()
+        repo.gate?.complete(Unit); runCurrent()
+        assertEquals(3, repo.reads)
     }
 
 }

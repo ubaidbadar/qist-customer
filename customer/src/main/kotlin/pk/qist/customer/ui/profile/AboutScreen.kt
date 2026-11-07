@@ -21,6 +21,7 @@ import pk.qist.customer.ui.theme.*
 
 @Composable
 internal fun AboutScreen(busy: Boolean, error: String?, onBack: () -> Unit, onTerms: () -> Unit, onPrivacy: () -> Unit, onDelete: () -> Unit) {
+    val checkForUpdate = pk.qist.customer.platform.LocalCheckForUpdate.current
     var deleting by rememberSaveable { mutableStateOf(false) }
     PaymentPage(copy("About", "تعارف"), onBack, actions = {}) {
         Panel {
@@ -35,6 +36,8 @@ internal fun AboutScreen(busy: Boolean, error: String?, onBack: () -> Unit, onTe
             }
         }
         Panel {
+            DetailRow(copy("Check for updates", "اپ ڈیٹ چیک کریں"), "", "", R.drawable.state_download, onClick = checkForUpdate)
+            HorizontalDivider(color = Divider)
             DetailRow(copy("Terms of service", "استعمال کی شرائط"), "", "", R.drawable.detail_document, onClick = onTerms)
             HorizontalDivider(color = Divider)
             DetailRow(copy("Privacy policy", "رازداری کی پالیسی"), "", "", R.drawable.detail_document, onClick = onPrivacy)

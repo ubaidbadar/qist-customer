@@ -3,7 +3,7 @@ package pk.qist.customer.ui.payments
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.*
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentMethodSample
+import pk.qist.customer.ui.components.CustomerSnackbarHost
+import pk.qist.customer.ui.components.accountMessage
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.components.ScreenBadge
 import pk.qist.customer.ui.localization.copy
@@ -26,6 +28,10 @@ import pk.qist.customer.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PaymentMethodsSheet(data: DashboardSample, onDismiss: () -> Unit) {
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val copied = copy("Copied to clipboard", "کلپ بورڈ پر کاپی ہو گیا")
+    val error = copy("Could not copy account details.", "اکاؤنٹ کی تفصیل کاپی نہیں ہو سکی۔")
     ModalBottomSheet(
         onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         shape = QistShapes.Sheet, containerColor = Color.White, scrimColor = Navy.copy(alpha = 0.72f),
@@ -36,25 +42,25 @@ internal fun PaymentMethodsSheet(data: DashboardSample, onDismiss: () -> Unit) {
             Text(copy("Payment methods", "ادائیگی کے طریقے"), style = MaterialTheme.typography.titleLarge)
             Text(copy("Pay ${data.retailer} directly using any of these.", "${data.retailer} کو ان طریقوں سے براہ راست ادائیگی کریں۔"),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            PaymentMethods(data, compact = true)
+            PaymentMethods(data, compact = true) { success -> scope.launch { snackbar.accountMessage(if (success) copied else error, error = !success) } }
             PaymentNotice()
+            CustomerSnackbarHost(snackbar)
             Pill(copy("Close", "بند کریں"), onDismiss)
         }
     }
 }
 
 @Composable
-internal fun PaymentMethods(data: DashboardSample, compact: Boolean = false) {
+internal fun PaymentMethods(data: DashboardSample, compact: Boolean = false, onCopyResult: (Boolean) -> Unit) {
     if (data.paymentMethods.isEmpty()) Text(copy("Ask your retailer for payment details.", "ادائیگی کی تفصیل دکاندار سے پوچھیں۔"))
     data.paymentMethods.forEach { method ->
-        PaymentMethodCard(method, data.retailerAddress, compact)
+        PaymentMethodCard(method, data.retailerAddress, compact, onCopyResult)
     }
 }
 
 @Composable
-private fun PaymentMethodCard(method: PaymentMethodSample, address: String, compact: Boolean) {
+private fun PaymentMethodCard(method: PaymentMethodSample, address: String, compact: Boolean, onCopyResult: (Boolean) -> Unit) {
     val context = LocalContext.current
-    val copied = copy("Account details copied", "اکاؤنٹ کی تفصیل کاپی ہو گئی")
     Surface(color = if (compact) Canvas else Color.White, shape = if (compact) QistShapes.Option else QistShapes.Card) {
         Row(Modifier.fillMaxWidth().padding(horizontal = if (compact) 14.dp else 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 12.dp)) {
@@ -71,8 +77,8 @@ private fun PaymentMethodCard(method: PaymentMethodSample, address: String, comp
             if (!method.cash) OutlinedButton(
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText(method.title, method.accountNumber))
-                    Toast.makeText(context, copied, Toast.LENGTH_SHORT).show()
+                    try { clipboard.setPrimaryClip(ClipData.newPlainText(method.title, method.accountNumber)); onCopyResult(true) }
+                    catch (_: SecurityException) { onCopyResult(false) }
                 }, shape = CircleShape, contentPadding = PaddingValues(horizontal = if (compact) 10.dp else 12.dp),
                 modifier = Modifier.heightIn(min = 48.dp), border = BorderStroke(1.dp, InputBorder),
             ) {

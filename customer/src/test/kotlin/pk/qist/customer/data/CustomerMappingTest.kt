@@ -59,4 +59,12 @@ class CustomerMappingTest {
         assertEquals("—", data.dueDate)
         assertEquals(3, data.paid)
     }
+    @Test fun `overview carries the real inbox without a separate request`() {
+        val fixture = overviewFixture()
+        val updated = kotlinx.serialization.json.JsonObject(fixture + ("notifications" to kotlinx.serialization.json.Json.parseToJsonElement("""[{"id":"notice-a","contractId":"plan-a","kind":"payment","title":"Payment recorded","body":"Open Payments","createdAt":"2026-11-07T00:00:00.000Z","read":false}]""")))
+        val data = parseOverview(updated)
+        assertEquals(1, data.notifications.size); assertFalse(data.notifications.single().read)
+        assertEquals("plan-a", data.notifications.single().contractId)
+    }
+
 }

@@ -128,7 +128,7 @@ class HttpCustomerRepositoryTest {
             assertEquals("/config", request.url.encodedPath)
             assertEquals("217111869", request.header("X-Customer-App-Version"))
             assertNull(request.header("Authorization"))
-            200 to """{"data":{"maintenance":true,"minimumVersionCode":100}}"""
+            200 to """{"data":{"maintenance":true,"recommendedVersionCode":100}}"""
         }, appVersionCode = 217111869)
         assertTrue(repository.availability().maintenance)
     }
@@ -154,6 +154,22 @@ class HttpCustomerRepositoryTest {
         try { repository.dashboard(); fail("Expected maintenance") }
         catch (error: CustomerApiException) { assertEquals("MAINTENANCE_MODE", error.code) }
         assertNotNull(cache.read("stored", "plan-a"))
+    }
+
+    @Test fun `verification cooldown comes from server details`() = runBlocking {
+        val repository = HttpCustomerRepository(MemorySession(), "https://example.com/", client {
+            429 to """{"error":{"code":"OTP_ATTEMPTS_EXCEEDED","message":"Wait","details":{"retryAfterSeconds":212}}}"""
+        })
+        try { repository.verifyCode("03001234567", "000000"); fail("Expected cooldown") }
+        catch (error: CustomerApiException) { assertEquals(212L, error.retryAfterSeconds); assertEquals("OTP_ATTEMPTS_EXCEEDED", error.code) }
+    }
+    @Test fun `push registration and inbox read use authenticated customer endpoints`() = runBlocking {
+        val session = MemorySession().apply { token = "stored" }; val requests = mutableListOf<Request>()
+        val repository = HttpCustomerRepository(session, "https://example.com/", client { requests.add(it); 200 to """{"data":{"ok":true}}""" })
+        repository.restore(); repository.registerPush("fcm-token"); repository.readNotifications(listOf("notice-a")); repository.unregisterPush()
+        assertEquals(listOf("/push-token", "/notifications/read", "/push-token"), requests.map { it.url.encodedPath })
+        assertEquals(listOf("POST", "POST", "DELETE"), requests.map { it.method })
+        assertTrue(requests.all { it.header("Authorization") == "Bearer stored" })
     }
 
 }

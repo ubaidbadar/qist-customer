@@ -8,6 +8,7 @@ import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.*
+import kotlinx.coroutines.launch
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.*
@@ -16,10 +17,14 @@ import pk.qist.customer.ui.theme.*
 
 @Composable
 internal fun HowToPay(data: DashboardSample, onBack: () -> Unit) {
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val copied = copy("Copied to clipboard", "کلپ بورڈ پر کاپی ہو گیا")
+    val copyError = copy("Could not copy account details.", "اکاؤنٹ کی تفصیل کاپی نہیں ہو سکی۔")
     var contact by rememberSaveable { mutableStateOf(false) }
     var whatsApp by remember { mutableStateOf(false) }
     var methods by rememberSaveable { mutableStateOf(false) }
-    PaymentPage(copy("How to pay", "ادائیگی کیسے کریں"), onBack, actions = {
+    PaymentPage(copy("How to pay", "ادائیگی کیسے کریں"), onBack, feedback = { CustomerSnackbarHost(snackbar) }, actions = {
         Button(onClick = { whatsApp = false; contact = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape) {
             Icon(painterResource(R.drawable.payment_call), null, Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
@@ -51,7 +56,7 @@ internal fun HowToPay(data: DashboardSample, onBack: () -> Unit) {
                 Icon(painterResource(R.drawable.tab_payments), copy("View payment methods", "ادائیگی کے طریقے دیکھیں"), tint = Blue)
             }
         }
-        PaymentMethods(data)
+        PaymentMethods(data) { success -> scope.launch { snackbar.accountMessage(if (success) copied else copyError, error = !success) } }
         PaymentNotice()
     }
     if (methods) PaymentMethodsSheet(data) { methods = false }

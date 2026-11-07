@@ -22,6 +22,7 @@ internal class CustomerSessionStore(private val storage: SecureTextStore) : Sess
         } catch (_: java.text.ParseException) { 0L }
         if (expires > System.currentTimeMillis() && parts[1].isNotBlank()) return parts[1]
         clear()
+        if (expires > 0L) throw CustomerApiException(401, "Your session has expired. Please sign in again.")
         return null
     }
     override suspend fun clear() = storage.delete("customer-session")

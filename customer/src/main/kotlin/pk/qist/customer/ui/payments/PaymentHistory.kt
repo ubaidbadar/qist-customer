@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.*
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentSample
+import pk.qist.customer.ui.components.AccountEmptyState
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.DetailRow
 import pk.qist.customer.ui.components.Panel
@@ -45,5 +46,19 @@ internal fun PaymentHistory(data: DashboardSample, busy: Boolean, onMore: () -> 
             )
         }
         if (data.nextCursor != null) TextButton(onClick = onMore, enabled = !busy) { Text(copy("Load more", "مزید دکھائیں")) }
+    }
+}
+
+@Composable
+internal fun EmptyPaymentHistory(error: String? = null) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val viewport = maxHeight
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(QistSpacing.Screen)) {
+            Text(copy("Payments", "ادائیگیاں"), style = MaterialTheme.typography.headlineMedium)
+            if (error != null) Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+            AccountEmptyState(R.drawable.tab_payments, copy("No payments yet", "ابھی کوئی ادائیگی نہیں"),
+                copy("Your payments will appear here once your retailer records them.", "دکاندار کے درج کرنے کے بعد آپ کی ادائیگیاں یہاں دکھائی دیں گی۔"),
+                Modifier.fillMaxWidth().heightIn(min = (viewport - 100.dp).coerceAtLeast(300.dp)))
+        }
     }
 }

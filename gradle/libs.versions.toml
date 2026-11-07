@@ -21,6 +21,9 @@ robolectric = "4.17"
 composeRules = "0.6.7"
 
 [libraries]
+# Optional in-app updates and permission-free SIM number selection.
+play-app-update = { module = "com.google.android.play:app-update", version = "2.1.0" }
+play-auth = { module = "com.google.android.gms:play-services-auth", version = "22.0.0" }
 # Hosts the Compose UI in an Activity (setContent).
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 # One version for every Compose artifact below.

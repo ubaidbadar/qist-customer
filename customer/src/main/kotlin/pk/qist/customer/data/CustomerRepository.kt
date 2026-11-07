@@ -46,18 +46,20 @@ internal data class DashboardSample(
     val nextCursor: String?,
     val fromCache: Boolean = false,
     val savedAt: Long? = null,
+    val notifications: List<CustomerNotice> = emptyList(),
 ) {
     val id: String? get() = contractId
     val completed: Boolean get() = status == "completed"
 }
+internal data class CustomerNotice(val id: String, val contractId: String, val kind: String, val title: String, val body: String, val createdAt: String, val read: Boolean)
+
 internal data class PaymentPage(val items: List<PaymentSample>, val nextCursor: String?)
-internal class CustomerApiException(val status: Int, message: String, val code: String? = null) : IOException(message)
+internal class CustomerApiException(val status: Int, message: String, val code: String? = null, val retryAfterSeconds: Long = 0) : IOException(message)
 internal class CustomerNetworkException(cause: IOException) : IOException("Could not connect", cause)
-internal enum class ServiceGate { UpdateRequired, Maintenance }
-internal data class AppAvailability(val maintenance: Boolean = false, val minimumVersionCode: Long = 0) {
-    fun gate(version: Long): ServiceGate? = when {
+internal enum class ServiceGate { Maintenance }
+internal data class AppAvailability(val maintenance: Boolean = false) {
+    fun gate(): ServiceGate? = when {
         maintenance -> ServiceGate.Maintenance
-        minimumVersionCode > version -> ServiceGate.UpdateRequired
         else -> null
     }
 }
@@ -65,6 +67,9 @@ internal data class AppAvailability(val maintenance: Boolean = false, val minimu
 internal data class AuthStart(val next: String, val retryAfterSeconds: Int)
 
 internal interface CustomerRepository {
+    suspend fun registerPush(token: String)
+    suspend fun unregisterPush()
+    suspend fun readNotifications(ids: List<String>)
     suspend fun availability(): AppAvailability
     suspend fun deleteAccount()
     suspend fun start(phone: String): AuthStart
@@ -95,7 +100,7 @@ internal class HttpCustomerRepository(
     private var token: String? = null
 
     override suspend fun restore(): Boolean {
-        token = session.read()
+        token = try { session.read() } catch (error: CustomerApiException) { overviewCache?.clear(); throw error }
         if (token == null) overviewCache?.clear()
         return token != null
     }
@@ -128,11 +133,13 @@ internal class HttpCustomerRepository(
     override suspend fun resetPassword(phone: String, code: String, password: String) {
         request("auth/reset-password", body = buildJsonObject { put("phone", phone); put("code", code); put("password", password) })
     }
+    override suspend fun registerPush(token: String) { request("push-token", authorized = true, body = buildJsonObject { put("token", token) }) }
+    override suspend fun unregisterPush() { request("push-token", authorized = true, deleteRequest = true) }
+    override suspend fun readNotifications(ids: List<String>) { request("notifications/read", authorized = true, body = buildJsonObject { put("ids", JsonArray(ids.map(::JsonPrimitive))) }) }
     override suspend fun availability(): AppAvailability {
         val response = request("config", timeoutSeconds = 5)
         return AppAvailability(
-            (response["maintenance"] as? JsonPrimitive)?.booleanOrNull ?: throw IOException("Invalid app configuration"),
-            (response["minimumVersionCode"] as? JsonPrimitive)?.longOrNull ?: throw IOException("Invalid app configuration"))
+            (response["maintenance"] as? JsonPrimitive)?.booleanOrNull ?: throw IOException("Invalid app configuration"))
     }
     override suspend fun dashboard(contractId: String?): DashboardSample = withContext(Dispatchers.IO) {
         val owner = token ?: throw CustomerApiException(401, "Please sign in again.")
@@ -194,7 +201,9 @@ internal class HttpCustomerRepository(
             if (!response.isSuccessful) {
                 val message = ((envelope["error"] as? JsonObject)?.get("message") as? JsonPrimitive)?.contentOrNull
                 throw CustomerApiException(response.code, message ?: "Request failed (${response.code}). Please try again.",
-                    ((envelope["error"] as? JsonObject)?.get("code") as? JsonPrimitive)?.contentOrNull)
+                    ((envelope["error"] as? JsonObject)?.get("code") as? JsonPrimitive)?.contentOrNull,
+                    response.header("Retry-After")?.toLongOrNull()?.coerceIn(0, 86400)
+                        ?: (((envelope["error"] as? JsonObject)?.get("details") as? JsonObject)?.get("retryAfterSeconds") as? JsonPrimitive)?.longOrNull?.coerceIn(0, 86400) ?: 0)
             }
             envelope["data"] as? JsonObject ?: throw IOException("The server response is missing data.")
         }
@@ -239,12 +248,12 @@ internal fun parseOverview(data: JsonObject): DashboardSample {
         dueDate = next?.let { displayDate(it.date) } ?: "—",
         days = next?.let { ((calendarDate(it.date).time - calendarDate(data.requiredText("today")).time) / 86_400_000L).toInt() } ?: 0,
         paid = schedule.count { it.status == "paid" }, total = schedule.size,
-        retailer = contract?.text("retailer").orEmpty(), advance = advance, installment = next?.amount ?: schedule.firstOrNull()?.amount ?: 0L,
+        retailer = contract?.text("retailer") ?: profile.text("retailer"), advance = advance, installment = next?.amount ?: schedule.firstOrNull()?.amount ?: 0L,
         schedule = schedule, payments = page.items, totalPrice = advance + payable,
         paidTotal = advance + paid, remaining = (payable + (contract?.amount("lateFees") ?: 0L) - paid).coerceAtLeast(0L),
         frequency = contract?.text("frequency").orEmpty(), status = contract?.text("status").orEmpty(),
         lockState = contract?.get("deviceLockState")?.jsonPrimitive?.contentOrNull,
-        retailerPhone = contract?.text("retailerPhone").orEmpty(), retailerAddress = contract?.text("retailerAddress").orEmpty(),
+        retailerPhone = contract?.text("retailerPhone") ?: profile.text("retailerPhone"), retailerAddress = contract?.text("retailerAddress").orEmpty(),
         paymentMethods = contract?.get("paymentMethods")?.jsonArray?.map { value ->
             val row = value.jsonObject
             PaymentMethodSample(row.text("kind"), row.text("accountTitle"), row.text("accountNumber"), row.text("bankName"))
@@ -254,5 +263,9 @@ internal fun parseOverview(data: JsonObject): DashboardSample {
             it.text("nextDueDate").takeIf { date -> date.isNotBlank() }?.let { date -> ((calendarDate(date).time - calendarDate(data.requiredText("today")).time) / 86_400_000L).toInt() } ?: 0,
             (it["count"] as? JsonPrimitive)?.intOrNull ?: 0, displayDate(it.text("completedOn"))) },
         nextCursor = page.nextCursor,
+        notifications = (data["notifications"] as? JsonArray)?.map { item ->
+            val row = item.jsonObject
+            CustomerNotice(row.requiredText("id"), row.requiredText("contractId"), row.text("kind"), row.text("title"), row.text("body"), row.text("createdAt"), row["read"]?.jsonPrimitive?.booleanOrNull ?: false)
+        }.orEmpty(),
     )
 }

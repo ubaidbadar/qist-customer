@@ -4,6 +4,7 @@ import java.util.Base64
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 /** Parses .env files into key-value pairs (workspace root, project root, and customer module). */
@@ -135,6 +136,9 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.firebase.messaging)
+    implementation(libs.play.app.update)
+    implementation(libs.play.auth)
     implementation(libs.coroutines.android)
     implementation(libs.okhttp)
     implementation(libs.serialization.json)

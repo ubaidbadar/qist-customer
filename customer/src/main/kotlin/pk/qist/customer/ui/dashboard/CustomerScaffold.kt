@@ -226,17 +226,3 @@ private fun SkeletonBlock(modifier: Modifier, shape: Shape = CircleShape, onNavy
     val fill = if (onNavy) Modifier.background(Color.White.copy(alpha = 0.14f), shape) else Modifier.background(brush, shape)
     Box(modifier.then(fill))
 }
-
-@Composable
-internal fun CustomerLoadError(tab: CustomerTab, onTab: (CustomerTab) -> Unit, message: String?, onRetry: () -> Unit, onLogout: () -> Unit) {
-    CustomerScaffold(tab, onTab) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.Center) {
-            Panel {
-                Text(copy("Could not load your account", "آپ کا اکاؤنٹ لوڈ نہیں ہو سکا"), style = MaterialTheme.typography.titleLarge)
-                Text(message ?: copy("Check your connection and try again.", "انٹرنیٹ چیک کر کے دوبارہ کوشش کریں۔"), Modifier.padding(vertical = 12.dp))
-                Button(onClick = onRetry) { Text(copy("Try again", "دوبارہ کوشش کریں")) }
-                TextButton(onClick = onLogout) { Text(copy("Sign out", "لاگ آؤٹ")) }
-            }
-        }
-    }
-}

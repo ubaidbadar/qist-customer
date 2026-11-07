@@ -25,7 +25,8 @@ import pk.qist.customer.ui.theme.Navy
 import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
-internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: () -> Unit, onLogout: () -> Unit, notifications: Boolean, onNotifications: (Boolean) -> Unit, onOpenPage: (String) -> Unit) {
+internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: () -> Unit, onLogout: () -> Unit, notifications: Boolean, onNotifications: (Boolean) -> Unit, notificationStatus: String?, onOpenPage: (String) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var dialog by rememberSaveable { mutableStateOf("") }
     val language = copy("English", "اردو")
     Panel {
@@ -58,9 +59,17 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
             Chevron()
         }
         HorizontalDivider(color = Divider)
-        SettingsRow(copy("Notifications (coming soon)", "اطلاعات (جلد)"), R.drawable.detail_bell) {
-            Switch(checked = false, onCheckedChange = null, enabled = false)
+        SettingsRow(copy("Notifications", "اطلاعات"), R.drawable.detail_bell) {
+            Switch(checked = notifications, onCheckedChange = onNotifications)
         }
+        if (notificationStatus != null) Caption(copy(notificationStatus, "اطلاعات منسلک نہیں ہو سکیں۔ ایپ دوبارہ کھولنے پر کوشش ہو گی۔"))
+        TextButton(onClick = {
+            val intent = if (android.os.Build.VERSION.SDK_INT >= 26) android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+            else android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+            try { context.startActivity(intent) } catch (_: android.content.ActivityNotFoundException) { /* The switch still controls in-app opt-in. */ }
+        }) { Text(copy("Android notification settings", "اینڈرائیڈ اطلاعات کی سیٹنگز")) }
+
         HorizontalDivider(color = Divider)
         SettingsRow(copy("Help and support", "مدد اور معاونت"), R.drawable.detail_help, onClick = { onOpenPage("help") }) { Chevron() }
         HorizontalDivider(color = Divider)

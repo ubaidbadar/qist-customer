@@ -25,6 +25,8 @@ import pk.qist.customer.data.PlanChoice
 import pk.qist.customer.ui.CustomerTab
 import pk.qist.customer.ui.phones.PhonePicker
 import pk.qist.customer.ui.phones.PlanStatusBadge
+import pk.qist.customer.ui.components.AccountEmptyState
+import pk.qist.customer.ui.components.RetailerContactDialog
 import pk.qist.customer.ui.components.Chevron
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.Pill
@@ -32,6 +34,7 @@ import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.notifications.NotificationInbox
 import pk.qist.customer.ui.notifications.NotificationPrompt
 import pk.qist.customer.ui.payments.CustomerReceipt
+import pk.qist.customer.ui.payments.EmptyPaymentHistory
 import pk.qist.customer.ui.payments.PaymentHistory
 import pk.qist.customer.ui.plan.PlanDetails
 import pk.qist.customer.ui.profile.CustomerProfile
@@ -62,6 +65,9 @@ internal fun Dashboard(
     refreshing: Boolean,
     onRefresh: () -> Unit,
     onMore: () -> Unit,
+    notificationStatus: String?,
+    onReadNotifications: (List<String>) -> Unit,
+    onOpenNotification: (String) -> Unit,
     busy: Boolean,
     message: String?,
     onDeleteAccount: () -> Unit,
@@ -70,20 +76,24 @@ internal fun Dashboard(
     onLanguage: () -> Unit,
     onLogout: () -> Unit,
 ) {
+    var retailerContact by rememberSaveable { mutableStateOf(false) }
+    if (retailerContact) RetailerContactDialog(data.retailerPhone) { retailerContact = false }
     var phonePicker by rememberSaveable { mutableStateOf(false) }
     if (phonePicker) PhonePicker(plans, data.id.orEmpty(), { onSelectPhone(it); phonePicker = false }, { phonePicker = false })
-    var allowed by remember { mutableStateOf(preferences.notificationsEnabled) }
-    var showPrompt by rememberSaveable { mutableStateOf(false) }
+    val allowed by preferences.notificationPreference.collectAsState()
+    var showPrompt by rememberSaveable { mutableStateOf(!preferences.hasNotificationPreference) }
     var inbox by rememberSaveable { mutableStateOf(false) }
-    var unread by rememberSaveable { mutableIntStateOf(0) }
+    var profilePage by rememberSaveable { mutableStateOf("") }
+    var receiptNumber by rememberSaveable(data.id) { mutableStateOf("") }
+    val unread = data.notifications.count { !it.read }
+    val openInbox by pk.qist.customer.platform.CustomerPushSignals.openInbox.collectAsState()
+    LaunchedEffect(openInbox) { if (openInbox) { profilePage = ""; receiptNumber = ""; phonePicker = false; showPrompt = false; inbox = true; pk.qist.customer.platform.CustomerPushSignals.openInbox.value = false } }
 
     fun setNotifications(enabled: Boolean) {
-        allowed = enabled
         preferences.setNotifications(enabled)
         showPrompt = false
     }
 
-    var profilePage by rememberSaveable { mutableStateOf("") }
     fun backProfile() { profilePage = if (profilePage == "terms" || profilePage == "about-privacy") "about" else "" }
     BackHandler(profilePage.isNotEmpty(), onBack = ::backProfile)
     BackHandler(inbox) { inbox = false }
@@ -96,14 +106,15 @@ internal fun Dashboard(
         return
     }
     if (inbox) {
-        NotificationInbox(data, unread, { inbox = false }, { unread = 0 }) { bit ->
-            unread = unread and bit.inv()
+        NotificationInbox(data.notifications, message, busy, { inbox = false }, { onReadNotifications(data.notifications.filter { !it.read }.map { it.id }) }) { notice ->
+            inbox = false
+            onTab(if (notice.kind == "payment" || notice.kind == "payment_voided") CustomerTab.Payments else CustomerTab.Plan)
+            onOpenNotification(notice.id)
         }
         return
     }
     if (showPrompt) NotificationPrompt({ setNotifications(true) }, { setNotifications(false) })
 
-    var receiptNumber by rememberSaveable(data.id) { mutableStateOf("") }
     val receipt = data.payments.firstOrNull { it.id == receiptNumber }
     BackHandler(receipt != null) { receiptNumber = "" }
     if (receipt != null) {
@@ -118,50 +129,60 @@ internal fun Dashboard(
                 PullToRefreshDefaults.Indicator(state = refreshState, isRefreshing = refreshing,
                     modifier = Modifier.align(Alignment.TopCenter), containerColor = Color.White, color = Blue)
             }) {
-            val scroll = key(tab, data.id) { rememberScrollState() }
-            Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
-                if (message != null && !data.fromCache) Surface(color = DueBackground, shape = QistShapes.Input, modifier = Modifier.padding(16.dp)) {
-                    Text(message, Modifier.padding(12.dp), color = Navy)
-                }
-                if (tab == CustomerTab.Home) {
-                    Box {
-                        Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
-                        Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
-                                    Text(data.name, color = Color.White, style = MaterialTheme.typography.titleLarge)
-                                }
-                                HomeNotificationsButton(unread != 0) { inbox = true }
-                            }
-                            if (data.lockState == "locked") PhoneLockNotice(data, data.fromCache)
-                            if (data.id != null) InstallmentCard(data, onHelp) { onTab(CustomerTab.Payments) }
-                            else Panel { Text(copy("No plans available. Contact your retailer.", "کوئی منصوبہ دستیاب نہیں۔ دکاندار سے رابطہ کریں۔")) }
-                            if (data.id != null) Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں")) { phonePicker = true }) {
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-                                    Box(Modifier.size(44.dp).background(Blue.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
-                                        Icon(painterResource(R.drawable.phone_outline), contentDescription = null, tint = Blue)
-                                    }
-                                    Column(Modifier.weight(1f)) {
-                                        Text(data.model, style = MaterialTheme.typography.titleMedium)
-                                        Text(copy("${plans.size} phones · Tap to switch", "${plans.size} فون · بدلنے کے لیے ٹیپ کریں"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                                    }
-                                    if (data.lockState == "locked") LockedBadge()
-                                    else PlanStatusBadge(data.status, data.days.takeIf { data.dueDate != "—" })
-                                    Chevron()
-                                }
-                            }
-                            PaymentsCard(data.payments) { onTab(CustomerTab.Payments) }
-                        }
+            if (tab == CustomerTab.Payments && data.payments.isEmpty()) {
+                EmptyPaymentHistory(message.takeIf { !data.fromCache })
+            } else {
+                val scroll = key(tab, data.id) { rememberScrollState() }
+                Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                    if (message != null && !data.fromCache) Surface(color = DueBackground, shape = QistShapes.Input, modifier = Modifier.padding(16.dp)) {
+                        Text(message, Modifier.padding(12.dp), color = Navy)
                     }
-                } else {
-                    Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                        Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabTitle(tab), style = MaterialTheme.typography.headlineMedium)
-                        when (tab) {
-                            CustomerTab.Payments -> PaymentHistory(data, busy, onMore) { receiptNumber = it.id }
-                            CustomerTab.Plan -> if (data.id == null) Panel { Text(copy("No plan available.", "کوئی منصوبہ دستیاب نہیں۔")) } else PlanDetails(data) { phonePicker = true }
-                            CustomerTab.Profile -> CustomerProfile(data, phone, onLanguage, onLogout, allowed, ::setNotifications) { profilePage = it }
-                            CustomerTab.Home -> Unit
+                    if (tab == CustomerTab.Home) {
+                        Box {
+                            Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
+                            Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
+                                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
+                                        Text(data.name, color = Color.White, style = MaterialTheme.typography.titleLarge)
+                                    }
+                                    HomeNotificationsButton(unread != 0) { inbox = true }
+                                }
+                                if (data.lockState == "locked") PhoneLockNotice(data, data.fromCache)
+                                if (data.id != null) InstallmentCard(data, onHelp) { onTab(CustomerTab.Payments) }
+                                else Panel {
+                                    AccountEmptyState(R.drawable.phone_outline, copy("No phone added yet", "ابھی کوئی فون شامل نہیں"),
+                                        copy("Your retailer has not added a phone to your account yet. Contact them to get started.", "دکاندار نے ابھی آپ کے اکاؤنٹ میں فون شامل نہیں کیا۔ شروع کرنے کے لیے ان سے رابطہ کریں۔")) {
+                                        Spacer(Modifier.height(24.dp))
+                                        Pill(copy("Contact your retailer", "اپنے دکاندار سے رابطہ کریں"), { retailerContact = true })
+                                    }
+                                }
+                                if (data.id != null) Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں")) { phonePicker = true }) {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                                        Box(Modifier.size(44.dp).background(Blue.copy(alpha = 0.08f), CircleShape), contentAlignment = Alignment.Center) {
+                                            Icon(painterResource(R.drawable.phone_outline), contentDescription = null, tint = Blue)
+                                        }
+                                        Column(Modifier.weight(1f)) {
+                                            Text(data.model, style = MaterialTheme.typography.titleMedium)
+                                            Text(copy("${plans.size} phones · Tap to switch", "${plans.size} فون · بدلنے کے لیے ٹیپ کریں"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                        }
+                                        if (data.lockState == "locked") LockedBadge()
+                                        else PlanStatusBadge(data.status, data.days.takeIf { data.dueDate != "—" })
+                                        Chevron()
+                                    }
+                                }
+                                if (data.id != null) PaymentsCard(data.payments) { onTab(CustomerTab.Payments) }
+                            }
+                        }
+                    } else {
+                        Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
+                            Text(if (tab == CustomerTab.Plan) copy("My plan", "میرا منصوبہ") else tabTitle(tab), style = MaterialTheme.typography.headlineMedium)
+                            when (tab) {
+                                CustomerTab.Payments -> PaymentHistory(data, busy, onMore) { receiptNumber = it.id }
+                                CustomerTab.Plan -> if (data.id == null) Panel { Text(copy("No plan available.", "کوئی منصوبہ دستیاب نہیں۔")) } else PlanDetails(data) { phonePicker = true }
+                                CustomerTab.Profile -> CustomerProfile(data, phone, onLanguage, onLogout, allowed, ::setNotifications, notificationStatus) { profilePage = it }
+                                CustomerTab.Home -> Unit
+                            }
                         }
                     }
                 }

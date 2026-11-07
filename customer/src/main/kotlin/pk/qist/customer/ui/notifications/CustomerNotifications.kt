@@ -13,6 +13,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
+import pk.qist.customer.ui.components.AccountEmptyState
 import pk.qist.customer.ui.components.CustomerBackButton
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.localization.copy
@@ -47,7 +48,7 @@ internal fun NotificationPrompt(onAllow: () -> Unit, onDismiss: () -> Unit) {
             NoticeIcon(R.drawable.detail_bell, Blue, BlueBackground, large = true)
             Text(copy("Never miss a due date", "قسط کی تاریخ یاد رکھیں"), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
             Text(
-                copy("Remote installment reminders and payment confirmations are not available in this version.", "اس ورژن میں قسط کی ریموٹ یاد دہانی اور ادائیگی کی تصدیق دستیاب نہیں۔"),
+                copy("Get due-date reminders, payment confirmations and phone-status updates. You can change this in Profile.", "قسط کی یاد دہانیاں، ادائیگی کی تصدیق اور فون کی حالت کی اطلاعات پائیں۔ اسے پروفائل میں بدل سکتے ہیں۔"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
@@ -61,31 +62,28 @@ internal fun NotificationPrompt(onAllow: () -> Unit, onDismiss: () -> Unit) {
 }
 
 @Composable
-internal fun NotificationInbox(
-    data: DashboardSample,
-    unread: Int,
-    onBack: () -> Unit,
-    onReadAll: () -> Unit,
-    onRead: (Int) -> Unit,
-) {
-    Column(
-        Modifier.fillMaxSize().background(Canvas).systemBarsPadding().verticalScroll(rememberScrollState()).padding(QistSpacing.Screen),
-        verticalArrangement = Arrangement.spacedBy(QistSpacing.Item),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CustomerBackButton(onBack)
-            Text(copy("Notifications", "اطلاعات"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = onReadAll, enabled = unread != 0, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                Text(copy("Mark all read", "سب پڑھ لیے"))
+internal fun NotificationInbox(notices: List<pk.qist.customer.data.CustomerNotice>, error: String?, busy: Boolean, onBack: () -> Unit, onReadAll: () -> Unit, onOpen: (pk.qist.customer.data.CustomerNotice) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Canvas).systemBarsPadding()) {
+        val viewport = maxHeight
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(QistSpacing.Screen)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                CustomerBackButton(onBack)
+                Text(copy("Notifications", "اطلاعات"), style = MaterialTheme.typography.headlineMedium)
             }
+            if (error != null) Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+            if (notices.isNotEmpty()) {
+                TextButton(onClick = onReadAll, enabled = !busy && notices.any { !it.read }, modifier = Modifier.align(Alignment.End)) { Text(copy("Mark all read", "سب پڑھ لیے")) }
+                notices.forEach { notice ->
+                    NoticeCard(notice.title, notice.body, pk.qist.customer.data.displayDate(notice.createdAt),
+                        if (notice.kind.startsWith("payment")) R.drawable.tab_payments else if (notice.kind == "due") R.drawable.tab_plan else R.drawable.phone_outline,
+                        Blue, BlueBackground, unread = !notice.read, onRead = { onOpen(notice) })
+                    Spacer(Modifier.height(12.dp))
+                }
+            } else AccountEmptyState(R.drawable.detail_bell, copy("No notifications yet", "ابھی کوئی اطلاع نہیں"),
+                copy("No notifications are available yet. Check Home and Payments for current account information.", "ابھی کوئی اطلاع دستیاب نہیں۔ موجودہ معلومات کے لیے ہوم اور ادائیگیاں دیکھیں۔"),
+                Modifier.fillMaxWidth().heightIn(min = (viewport - 100.dp).coerceAtLeast(300.dp)))
         }
-        Text(copy("No notifications available. Check Home and Payments for your latest account information.", "کوئی اطلاع دستیاب نہیں۔ تازہ معلومات کے لیے ہوم اور ادائیگیاں دیکھیں۔"), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-@Composable
-private fun Section(title: String) {
-    Text(title, Modifier.padding(top = 8.dp, start = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
 }
 
 @Composable
@@ -99,7 +97,7 @@ private fun NoticeCard(
         color = Color.White,
     ) {
         Row(
-            Modifier.then(if (unread) Modifier.clickable(onClick = onRead) else Modifier).padding(16.dp),
+            Modifier.fillMaxWidth().clickable(onClick = onRead).padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item),
         ) {
             NoticeIcon(icon, tint, background)

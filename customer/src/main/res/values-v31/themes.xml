@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.Qist.Customer" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#0A1A3F</item>
+        <item name="android:windowSplashScreenBackground">#0A1A3F</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#0A1A3F</item>
+    </style>
+</resources>

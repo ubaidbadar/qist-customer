@@ -102,7 +102,7 @@ internal fun RetailerContactDialog(phone: String = "", whatsApp: Boolean = false
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(copy("Contact retailer", "دکاندار سے رابطہ")) },
-        text = { Text(phone.ifBlank { copy("Your retailer has not provided a phone number.", "دکاندار نے فون نمبر فراہم نہیں کیا۔") }) },
+        text = { Text(phone.ifBlank { copy("Contact the shop where you purchased your phone. Their contact details are not available here yet.", "جہاں سے فون خریدا ہے اس دکان سے رابطہ کریں۔ ان کی رابطہ تفصیل ابھی یہاں دستیاب نہیں۔") }) },
         confirmButton = { TextButton(onClick = {
             if (phone.isNotBlank()) {
                 val digits = phone.filter(Char::isDigit).let { if (it.startsWith("0")) "92" + it.drop(1) else it }
