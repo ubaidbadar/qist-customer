@@ -63,7 +63,7 @@ android {
             .get()
         versionName = "0.2.1"
         val customerApiUrl = resolveEnv("CUSTOMER_API_URL", "qist.customer.apiUrl")
-            ?: resolveEnv("API_URL")
+            ?: resolveEnv("API_URL")?.trimEnd('/')?.let { "$it/customer-app/" }
             ?: "https://qist.restora.live/api/v1/customer-app/"
         buildConfigField("String", "CUSTOMER_API_URL", "\"$customerApiUrl\"")
     }
@@ -127,4 +127,11 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
     implementation(libs.compose.material3)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.coroutines.android)
+    implementation(libs.okhttp)
+    implementation(libs.serialization.json)
+    testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
 }
