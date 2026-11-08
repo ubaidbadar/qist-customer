@@ -20,6 +20,8 @@ import kotlinx.coroutines.withContext
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentSample
+import pk.qist.customer.ui.components.Pill
+import pk.qist.customer.ui.components.SecondaryAction
 import pk.qist.customer.ui.components.CustomerSnackbarHost
 import pk.qist.customer.ui.components.accountMessage
 import pk.qist.customer.ui.components.Caption
@@ -81,25 +83,17 @@ internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBa
         }
     }
     PaymentPage(title, onBack, feedback = { CustomerSnackbarHost(snackbar) }, actions = {
-        Button(onClick = {
+        Pill(copy("Share receipt", "رسید شیئر کریں"), {
             val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, receipt)
             try { context.startActivity(Intent.createChooser(intent, title)) }
             catch (_: ActivityNotFoundException) { scope.launch { snackbar.accountMessage(shareUnavailable, error = true) } }
             catch (_: SecurityException) { scope.launch { snackbar.accountMessage(shareUnavailable, error = true) } }
-        }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape) {
-            Icon(painterResource(R.drawable.detail_share), null, Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp)); Text(copy("Share receipt", "رسید شیئر کریں"))
-        }
-        OutlinedButton(onClick = {
+        }, icon = R.drawable.detail_share)
+        SecondaryAction(if (saving) copy("Saving…", "محفوظ ہو رہی ہے…") else copy("Download", "ڈاؤن لوڈ کریں"), {
             saving = true
             try { download.launch("qist-receipt-$id.txt") }
             catch (_: ActivityNotFoundException) { saving = false; scope.launch { snackbar.accountMessage(error, error = true) } }
-        }, enabled = !saving, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = androidx.compose.foundation.shape.CircleShape,
-            border = androidx.compose.foundation.BorderStroke(1.dp, pk.qist.customer.ui.theme.InputBorder)) {
-            if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            else Icon(painterResource(R.drawable.state_download), null, Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp)); Text(if (saving) copy("Saving…", "محفوظ ہو رہی ہے…") else copy("Download", "ڈاؤن لوڈ کریں"))
-        }
+        }, icon = R.drawable.state_download, busy = saving)
     }) {
         Panel {
             Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {

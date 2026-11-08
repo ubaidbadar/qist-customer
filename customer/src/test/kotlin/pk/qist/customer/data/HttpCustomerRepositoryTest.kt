@@ -2,6 +2,7 @@ package pk.qist.customer.data
 
 import kotlinx.coroutines.runBlocking
 import okhttp3.*
+import okio.buffer
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.*
@@ -170,6 +171,28 @@ class HttpCustomerRepositoryTest {
         assertEquals(listOf("/push-token", "/notifications/read", "/push-token"), requests.map { it.url.encodedPath })
         assertEquals(listOf("POST", "POST", "DELETE"), requests.map { it.method })
         assertTrue(requests.all { it.header("Authorization") == "Bearer stored" })
+    }
+
+    @Test fun `response stream failure uses saved data only for a successful status`() = runBlocking {
+        val session = MemorySession().apply { token = "stored" }
+        val cache = BoundOverviewCache(MemoryTextStore())
+        cache.save("stored", overviewFixture(), 1)
+        var status = 200
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            val broken = object : ResponseBody() {
+                override fun contentType() = "application/json".toMediaType()
+                override fun contentLength() = -1L
+                override fun source(): okio.BufferedSource = object : okio.ForwardingSource(okio.Buffer()) {
+                    override fun read(sink: okio.Buffer, byteCount: Long): Long = throw java.io.IOException("Disconnected while reading")
+                }.buffer()
+            }
+            Response.Builder().request(chain.request()).code(status).message("Test").protocol(Protocol.HTTP_1_1).body(broken).build()
+        }.build()
+        val repository = HttpCustomerRepository(session, "https://example.com/", http, overviewCache = cache)
+        repository.restore(); assertTrue(repository.dashboard().fromCache)
+        status = 401
+        try { repository.dashboard(); fail("Expected authentication failure") }
+        catch (error: CustomerApiException) { assertEquals(401, error.status) }
     }
 
 }

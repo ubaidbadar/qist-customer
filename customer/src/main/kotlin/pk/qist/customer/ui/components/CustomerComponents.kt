@@ -29,35 +29,38 @@ internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnSco
 }
 
 @Composable
-internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false) {
+internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false, icon: Int? = null, enabled: Boolean = true, busy: Boolean = false) {
     Button(
-        onClick = onClick,
+        onClick = onClick, enabled = enabled && !busy,
         modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = if (cyan) Cyan else Blue, contentColor = if (cyan) Navy else Color.White),
-    ) { Text(label, style = MaterialTheme.typography.labelLarge) }
+    ) { ActionLabel(label, icon, busy) }
 }
 
 @Composable
-internal fun SecondaryAction(label: String, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), border = BorderStroke(1.dp, InputBorder)) {
-        Text(label, color = Navy)
-    }
+internal fun SecondaryAction(label: String, onClick: () -> Unit, icon: Int? = null, enabled: Boolean = true, busy: Boolean = false) {
+    OutlinedButton(onClick = onClick, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = CircleShape,
+        border = BorderStroke(1.dp, InputBorder)) { ActionLabel(label, icon, busy) }
 }
 
 @Composable
-internal fun ScreenBadge(icon: Int, color: Color, background: Color, size: Int) {
+private fun ActionLabel(label: String, icon: Int?, busy: Boolean) {
+    if (busy) CircularProgressIndicator(Modifier.size(18.dp), color = LocalContentColor.current, strokeWidth = 2.dp)
+    else if (icon != null) Icon(painterResource(icon), null, Modifier.size(20.dp))
+    if (busy || icon != null) Spacer(Modifier.width(8.dp))
+    Text(label, style = MaterialTheme.typography.labelLarge)
+}
+
+@Composable
+internal fun ScreenBadge(icon: Int, color: Color, background: Color, size: Int, iconSize: Int = 24) {
     Box(Modifier.size(size.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
-        Icon(painterResource(icon), contentDescription = null, tint = color)
+        Icon(painterResource(icon), contentDescription = null, tint = color, modifier = Modifier.size(iconSize.dp))
     }
 }
 
 @Composable
-internal fun Badge(icon: Int, tint: Color, background: Color) {
-    Box(Modifier.size(36.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
-        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(19.dp), tint = tint)
-    }
-}
+internal fun Badge(icon: Int, tint: Color, background: Color) = ScreenBadge(icon, tint, background, 36, 19)
 
 @Composable
 internal fun Caption(text: String) {
@@ -86,7 +89,7 @@ internal fun DetailRow(
             if (subtitle.isNotEmpty()) Caption(subtitle)
         }
         if (value.isNotEmpty()) {
-            Column(horizontalAlignment = Alignment.End) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                 Text(value, color = valueColor, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.End)
                 if (status != null) Text(status, color = tint, style = MaterialTheme.typography.labelMedium)
             }
@@ -124,9 +127,9 @@ internal fun money(amount: Long): String {
 }
 
 @Composable
-internal fun CustomerBackButton(onBack: () -> Unit) {
+internal fun CustomerBackButton(onBack: () -> Unit, enabled: Boolean = true) {
     FilledIconButton(
-        onClick = onBack,
+        onClick = onBack, enabled = enabled,
         modifier = Modifier.size(48.dp),
         colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White, contentColor = Navy),
     ) {

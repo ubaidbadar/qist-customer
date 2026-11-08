@@ -36,8 +36,13 @@ internal fun CustomerUpdateHost(enabled: Boolean, content: @Composable () -> Uni
     var checking by remember { mutableStateOf(false) }
     val enabledNow by rememberUpdatedState(enabled)
     val unavailable = copy("Update check is unavailable. You can keep using Qist.", "اپ ڈیٹ چیک نہیں ہو سکی۔ آپ قسط استعمال جاری رکھ سکتے ہیں۔")
+    val downloading = copy("The update is downloading. You can keep using Qist.", "اپ ڈیٹ ڈاؤن لوڈ ہو رہی ہے۔ آپ قسط استعمال کر سکتے ہیں۔")
+    val cannotOffer = copy("An update is available, but Google Play cannot offer an in-app download on this device.", "اپ ڈیٹ دستیاب ہے، لیکن اس فون پر ایپ کے اندر ڈاؤن لوڈ ممکن نہیں۔")
     val latest = copy("You are up to date.", "آپ کا ورژن تازہ ہے۔")
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { /* Cancellation never blocks the app. */ }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == com.google.android.play.core.install.model.ActivityResult.RESULT_IN_APP_UPDATE_FAILED)
+            scope.launch { snackbar.accountMessage(unavailable, error = true) }
+    }
     fun check(manual: Boolean = false) {
         if (checking) return
         checking = true
@@ -46,6 +51,8 @@ internal fun CustomerUpdateHost(enabled: Boolean, content: @Composable () -> Uni
             when {
                 result.installStatus() == InstallStatus.DOWNLOADED && (!installOffered || manual) -> { installOffered = true; ready = true }
                 result.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && result.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE) && (!offered || manual) -> { offered = true; info = result }
+                manual && result.installStatus() in listOf(InstallStatus.DOWNLOADING, InstallStatus.PENDING) -> scope.launch { snackbar.accountMessage(downloading) }
+                manual && result.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE -> scope.launch { snackbar.accountMessage(cannotOffer, error = true) }
                 manual -> scope.launch { snackbar.accountMessage(latest) }
             }
         }.addOnFailureListener { checking = false; if (manual) scope.launch { snackbar.accountMessage(unavailable, error = true) } }

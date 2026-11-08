@@ -63,29 +63,36 @@ private val inter = FontFamily(
     Font(R.font.inter_700, FontWeight.Bold),
 )
 
+private val qistTypography = Typography().run {
+    copy(
+        displayLarge = displayLarge.copy(fontFamily = inter),
+        displayMedium = displayMedium.copy(fontFamily = inter),
+        displaySmall = displaySmall.copy(fontFamily = inter),
+        headlineLarge = headlineLarge.copy(fontFamily = inter, fontWeight = FontWeight.Bold),
+        headlineMedium = headlineMedium.copy(fontFamily = inter, fontWeight = FontWeight.Bold),
+        headlineSmall = headlineSmall.copy(fontFamily = inter),
+        titleLarge = titleLarge.copy(fontFamily = inter, fontWeight = FontWeight.Bold),
+        titleMedium = titleMedium.copy(fontFamily = inter, fontWeight = FontWeight.SemiBold),
+        titleSmall = titleSmall.copy(fontFamily = inter),
+        bodyLarge = bodyLarge.copy(fontFamily = inter),
+        bodyMedium = bodyMedium.copy(fontFamily = inter),
+        bodySmall = bodySmall.copy(fontFamily = inter),
+        labelLarge = labelLarge.copy(fontFamily = inter, fontWeight = FontWeight.SemiBold),
+        labelMedium = labelMedium.copy(fontFamily = inter),
+        labelSmall = labelSmall.copy(fontFamily = inter),
+    )
+}
+
+private val qistColors = lightColorScheme(
+    primary = Blue, onPrimary = Color.White, primaryContainer = BlueBackground, onPrimaryContainer = Navy,
+    secondary = Blue, onSecondary = Color.White,
+    background = Canvas, onBackground = Navy,
+    surface = Color.White, onSurface = Navy, onSurfaceVariant = Color(0xFF4A5A80),
+    outline = InputBorder, outlineVariant = Divider,
+    error = Destructive, onError = Color.White, errorContainer = DestructiveBackground, onErrorContainer = Destructive,
+)
+
 @Composable
 internal fun QistTheme(content: @Composable () -> Unit) {
-    val type = Typography()
-    MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Blue,
-            onPrimary = Color.White,
-            background = Canvas,
-            onBackground = Navy,
-            surface = Color.White,
-            onSurface = Navy,
-            onSurfaceVariant = Color(0xFF4A5A80),
-        ),
-        typography = type.copy(
-            headlineLarge = type.headlineLarge.copy(fontFamily = inter, fontWeight = FontWeight.Bold),
-            headlineMedium = type.headlineMedium.copy(fontFamily = inter, fontWeight = FontWeight.Bold),
-            titleLarge = type.titleLarge.copy(fontFamily = inter, fontWeight = FontWeight.Bold),
-            titleMedium = type.titleMedium.copy(fontFamily = inter, fontWeight = FontWeight.SemiBold),
-            bodyLarge = type.bodyLarge.copy(fontFamily = inter),
-            bodyMedium = type.bodyMedium.copy(fontFamily = inter),
-            labelLarge = type.labelLarge.copy(fontFamily = inter, fontWeight = FontWeight.SemiBold),
-            labelMedium = type.labelMedium.copy(fontFamily = inter),
-        ),
-        content = content,
-    )
+    MaterialTheme(colorScheme = qistColors, typography = qistTypography, content = content)
 }

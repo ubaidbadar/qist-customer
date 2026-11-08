@@ -67,4 +67,21 @@ class CustomerMappingTest {
         assertEquals("plan-a", data.notifications.single().contractId)
     }
 
+    @Test fun `schedule dates are classified against the server calendar rather than the device clock`() {
+        val fixture = overviewFixture()
+        val data = parseOverview(fixture)
+        val today = fixture.getValue("today").toString().trim('"')
+        val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+        data.schedule.forEach { row ->
+            val expected = ((date.parse(row.date)!!.time - date.parse(today)!!.time) / 86400000L).toInt()
+            assertEquals(expected, row.dueInDays)
+        }
+    }
+
+    @Test fun `notification timestamps use the shop calendar across UTC midnight`() {
+        val fixture = overviewFixture()
+        val updated = kotlinx.serialization.json.JsonObject(fixture + ("notifications" to kotlinx.serialization.json.Json.parseToJsonElement("""[{"id":"notice-a","contractId":"plan-a","kind":"payment","title":"Payment recorded","body":"Open Payments","createdAt":"2026-11-07T20:00:00.000Z","read":false}]""")))
+        assertEquals("08 Nov 2026", parseOverview(updated).notifications.single().date)
+    }
+
 }

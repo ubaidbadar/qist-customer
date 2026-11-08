@@ -63,78 +63,64 @@ internal fun CustomerShell() {
     BackHandler(state.serviceGate == null && paymentHelp) { paymentHelp = false }
     CompositionLocalProvider(LocalUrdu provides urdu, LocalLayoutDirection provides if (urdu) LayoutDirection.Rtl else LayoutDirection.Ltr) {
         CustomerUpdateHost(enabled = state.route == CustomerRoute.Home && state.serviceGate == null) {
-        val gate = state.serviceGate
-        if (state.restoring) {
-            AccountSplash()
-        } else if (gate != null) {
-            ServiceAvailabilityScreen(state.checkingService, state.message) { model.checkServiceStatus(true) }
-        } else when (state.route) {
-            CustomerRoute.SessionExpired -> SessionExpired(model::signInAgain)
-            CustomerRoute.Welcome -> Welcome({ urdu = !urdu; preferences.setUrdu(urdu) }, model::begin)
-            CustomerRoute.Phone -> AuthScreen(
-                copy("Enter your phone number", "اپنا فون نمبر درج کریں"),
-                copy("Use the number registered with your retailer.", "اپنے دکاندار کے پاس رجسٹرڈ نمبر استعمال کریں۔"),
-                copy("Continue", "جاری رکھیں"), model::back, { model.start(phone) },
-                footer = copy("Not registered? Contact your retailer.", "رجسٹرڈ نہیں؟ دکاندار سے رابطہ کریں۔"), busy = state.busy,
-                enabled = phone.matches(Regex("3[0-9]{9}")) && !state.phoneNotRegistered,
-            ) {
-                PhoneField(phone, state.phoneNotRegistered) { if (!state.busy) { phone = normalizePhone(it); model.editPhone() } }
-                PhoneNumberHint(phone.isEmpty(), !state.busy) { phone = it; model.editPhone() }
-                AuthError(state.message)
-            }
-            CustomerRoute.Password, CustomerRoute.SetPassword -> {
-                val creating = state.route == CustomerRoute.SetPassword
-                AuthScreen(
-                    if (creating) copy("Create your password", "اپنا پاس ورڈ بنائیں") else copy("Welcome back", "واپس خوش آمدید"),
-                    if (creating) copy("Your number is verified. Choose a password with 8–128 characters.", "نمبر کی تصدیق ہو گئی۔ ۸ تا ۱۲۸ حروف کا پاس ورڈ بنائیں۔") else copy("Enter your password for +92 ${state.phone}.", "+92 ${state.phone} کا پاس ورڈ درج کریں۔"),
-                    if (creating) copy("Save and continue", "محفوظ کریں اور جاری رکھیں") else copy("Sign in", "لاگ ان کریں"),
-                    model::back, { if (creating) model.savePassword(password, preferences.hasAcceptedPrivacy) else model.login(password, preferences.hasAcceptedPrivacy) },
-                    busy = state.busy, enabled = password.length in 8..128,
+            val gate = state.serviceGate
+            if (state.restoring) {
+                AccountSplash()
+            } else if (gate != null) {
+                ServiceAvailabilityScreen(state.checkingService, state.message) { model.checkServiceStatus(true) }
+            } else when (state.route) {
+                CustomerRoute.SessionExpired -> SessionExpired(model::signInAgain)
+                CustomerRoute.Welcome -> Welcome({ urdu = !urdu; preferences.setUrdu(urdu) }, model::begin)
+                CustomerRoute.Phone -> AuthScreen(
+                    copy("Enter your phone number", "اپنا فون نمبر درج کریں"),
+                    copy("Use the number registered with your retailer.", "اپنے دکاندار کے پاس رجسٹرڈ نمبر استعمال کریں۔"),
+                    copy("Continue", "جاری رکھیں"), model::back, { model.start(phone) },
+                    footer = copy("Not registered? Contact your retailer.", "رجسٹرڈ نہیں؟ دکاندار سے رابطہ کریں۔"), busy = state.busy,
+                    enabled = phone.matches(Regex("3[0-9]{9}")) && !state.phoneNotRegistered,
                 ) {
-                    PasswordField(password, creating) { if (!state.busy) password = it.take(128) }
-                    TextButton(onClick = { model.requestCode(true) }, enabled = !state.busy) {
-                        Text(if (creating) copy("Verify again", "دوبارہ تصدیق کریں") else copy("Forgot password?", "پاس ورڈ بھول گئے؟"))
-                    }
+                    PhoneField(phone, state.phoneNotRegistered) { if (!state.busy) { phone = normalizePhone(it); model.editPhone() } }
+                    PhoneNumberHint(phone.isEmpty(), !state.busy) { phone = it; model.editPhone() }
                     AuthError(state.message)
                 }
-            }
-            CustomerRoute.Verify -> {
-                val blocked = remainingSeconds(state.verifyBlockedUntil)
-                AuthScreen(copy("Verify your number", "اپنے نمبر کی تصدیق کریں"),
-                    copy("Enter the 6-digit code sent to +92 ${state.phone} on WhatsApp.", "+92 ${state.phone} کے واٹس ایپ پر بھیجا گیا ۶ ہندسوں کا کوڈ درج کریں۔"),
-                    copy("Verify", "تصدیق کریں"), model::back, { model.verify(code) }, busy = state.busy,
-                    enabled = code.length == 6 && blocked == 0L) {
-                    CodeField(code, error = state.codeRejected, enabled = !state.busy && blocked == 0L) { code = it; model.editCode() }
-                    if (blocked > 0) VerificationWait(blocked) else {
+                CustomerRoute.Password, CustomerRoute.SetPassword -> {
+                    val creating = state.route == CustomerRoute.SetPassword
+                    AuthScreen(
+                        if (creating) copy("Create your password", "اپنا پاس ورڈ بنائیں") else copy("Welcome back", "واپس خوش آمدید"),
+                        if (creating) copy("Your number is verified. Choose a password with 8–128 characters.", "نمبر کی تصدیق ہو گئی۔ ۸ تا ۱۲۸ حروف کا پاس ورڈ بنائیں۔") else copy("Enter your password for +92 ${state.phone}.", "+92 ${state.phone} کا پاس ورڈ درج کریں۔"),
+                        if (creating) copy("Save and continue", "محفوظ کریں اور جاری رکھیں") else copy("Sign in", "لاگ ان کریں"),
+                        model::back, { if (creating) model.savePassword(password, preferences.hasAcceptedPrivacy) else model.login(password, preferences.hasAcceptedPrivacy) },
+                        busy = state.busy, enabled = password.length in 8..128,
+                    ) {
+                        PasswordField(password, creating) { if (!state.busy) password = it.take(128) }
+                        TextButton(onClick = { model.requestCode(true) }, enabled = !state.busy) {
+                            Text(if (creating) copy("Verify again", "دوبارہ تصدیق کریں") else copy("Forgot password?", "پاس ورڈ بھول گئے؟"))
+                        }
                         AuthError(state.message)
-                        Resend(state.deadline, { code = ""; model.requestCode() }, enabled = !state.busy)
                     }
                 }
-            }
-            CustomerRoute.Consent -> if (consentPolicy) {
-                AuthScreen(copy("Privacy policy", "رازداری کی پالیسی"), "", copy("Back", "واپس"), { consentPolicy = false }, { consentPolicy = false }) { PrivacyPolicy() }
-            } else PrivacyConsent({ consentPolicy = true }, { preferences.acceptPrivacy(); model.acceptPrivacy() }, model::declinePrivacy)
-            CustomerRoute.Home -> {
-                val data = state.data
-                when {
-                    state.switchingPlan || (data == null && state.busy) -> CustomerLoading(tab, { tab = it })
-                    data == null -> AccountLoadError(state.message, state.busy, model::refresh, model::logout)
-                    paymentHelp -> HowToPay(data) { paymentHelp = false }
-                    else -> Dashboard(data, tab, { tab = it }, { paymentHelp = true },
-                        plans = data.contracts, onSelectPhone = model::selectPlan,
-                        refreshing = state.refreshing, busy = state.busy, onRefresh = model::refresh,
-                        phone = data.phone.removePrefix("0"), preferences = preferences,
-                        onLanguage = { urdu = !urdu; preferences.setUrdu(urdu) }, onLogout = model::logout,
-                        notificationStatus = state.notificationStatus, onReadNotifications = model::markNotificationsRead, onOpenNotification = model::openNotification,
-                        onMore = model::morePayments, message = state.message, onDeleteAccount = model::deleteAccount)
+                CustomerRoute.Verify -> VerificationScreen(state.phone, code, state.busy, state.message, state.codeRejected,
+                    state.deadline, state.verifyBlockedUntil, model::back, { model.verify(code) },
+                    { code = it; model.editCode() }, { code = ""; model.requestCode() })
+                CustomerRoute.Consent -> if (consentPolicy) {
+                    AuthScreen(copy("Privacy policy", "رازداری کی پالیسی"), "", copy("Back", "واپس"), { consentPolicy = false }, { consentPolicy = false }) { PrivacyPolicy() }
+                } else PrivacyConsent({ consentPolicy = true }, { preferences.acceptPrivacy(); model.acceptPrivacy() }, model::declinePrivacy)
+                CustomerRoute.Home -> {
+                    val data = state.data
+                    when {
+                        state.switchingPlan || (data == null && state.busy) -> CustomerLoading(tab, { tab = it })
+                        data == null -> AccountLoadError(state.message, state.busy, model::refresh, model::logout)
+                        paymentHelp -> HowToPay(data) { paymentHelp = false }
+                        else -> Dashboard(data, tab, { tab = it }, { paymentHelp = true },
+                            onSelectPhone = model::selectPlan,
+                            refreshing = state.refreshing, busy = state.busy, onRefresh = model::refresh,
+                            phone = data.phone.removePrefix("0"), preferences = preferences,
+                            onLanguage = { urdu = !urdu; preferences.setUrdu(urdu) }, onLogout = model::logout,
+                            openInbox = openNotificationInbox, onInboxOpened = { pk.qist.customer.platform.CustomerPushSignals.openInbox.value = false },
+                            notificationStatus = state.notificationStatus, onReadNotifications = model::markNotificationsRead, onOpenNotification = model::openNotification,
+                            onMore = model::morePayments, message = state.message, onDeleteAccount = model::deleteAccount)
+                    }
                 }
             }
         }
     }
-}
-}
-
-@Composable
-private fun AuthError(message: String?) {
-    if (message != null) Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp).semantics { liveRegion = LiveRegionMode.Polite })
 }

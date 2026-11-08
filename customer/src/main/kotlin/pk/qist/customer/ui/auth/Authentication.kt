@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -23,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import kotlinx.coroutines.delay
 import pk.qist.customer.R
+import pk.qist.customer.ui.components.CustomerBackButton
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
@@ -81,10 +84,7 @@ internal fun AuthScreen(
 ) {
     Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().imePadding().padding(QistSpacing.AuthScreen)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            val backLabel = copy("Back", "واپس")
-            FilledIconButton(onClick = onBack, enabled = !busy, modifier = Modifier.size(48.dp).semantics { contentDescription = backLabel },
-                colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White, contentColor = Navy),
-            ) { Text(copy("‹", "›"), fontSize = 28.sp) }
+            CustomerBackButton(onBack, enabled = !busy)
             Spacer(Modifier.height(28.dp))
             Text(title, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(10.dp))
@@ -92,13 +92,7 @@ internal fun AuthScreen(
             Spacer(Modifier.height(22.dp))
             content()
         }
-        Button(onClick = onAction, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = CircleShape) {
-            if (busy) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(8.dp))
-            }
-            Text(if (busy) copy("Please wait…", "انتظار کریں…") else action)
-        }
+        Pill(if (busy) copy("Please wait…", "انتظار کریں…") else action, onAction, enabled = enabled, busy = busy)
         if (footer != null) {
             Spacer(Modifier.height(12.dp))
             Text(footer, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -174,7 +168,7 @@ internal fun CodeField(code: String, error: Boolean = false, enabled: Boolean = 
 
 @Composable
 internal fun Resend(deadline: Long, onResend: () -> Unit, enabled: Boolean = true) {
-    val seconds = remainingSeconds(deadline)
+    val seconds by rememberRemainingSeconds(deadline)
     Spacer(Modifier.height(12.dp))
     if (seconds == 0L) {
         TextButton(onClick = onResend, enabled = enabled) { Text(copy("Resend code", "کوڈ دوبارہ بھیجیں")) }
@@ -203,17 +197,42 @@ internal fun PasswordField(password: String, creating: Boolean = false, onChange
     )
 }
 
+/** The timer writes only this state; readers choose whether they need seconds or just expiry. */
 @Composable
-internal fun remainingSeconds(deadline: Long): Long {
-    var now by remember(deadline) { mutableLongStateOf(SystemClock.elapsedRealtime()) }
-    LaunchedEffect(deadline) {
-        while (now < deadline) { delay(1000); now = SystemClock.elapsedRealtime() }
+private fun rememberRemainingSeconds(deadline: Long, clock: () -> Long = { SystemClock.elapsedRealtime() }): State<Long> {
+    fun remaining() = ((deadline - clock() + 999) / 1000).coerceAtLeast(0)
+    val seconds = remember(deadline, clock) { mutableLongStateOf(remaining()) }
+    LaunchedEffect(deadline, clock) {
+        while (seconds.longValue > 0) { delay(1000); seconds.longValue = remaining() }
     }
-    return ((deadline - now + 999) / 1000).coerceAtLeast(0)
+    return seconds
 }
 
 @Composable
-internal fun VerificationWait(seconds: Long) {
+internal fun VerificationScreen(phone: String, code: String, busy: Boolean, message: String?, codeRejected: Boolean,
+    resendAt: Long, blockedUntil: Long, onBack: () -> Unit, onVerify: () -> Unit, onCode: (String) -> Unit, onResend: () -> Unit, clock: () -> Long = { SystemClock.elapsedRealtime() }) {
+    val remaining = rememberRemainingSeconds(blockedUntil, clock)
+    val blocked by remember(remaining) { derivedStateOf { remaining.value > 0 } }
+    AuthScreen(copy("Verify your number", "اپنے نمبر کی تصدیق کریں"),
+        copy("Enter the 6-digit code sent to +92 $phone on WhatsApp.", "+92 $phone کے واٹس ایپ پر بھیجا گیا ۶ ہندسوں کا کوڈ درج کریں۔"),
+        copy("Verify", "تصدیق کریں"), onBack, onVerify, busy = busy, enabled = code.length == 6 && !blocked) {
+        CodeField(code, error = codeRejected, enabled = !busy && !blocked, onChange = onCode)
+        if (blocked) VerificationWait(remaining) else {
+            AuthError(message)
+            Resend(resendAt, onResend, enabled = !busy)
+        }
+    }
+}
+
+@Composable
+internal fun AuthError(message: String?) {
+    if (message != null) Text(message, color = MaterialTheme.colorScheme.error,
+        modifier = Modifier.padding(top = 12.dp).semantics { liveRegion = LiveRegionMode.Polite })
+}
+
+@Composable
+private fun VerificationWait(remaining: State<Long>) {
+    val seconds = remaining.value
     val time = "${seconds / 60}:" + (seconds % 60).toString().padStart(2, '0')
     Surface(color = pk.qist.customer.ui.theme.DestructiveBackground, shape = QistShapes.Input, modifier = Modifier.padding(top = 16.dp)) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {

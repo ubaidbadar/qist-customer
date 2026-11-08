@@ -19,8 +19,10 @@ class CustomerViewModelTest {
         var deletes = 0
         override suspend fun availability() = status
         override suspend fun deleteAccount() { failure?.let { throw it }; deletes++ }
-        override suspend fun registerPush(token: String) = Unit
-        override suspend fun unregisterPush() = Unit
+        var pushCalls = 0
+        var pushGate: CompletableDeferred<Unit>? = null
+        override suspend fun registerPush(token: String) { pushCalls++; pushGate?.await(); failure?.let { throw it } }
+        override suspend fun unregisterPush() { pushCalls++; failure?.let { throw it } }
         override suspend fun readNotifications(ids: List<String>) = Unit
         var next = "otp"
         var reads = 0
@@ -158,6 +160,62 @@ class CustomerViewModelTest {
         model.onRealtimeChange(); model.onRealtimeChange(); model.onRealtimeChange()
         repo.gate?.complete(Unit); runCurrent()
         assertEquals(3, repo.reads)
+    }
+
+    @Test fun `malformed successful responses retain current data and report a response error`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent(); val before = model.state.value.data
+        repo.failure = CustomerResponseException("Missing payments")
+        model.refresh(); runCurrent()
+        assertEquals(before, model.state.value.data)
+        assertEquals("Could not read the server response. Please try again.", model.state.value.message)
+        assertFalse(model.state.value.data!!.fromCache)
+    }
+
+    @Test fun `unchanged push preferences do not send repeated registrations across binding recreation`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        assertTrue(model.syncPushToken("same-token")); assertTrue(model.syncPushToken("same-token"))
+        assertEquals(1, repo.pushCalls)
+        assertTrue(model.syncPushToken(null)); assertTrue(model.syncPushToken(null)); assertEquals(2, repo.pushCalls)
+    }
+    @Test fun `concurrent token synchronization performs one network write`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        repo.pushGate = CompletableDeferred()
+        val first = async { model.syncPushToken("same-token") }; val second = async { model.syncPushToken("same-token") }
+        runCurrent(); assertEquals(1, repo.pushCalls)
+        repo.pushGate!!.complete(Unit); runCurrent()
+        assertTrue(first.await()); assertTrue(second.await()); assertEquals(1, repo.pushCalls)
+    }
+    @Test fun `failed registration remains retryable rather than being cached as success`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        repo.failure = java.io.IOException("offline"); assertFalse(model.syncPushToken("token"))
+        repo.failure = null; assertTrue(model.syncPushToken("token")); assertEquals(2, repo.pushCalls)
+        assertNull(model.state.value.notificationStatus)
+    }
+
+    @Test fun `a late registration response from the previous login cannot suppress the next login registration`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        repo.pushGate = CompletableDeferred()
+        val old = async { model.syncPushToken("same-installation") }; runCurrent()
+        model.logout(); runCurrent(); repo.next = "password"; model.start("3001234567"); runCurrent(); model.login("password123", true); runCurrent()
+        repo.pushGate!!.complete(Unit); runCurrent(); assertFalse(old.await())
+        assertTrue(model.syncPushToken("same-installation")); assertEquals(2, repo.pushCalls)
+    }
+
+    @Test fun `a previous session registration failure cannot add an error to the next account`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        repo.pushGate = CompletableDeferred()
+        val old = async { model.syncPushToken("installation") }; runCurrent()
+        model.logout(); runCurrent(); repo.next = "password"; model.start("3001234567"); runCurrent(); model.login("password123", true); runCurrent()
+        repo.failure = java.io.IOException("late response failure")
+        repo.pushGate!!.complete(Unit); runCurrent(); assertFalse(old.await())
+        assertNull(model.state.value.notificationStatus)
+    }
+    @Test fun `cancellation releases push synchronization and does not cache an incomplete write`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        repo.pushGate = CompletableDeferred()
+        val cancelled = launch { model.syncPushToken("installation") }; runCurrent(); cancelled.cancelAndJoin()
+        repo.pushGate = null
+        assertTrue(model.syncPushToken("installation")); assertEquals(2, repo.pushCalls)
     }
 
 }

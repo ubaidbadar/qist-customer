@@ -27,7 +27,7 @@ internal data class PaymentSample(
     val label: String get() = if (kind == "down_payment") "Down payment" else
         if (allocations.isEmpty()) "Payment" else "Installment ${allocations.joinToString(", ")}"
 }
-internal data class Installment(val number: Int, val date: String, val amount: Long, val paidAmount: Long, val lateFee: Long, val status: String)
+internal data class Installment(val number: Int, val date: String, val amount: Long, val paidAmount: Long, val lateFee: Long, val status: String, val dueInDays: Int = 0)
 internal data class PlanChoice(
     val id: String, val model: String, val retailer: String, val status: String,
     val dueDate: String, val amount: String, val days: Int, val total: Int, val paidOffDate: String,
@@ -51,10 +51,11 @@ internal data class DashboardSample(
     val id: String? get() = contractId
     val completed: Boolean get() = status == "completed"
 }
-internal data class CustomerNotice(val id: String, val contractId: String, val kind: String, val title: String, val body: String, val createdAt: String, val read: Boolean)
+internal data class CustomerNotice(val id: String, val contractId: String, val kind: String, val title: String, val body: String, val date: String, val read: Boolean)
 
 internal data class PaymentPage(val items: List<PaymentSample>, val nextCursor: String?)
 internal class CustomerApiException(val status: Int, message: String, val code: String? = null, val retryAfterSeconds: Long = 0) : IOException(message)
+internal class CustomerResponseException(message: String) : IOException(message)
 internal class CustomerNetworkException(cause: IOException) : IOException("Could not connect", cause)
 internal enum class ServiceGate { Maintenance }
 internal data class AppAvailability(val maintenance: Boolean = false) {
@@ -114,7 +115,7 @@ internal class HttpCustomerRepository(
     override suspend fun start(phone: String): AuthStart {
         val response = request("auth/start", body = buildJsonObject { put("phone", phone) })
         val next = response.requiredText("next")
-        if (next !in listOf("password", "otp", "unregistered")) throw IOException("Invalid sign-in response.")
+        if (next !in listOf("password", "otp", "unregistered")) throw CustomerResponseException("Invalid sign-in response.")
         return AuthStart(next, (response["retryAfterSeconds"] as? JsonPrimitive)?.intOrNull ?: 60)
     }
     override suspend fun verifyCode(phone: String, code: String): String = request("auth/verify-code", body = buildJsonObject {
@@ -139,7 +140,7 @@ internal class HttpCustomerRepository(
     override suspend fun availability(): AppAvailability {
         val response = request("config", timeoutSeconds = 5)
         return AppAvailability(
-            (response["maintenance"] as? JsonPrimitive)?.booleanOrNull ?: throw IOException("Invalid app configuration"))
+            (response["maintenance"] as? JsonPrimitive)?.booleanOrNull ?: throw CustomerResponseException("Invalid app configuration"))
     }
     override suspend fun dashboard(contractId: String?): DashboardSample = withContext(Dispatchers.IO) {
         val owner = token ?: throw CustomerApiException(401, "Please sign in again.")
@@ -193,10 +194,14 @@ internal class HttpCustomerRepository(
             })
         }
         response.use {
-            val content = response.body.string()
+            val content = try { response.body.string() } catch (error: IOException) {
+                // An error status must retain its auth/service meaning even if its body cannot be read.
+                if (!response.isSuccessful) throw CustomerApiException(response.code, "Request failed (${response.code}). Please try again.")
+                throw CustomerNetworkException(error)
+            }
             val envelope = try { Json.parseToJsonElement(content).jsonObject } catch (_: IllegalArgumentException) {
                 if (!response.isSuccessful) throw CustomerApiException(response.code, "Request failed (${response.code}). Please try again.")
-                throw IOException("The server returned an invalid response. Please try again.")
+                throw CustomerResponseException("The server returned an invalid response. Please try again.")
             }
             if (!response.isSuccessful) {
                 val message = ((envelope["error"] as? JsonObject)?.get("message") as? JsonPrimitive)?.contentOrNull
@@ -205,7 +210,7 @@ internal class HttpCustomerRepository(
                     response.header("Retry-After")?.toLongOrNull()?.coerceIn(0, 86400)
                         ?: (((envelope["error"] as? JsonObject)?.get("details") as? JsonObject)?.get("retryAfterSeconds") as? JsonPrimitive)?.longOrNull?.coerceIn(0, 86400) ?: 0)
             }
-            envelope["data"] as? JsonObject ?: throw IOException("The server response is missing data.")
+            envelope["data"] as? JsonObject ?: throw CustomerResponseException("The server response is missing data.")
         }
     }
 }
@@ -217,13 +222,19 @@ internal fun displayDate(value: String): String {
     return SimpleDateFormat("dd MMM yyyy", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
         .format(calendarDate(value))
 }
+private fun notificationDate(value: String): String {
+    val utc = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+        isLenient = false; timeZone = TimeZone.getTimeZone("UTC")
+    }.parse(value) ?: throw CustomerResponseException("Invalid notification date")
+    return SimpleDateFormat("dd MMM yyyy", Locale.US).apply { timeZone = TimeZone.getTimeZone("Asia/Karachi") }.format(utc)
+}
 private fun calendarDate(value: String) = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
     isLenient = false; timeZone = TimeZone.getTimeZone("UTC")
-}.parse(value.take(10)) ?: throw IOException("Invalid date in server response.")
-private fun JsonObject.requiredText(key: String) = (get(key) as? JsonPrimitive)?.contentOrNull ?: throw IOException("Missing $key in server response.")
+}.parse(value.take(10)) ?: throw CustomerResponseException("Invalid date in server response.")
+private fun JsonObject.requiredText(key: String) = (get(key) as? JsonPrimitive)?.contentOrNull ?: throw CustomerResponseException("Missing $key in server response.")
 private fun JsonObject.text(key: String) = get(key)?.jsonPrimitive?.contentOrNull.orEmpty()
-private fun JsonObject.amount(key: String) = (get(key) as? JsonPrimitive)?.longOrNull ?: throw IOException("Invalid $key in server response.")
-private fun JsonObject.rows(key: String) = (get(key) as? JsonArray)?.map { it.jsonObject } ?: throw IOException("Missing $key in server response.")
+private fun JsonObject.amount(key: String) = (get(key) as? JsonPrimitive)?.longOrNull ?: throw CustomerResponseException("Invalid $key in server response.")
+private fun JsonObject.rows(key: String) = (get(key) as? JsonArray)?.map { it.jsonObject } ?: throw CustomerResponseException("Missing $key in server response.")
 internal fun parsePayments(data: JsonObject): PaymentPage = PaymentPage(data.rows("items").map { row ->
     val allocations = row.rows("allocations").map { it.getValue("number").jsonPrimitive.int }
     PaymentSample(row.requiredText("id"), allocations.firstOrNull() ?: 0, displayDate(row.requiredText("receivedOn")),
@@ -231,10 +242,12 @@ internal fun parsePayments(data: JsonObject): PaymentPage = PaymentPage(data.row
         row.text("receivedByName"), row.requiredText("kind"), row.text("reference"), allocations)
 }, data["nextCursor"]?.jsonPrimitive?.contentOrNull)
 internal fun parseOverview(data: JsonObject): DashboardSample {
+    val today = calendarDate(data.requiredText("today")).time
     val profile = data.getValue("profile").jsonObject
     val contract = data["contract"] as? JsonObject
     val schedule = contract?.rows("installments")?.map { row ->
-        Installment(row.getValue("number").jsonPrimitive.int, row.requiredText("dueDate"), row.amount("amount"), row.amount("paidAmount"), row.amount("lateFee"), row.requiredText("status"))
+        Installment(row.getValue("number").jsonPrimitive.int, row.requiredText("dueDate"), row.amount("amount"), row.amount("paidAmount"), row.amount("lateFee"), row.requiredText("status"),
+            ((calendarDate(row.requiredText("dueDate")).time - today) / 86_400_000L).toInt())
     }.orEmpty()
     val next = schedule.firstOrNull { it.status != "paid" && it.status != "waived" && it.amount + it.lateFee > it.paidAmount }
     val page = parsePayments(data.getValue("payments").jsonObject)
@@ -246,7 +259,7 @@ internal fun parseOverview(data: JsonObject): DashboardSample {
         model = contract?.text("deviceLabel").orEmpty(),
         amount = formatAmount(next?.let { (it.amount + it.lateFee - it.paidAmount).coerceAtLeast(0) } ?: 0L),
         dueDate = next?.let { displayDate(it.date) } ?: "—",
-        days = next?.let { ((calendarDate(it.date).time - calendarDate(data.requiredText("today")).time) / 86_400_000L).toInt() } ?: 0,
+        days = next?.dueInDays ?: 0,
         paid = schedule.count { it.status == "paid" }, total = schedule.size,
         retailer = contract?.text("retailer") ?: profile.text("retailer"), advance = advance, installment = next?.amount ?: schedule.firstOrNull()?.amount ?: 0L,
         schedule = schedule, payments = page.items, totalPrice = advance + payable,
@@ -260,12 +273,12 @@ internal fun parseOverview(data: JsonObject): DashboardSample {
         }.orEmpty(),
         contractId = contract?.text("id"), contracts = data.rows("contracts").map { PlanChoice(it.requiredText("id"), it.text("deviceLabel"), it.text("retailer"), it.text("status"),
             displayDate(it.text("nextDueDate")), formatAmount((it["nextAmount"] as? JsonPrimitive)?.longOrNull ?: 0L),
-            it.text("nextDueDate").takeIf { date -> date.isNotBlank() }?.let { date -> ((calendarDate(date).time - calendarDate(data.requiredText("today")).time) / 86_400_000L).toInt() } ?: 0,
+            it.text("nextDueDate").takeIf { date -> date.isNotBlank() }?.let { date -> ((calendarDate(date).time - today) / 86_400_000L).toInt() } ?: 0,
             (it["count"] as? JsonPrimitive)?.intOrNull ?: 0, displayDate(it.text("completedOn"))) },
         nextCursor = page.nextCursor,
         notifications = (data["notifications"] as? JsonArray)?.map { item ->
             val row = item.jsonObject
-            CustomerNotice(row.requiredText("id"), row.requiredText("contractId"), row.text("kind"), row.text("title"), row.text("body"), row.text("createdAt"), row["read"]?.jsonPrimitive?.booleanOrNull ?: false)
+            CustomerNotice(row.requiredText("id"), row.requiredText("contractId"), row.text("kind"), row.text("title"), row.text("body"), notificationDate(row.requiredText("createdAt")), row["read"]?.jsonPrimitive?.booleanOrNull ?: false)
         }.orEmpty(),
     )
 }

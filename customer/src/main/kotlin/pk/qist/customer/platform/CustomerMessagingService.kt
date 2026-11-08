@@ -38,7 +38,7 @@ class CustomerMessagingService : FirebaseMessagingService() {
         val notification = NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher_monochrome).setContentTitle("Qist")
             .setContentText("There is an update to your account. Open Qist to view it.")
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setAutoCancel(true).setContentIntent(pending).build()
+            .setOnlyAlertOnce(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setAutoCancel(true).setContentIntent(pending).build()
         try { manager.notify(message.data["eventId"]?.hashCode() ?: 1, notification) } catch (_: SecurityException) { /* Permission may have been revoked. */ }
     }
     companion object { const val CHANNEL = "qist_customer_updates" }

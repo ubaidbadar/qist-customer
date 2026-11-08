@@ -54,6 +54,7 @@ android {
         applicationId = "pk.qist.customer"
         minSdk = 24
         targetSdk = 37
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val defaultVersionCode = listOf(
             rootProject.file("../build-customer.txt"),
             rootProject.file("build-customer.txt"),
@@ -142,6 +143,10 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.okhttp)
     implementation(libs.serialization.json)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.junit)
+    debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
 }

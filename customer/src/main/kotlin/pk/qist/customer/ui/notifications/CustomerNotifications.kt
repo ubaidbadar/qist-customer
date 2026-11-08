@@ -2,6 +2,8 @@ package pk.qist.customer.ui.notifications
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -62,26 +64,29 @@ internal fun NotificationPrompt(onAllow: () -> Unit, onDismiss: () -> Unit) {
 }
 
 @Composable
-internal fun NotificationInbox(notices: List<pk.qist.customer.data.CustomerNotice>, error: String?, busy: Boolean, onBack: () -> Unit, onReadAll: () -> Unit, onOpen: (pk.qist.customer.data.CustomerNotice) -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize().background(Canvas).systemBarsPadding()) {
-        val viewport = maxHeight
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(QistSpacing.Screen)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CustomerBackButton(onBack)
-                Text(copy("Notifications", "اطلاعات"), style = MaterialTheme.typography.headlineMedium)
-            }
-            if (error != null) Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
-            if (notices.isNotEmpty()) {
-                TextButton(onClick = onReadAll, enabled = !busy && notices.any { !it.read }, modifier = Modifier.align(Alignment.End)) { Text(copy("Mark all read", "سب پڑھ لیے")) }
-                notices.forEach { notice ->
-                    NoticeCard(notice.title, notice.body, pk.qist.customer.data.displayDate(notice.createdAt),
-                        if (notice.kind.startsWith("payment")) R.drawable.tab_payments else if (notice.kind == "due") R.drawable.tab_plan else R.drawable.phone_outline,
-                        Blue, BlueBackground, unread = !notice.read, onRead = { onOpen(notice) })
-                    Spacer(Modifier.height(12.dp))
-                }
-            } else AccountEmptyState(R.drawable.detail_bell, copy("No notifications yet", "ابھی کوئی اطلاع نہیں"),
+internal fun NotificationInbox(notices: List<pk.qist.customer.data.CustomerNotice>, error: String?, busy: Boolean,
+    onBack: () -> Unit, onReadAll: () -> Unit, onOpen: (pk.qist.customer.data.CustomerNotice) -> Unit) {
+    Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().padding(QistSpacing.Screen)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            CustomerBackButton(onBack)
+            Text(copy("Notifications", "اطلاعات"), style = MaterialTheme.typography.headlineMedium)
+        }
+        if (error != null) Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+        if (notices.isEmpty()) BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            AccountEmptyState(R.drawable.detail_bell, copy("No notifications yet", "ابھی کوئی اطلاع نہیں"),
                 copy("No notifications are available yet. Check Home and Payments for current account information.", "ابھی کوئی اطلاع دستیاب نہیں۔ موجودہ معلومات کے لیے ہوم اور ادائیگیاں دیکھیں۔"),
-                Modifier.fillMaxWidth().heightIn(min = (viewport - 100.dp).coerceAtLeast(300.dp)))
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight))
+        } else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item(key = "read-all", contentType = "action") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onReadAll, enabled = !busy && notices.any { !it.read }) { Text(copy("Mark all read", "سب پڑھ لیے")) }
+                }
+            }
+            items(notices, key = { it.id }, contentType = { "notification" }) { notice ->
+                NoticeCard(notice.title, notice.body, notice.date,
+                    if (notice.kind.startsWith("payment")) R.drawable.tab_payments else if (notice.kind == "due") R.drawable.tab_plan else R.drawable.phone_outline,
+                    Blue, BlueBackground, unread = !notice.read, onRead = { if (!busy) onOpen(notice) })
+            }
         }
     }
 }

@@ -18,6 +18,8 @@ import pk.qist.customer.ui.localization.copy
 internal fun PhoneNumberHint(empty: Boolean, enabled: Boolean, onNumber: (String) -> Unit) {
     val activity = LocalActivity.current ?: return
     val currentOnNumber by rememberUpdatedState(onNumber)
+    val currentEnabled by rememberUpdatedState(enabled)
+    val currentEmpty by rememberUpdatedState(empty)
     var offered by rememberSaveable { mutableStateOf(false) }
     var available by remember { mutableStateOf(true) }
     var pending by remember { mutableStateOf(false) }
@@ -25,26 +27,26 @@ internal fun PhoneNumberHint(empty: Boolean, enabled: Boolean, onNumber: (String
     DisposableEffect(Unit) { active = true; onDispose { active = false } }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         pending = false
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
+        if (currentEnabled && result.resultCode == android.app.Activity.RESULT_OK) {
             try {
                 val number = normalizePhone(Identity.getSignInClient(activity).getPhoneNumberFromIntent(result.data))
                 if (number.matches(Regex("3[0-9]{9}"))) currentOnNumber(number)
             } catch (_: ApiException) { available = false }
         }
     }
-    fun requestHint() {
+    fun requestHint(automatic: Boolean = false) {
         if (pending) return
         offered = true; pending = true
         Identity.getSignInClient(activity).getPhoneNumberHintIntent(GetPhoneNumberHintIntentRequest.builder().build())
             .addOnSuccessListener { intent ->
-                if (!active) return@addOnSuccessListener
+                if (!active || !currentEnabled || (automatic && !currentEmpty)) { pending = false; return@addOnSuccessListener }
                 try { launcher.launch(IntentSenderRequest.Builder(intent).build()) }
                 catch (_: android.content.ActivityNotFoundException) { pending = false; available = false }
                 catch (_: android.content.IntentSender.SendIntentException) { pending = false; available = false }
             }.addOnFailureListener { pending = false; available = false }
     }
-    LaunchedEffect(empty, enabled) { if (empty && enabled && !offered) requestHint() }
-    if (available) TextButton(onClick = ::requestHint, enabled = enabled && !pending) {
+    LaunchedEffect(empty, enabled) { if (empty && enabled && !offered) requestHint(automatic = true) }
+    if (available) TextButton(onClick = { requestHint() }, enabled = enabled && !pending) {
         Text(copy("Use phone number from SIM", "سم کا فون نمبر استعمال کریں"))
     }
 }

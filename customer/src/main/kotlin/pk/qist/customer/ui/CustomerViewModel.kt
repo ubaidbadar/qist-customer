@@ -8,9 +8,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import pk.qist.customer.data.CustomerApiException
 import pk.qist.customer.data.CustomerRepository
 import pk.qist.customer.data.DashboardSample
+import pk.qist.customer.data.CustomerResponseException
 import pk.qist.customer.data.CustomerNetworkException
 import pk.qist.customer.data.ServiceGate
 
@@ -32,6 +35,8 @@ internal data class CustomerState(
     val checkingService: Boolean = false,
 )
 
+private data class PushRegistration(val token: String?)
+
 internal class CustomerViewModel(
     private val repository: CustomerRepository,
     private val acceptedPrivacy: Boolean,
@@ -42,6 +47,9 @@ internal class CustomerViewModel(
     private var setupToken: String? = null
     private var recovering = false
     private var pendingRealtime = false
+    private val pushSync = Mutex()
+    private var pushRegistration: PushRegistration? = null
+    private var pushSession = 0L
     private var availabilityJob: Job? = null
     init {
         checkServiceStatus()
@@ -75,7 +83,11 @@ internal class CustomerViewModel(
         if (mutable.value.busy) return
         mutable.value = mutable.value.copy(busy = true, message = null)
         viewModelScope.launch {
-            try { block() } catch (error: CancellationException) { throw error } catch (error: CustomerApiException) {
+            try {
+                block()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: CustomerApiException) {
                 val gate = when (error.code) {
                     "MAINTENANCE_MODE" -> ServiceGate.Maintenance
                     else -> null
@@ -83,6 +95,7 @@ internal class CustomerViewModel(
                 if (gate != null) mutable.value = mutable.value.copy(serviceGate = gate)
                 if (error.status == 401 && (mutable.value.route in listOf(CustomerRoute.Home, CustomerRoute.Consent) || mutable.value.restoring)) {
                     repository.clearSession()
+                    invalidatePushRegistration()
                     mutable.value = mutable.value.copy(route = CustomerRoute.SessionExpired, data = null, phone = "")
                 }
                 if (mutable.value.route == CustomerRoute.Verify && error.status == 429 && error.retryAfterSeconds > 0) {
@@ -94,7 +107,14 @@ internal class CustomerViewModel(
                 mutable.value = mutable.value.copy(message = error.message)
             } catch (_: CustomerNetworkException) {
                 mutable.value = mutable.value.copy(data = mutable.value.data?.copy(fromCache = true), message = "Could not connect. Showing saved data where available.")
-            } catch (_: IOException) { mutable.value = mutable.value.copy(message = "Could not connect. Check your internet and try again.") } catch (_: java.security.GeneralSecurityException) { mutable.value = mutable.value.copy(message = "Could not securely save your session. Please try again.") } catch (_: NoSuchElementException) { invalidResponse() } catch (_: java.text.ParseException) { invalidResponse() } catch (_: IllegalArgumentException) { invalidResponse() } finally { mutable.value = mutable.value.copy(busy = false, restoring = false, switchingPlan = false, refreshing = false)
+            } catch (_: CustomerResponseException) { invalidResponse()
+            } catch (_: IOException) { mutable.value = mutable.value.copy(message = "Could not connect. Check your internet and try again.")
+            } catch (_: java.security.GeneralSecurityException) { mutable.value = mutable.value.copy(message = "Could not securely save your session. Please try again.")
+            } catch (_: NoSuchElementException) { invalidResponse()
+            } catch (_: java.text.ParseException) { invalidResponse()
+            } catch (_: IllegalArgumentException) { invalidResponse()
+            } finally {
+                mutable.value = mutable.value.copy(busy = false, restoring = false, switchingPlan = false, refreshing = false)
                 if (pendingRealtime) { pendingRealtime = false; if (mutable.value.route == CustomerRoute.Home) refresh() }
             }
         }
@@ -169,21 +189,33 @@ internal class CustomerViewModel(
         }
     }
     private suspend fun signedIn(accepted: Boolean) {
+        invalidatePushRegistration()
         mutable.value = mutable.value.copy(route = if (accepted) CustomerRoute.Home else CustomerRoute.Consent, data = null)
         if (accepted) load(null)
     }
     fun acceptPrivacy() = perform { mutable.value = mutable.value.copy(route = CustomerRoute.Home); load(null) }
-    fun declinePrivacy() = perform { repository.clearSession(); mutable.value = CustomerState(restoring = false) }
-    fun deleteAccount() = perform { repository.deleteAccount(); setupToken = null; mutable.value = CustomerState(restoring = false) }
-    fun logout() = perform { repository.logout(); mutable.value = CustomerState(restoring = false) }
+    fun declinePrivacy() = perform { repository.clearSession(); invalidatePushRegistration(); mutable.value = CustomerState(restoring = false) }
+    fun deleteAccount() = perform { repository.deleteAccount(); invalidatePushRegistration(); setupToken = null; mutable.value = CustomerState(restoring = false) }
+    fun logout() = perform { repository.logout(); invalidatePushRegistration(); mutable.value = CustomerState(restoring = false) }
     private suspend fun load(id: String?) {
         val data = repository.dashboard(id)
         mutable.value = mutable.value.copy(data = data)
     }
-    suspend fun syncPushToken(token: String?): Boolean {
-        return try { if (token == null) repository.unregisterPush() else repository.registerPush(token); mutable.value = mutable.value.copy(notificationStatus = null); true }
-        catch (error: CancellationException) { throw error }
-        catch (_: IOException) { pushUnavailable(); false }
+    private fun invalidatePushRegistration() { pushSession++; pushRegistration = null }
+
+    /** One applied registration per session, retained across Activity recreation and serialized across callers. */
+    suspend fun syncPushToken(token: String?): Boolean = pushSync.withLock {
+        if (mutable.value.route != CustomerRoute.Home) return@withLock false
+        if (pushRegistration != null && pushRegistration?.token == token) return@withLock true
+        val session = pushSession
+        try {
+            if (token == null) repository.unregisterPush() else repository.registerPush(token)
+            if (session != pushSession || mutable.value.route != CustomerRoute.Home) return@withLock false
+            pushRegistration = PushRegistration(token)
+            mutable.value = mutable.value.copy(notificationStatus = null)
+            true
+        } catch (error: CancellationException) { throw error }
+        catch (_: IOException) { if (session == pushSession && mutable.value.route == CustomerRoute.Home) pushUnavailable(); false }
     }
     fun pushUnavailable() { mutable.value = mutable.value.copy(notificationStatus = "Notifications could not connect. They will retry when you reopen the app.") }
     fun onForeground() { if (!mutable.value.busy && mutable.value.data != null) refresh() }
