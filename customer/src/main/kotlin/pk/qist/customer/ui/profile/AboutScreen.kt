@@ -8,11 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import androidx.compose.ui.window.Dialog
 import pk.qist.customer.BuildConfig
 import pk.qist.customer.R
 import pk.qist.customer.ui.components.*
@@ -47,29 +44,14 @@ internal fun AboutScreen(busy: Boolean, error: String?, onBack: () -> Unit, onTe
                 titleColor = Destructive, tint = Destructive, background = DestructiveBackground, onClick = { deleting = true })
         }
     }
-    if (deleting) Dialog(onDismissRequest = { if (!busy) deleting = false }) {
-        Surface(shape = QistShapes.Dialog, color = Color.White) {
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                ScreenBadge(R.drawable.detail_delete, Destructive, DestructiveBackground, 64)
-                Text(copy("Delete your data?", "اپنا ڈیٹا حذف کریں؟"), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                Text(copy("This removes your Qist app sign-in account and saved account data on this device, and signs you out. Your retailer's purchase and payment records are not affected. This cannot be undone.",
-                    "اس سے آپ کا قسط ایپ لاگ ان اکاؤنٹ اور اس فون پر محفوظ اکاؤنٹ ڈیٹا حذف ہو گا، اور آپ لاگ آؤٹ ہو جائیں گے۔ دکاندار کے خریداری اور ادائیگی کے ریکارڈ متاثر نہیں ہوں گے۔ اسے واپس نہیں کیا جا سکتا۔"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { deleting = false }, enabled = !busy, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
-                        Text(copy("Cancel", "منسوخ"))
-                    }
-                    Button(onClick = onDelete, enabled = !busy, modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Destructive)) {
-                        if (busy) { CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Spacer(Modifier.width(6.dp)) }
-                        Text(if (busy) copy("Deleting…", "حذف ہو رہا ہے…") else copy("Delete", "حذف کریں"))
-                    }
-                }
-            }
-        }
-    }
+    if (deleting) CustomerDialog(
+        title = copy("Delete your data?", "اپنا ڈیٹا حذف کریں؟"),
+        message = copy("This removes your Qist app sign-in account and saved account data on this device, and signs you out. Your retailer's purchase and payment records are not affected. This cannot be undone.",
+            "اس سے آپ کا قسط ایپ لاگ ان اکاؤنٹ اور اس فون پر محفوظ اکاؤنٹ ڈیٹا حذف ہو گا، اور آپ لاگ آؤٹ ہو جائیں گے۔ دکاندار کے خریداری اور ادائیگی کے ریکارڈ متاثر نہیں ہوں گے۔ اسے واپس نہیں کیا جا سکتا۔"),
+        icon = R.drawable.detail_delete, destructive = true, busy = busy, error = error,
+        confirmLabel = if (busy) copy("Deleting…", "حذف ہو رہا ہے…") else copy("Delete", "حذف کریں"),
+        dismissLabel = copy("Cancel", "منسوخ"), onConfirm = onDelete, onDismiss = { deleting = false },
+    )
 }
 
 @Composable

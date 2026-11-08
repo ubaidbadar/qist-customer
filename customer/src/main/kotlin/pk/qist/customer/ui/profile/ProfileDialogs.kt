@@ -4,26 +4,20 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import androidx.compose.ui.window.Dialog
 import pk.qist.customer.R
+import pk.qist.customer.ui.components.CustomerDialog
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
 import pk.qist.customer.ui.theme.BlueBackground
-import pk.qist.customer.ui.theme.Destructive
-import pk.qist.customer.ui.theme.DestructiveBackground
 import pk.qist.customer.ui.theme.InputBorder
 import pk.qist.customer.ui.theme.Navy
 import pk.qist.customer.ui.theme.QistShapes
@@ -76,35 +70,11 @@ private fun LanguageOption(title: String, subtitle: String, selected: Boolean, o
 
 @Composable
 internal fun LogoutConfirmation(onDismiss: () -> Unit, onLogout: () -> Unit) {
-    val destructive = Destructive
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = QistShapes.Dialog, color = Color.White) {
-            Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(QistSpacing.AuthScreen),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(QistSpacing.Section),
-            ) {
-                Box(Modifier.size(64.dp).background(DestructiveBackground, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(painterResource(R.drawable.detail_logout), contentDescription = null, tint = destructive, modifier = Modifier.size(30.dp))
-                }
-                Text(copy("Log out?", "لاگ آؤٹ کریں؟"), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                Text(
-                    copy("You will need your phone number and password to sign in again.", "دوبارہ سائن ان کرنے کے لیے فون نمبر اور پاس ورڈ درکار ہوگا۔"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
-                        Text(copy("Cancel", "منسوخ"))
-                    }
-                    Button(
-                        onClick = onLogout,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = destructive, contentColor = Color.White),
-                        contentPadding = PaddingValues(horizontal = 8.dp),
-                    ) { Text(copy("Log out", "لاگ آؤٹ")) }
-                }
-            }
-        }
-    }
+    CustomerDialog(
+        title = copy("Log out?", "لاگ آؤٹ کریں؟"),
+        message = copy("You will need your phone number and password to sign in again.", "دوبارہ سائن ان کرنے کے لیے فون نمبر اور پاس ورڈ درکار ہوگا۔"),
+        icon = R.drawable.detail_logout, destructive = true,
+        confirmLabel = copy("Log out", "لاگ آؤٹ"), dismissLabel = copy("Cancel", "منسوخ"),
+        onConfirm = onLogout, onDismiss = onDismiss,
+    )
 }

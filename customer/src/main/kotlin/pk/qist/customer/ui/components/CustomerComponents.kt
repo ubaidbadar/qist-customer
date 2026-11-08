@@ -15,6 +15,7 @@ import java.text.NumberFormat
 import java.util.Locale
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.Destructive
 import pk.qist.customer.ui.theme.Cyan
 import pk.qist.customer.ui.theme.InputBorder
 import pk.qist.customer.ui.theme.Navy
@@ -29,12 +30,12 @@ internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnSco
 }
 
 @Composable
-internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false, icon: Int? = null, enabled: Boolean = true, busy: Boolean = false) {
+internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false, icon: Int? = null, enabled: Boolean = true, busy: Boolean = false, destructive: Boolean = false) {
     Button(
         onClick = onClick, enabled = enabled && !busy,
         modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
         shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = if (cyan) Cyan else Blue, contentColor = if (cyan) Navy else Color.White),
+        colors = ButtonDefaults.buttonColors(containerColor = when { destructive -> Destructive; cyan -> Cyan; else -> Blue }, contentColor = if (cyan && !destructive) Navy else Color.White),
     ) { ActionLabel(label, icon, busy) }
 }
 
@@ -101,22 +102,24 @@ internal fun DetailRow(
 @Composable
 internal fun RetailerContactDialog(phone: String = "", whatsApp: Boolean = false, onDismiss: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    var error by remember(phone, whatsApp) { mutableStateOf<String?>(null) }
     val unavailable = copy("No app is available for this action.", "اس عمل کے لیے کوئی ایپ دستیاب نہیں۔")
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(copy("Contact retailer", "دکاندار سے رابطہ")) },
-        text = { Text(phone.ifBlank { copy("Contact the shop where you purchased your phone. Their contact details are not available here yet.", "جہاں سے فون خریدا ہے اس دکان سے رابطہ کریں۔ ان کی رابطہ تفصیل ابھی یہاں دستیاب نہیں۔") }) },
-        confirmButton = { TextButton(onClick = {
-            if (phone.isNotBlank()) {
+    CustomerDialog(
+        title = copy("Contact retailer", "دکاندار سے رابطہ"),
+        message = phone.ifBlank { copy("Contact the shop where you purchased your phone. Their contact details are not available here yet.", "جہاں سے فون خریدا ہے اس دکان سے رابطہ کریں۔ ان کی رابطہ تفصیل ابھی یہاں دستیاب نہیں۔") },
+        icon = if (whatsApp) pk.qist.customer.R.drawable.payment_chat else pk.qist.customer.R.drawable.payment_call,
+        confirmLabel = if (phone.isBlank()) copy("Close", "بند کریں") else if (whatsApp) copy("WhatsApp", "واٹس ایپ") else copy("Call", "کال کریں"),
+        dismissLabel = if (phone.isBlank()) null else copy("Cancel", "منسوخ"), error = error, onDismiss = onDismiss,
+        onConfirm = {
+            if (phone.isBlank()) onDismiss() else {
                 val digits = phone.filter(Char::isDigit).let { if (it.startsWith("0")) "92" + it.drop(1) else it }
                 val uri = if (whatsApp) "https://wa.me/$digits" else "tel:$phone"
                 val action = if (whatsApp) android.content.Intent.ACTION_VIEW else android.content.Intent.ACTION_DIAL
-                try { context.startActivity(android.content.Intent(action, android.net.Uri.parse(uri))) }
-                catch (_: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(context, unavailable, android.widget.Toast.LENGTH_SHORT).show() }
+                try { context.startActivity(android.content.Intent(action, android.net.Uri.parse(uri))); onDismiss() }
+                catch (_: android.content.ActivityNotFoundException) { error = unavailable }
+                catch (_: SecurityException) { error = unavailable }
             }
-            onDismiss()
-        }) { Text(if (phone.isBlank()) copy("Close", "بند کریں") else if (whatsApp) copy("WhatsApp", "واٹس ایپ") else copy("Call", "کال کریں")) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(copy("Cancel", "منسوخ")) } },
+        },
     )
 }
 

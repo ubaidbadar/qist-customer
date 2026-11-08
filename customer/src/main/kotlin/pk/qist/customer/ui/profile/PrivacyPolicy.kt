@@ -3,7 +3,6 @@ package pk.qist.customer.ui.profile
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,11 +11,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.*
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.money
+import pk.qist.customer.ui.components.CustomerDialog
 import pk.qist.customer.ui.localization.copy
 
 @Composable
 internal fun PrivacyPolicy() {
+    var browserUnavailable by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val sections = listOf(
         "About this policy" to "Qist Customer (pk.qist.customer), provided by Ubaid Badar, lets registered customers view their retailer installment plans and payments.",
@@ -44,9 +44,16 @@ internal fun PrivacyPolicy() {
             try {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://qist-a.web.app/privacy-policy")))
             } catch (_: ActivityNotFoundException) {
-                Toast.makeText(context, browserError, Toast.LENGTH_SHORT).show()
+                browserUnavailable = true
+            } catch (_: SecurityException) {
+                browserUnavailable = true
             }
         },
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
     ) { Text(copy("Open full policy in browser", "مکمل پالیسی براؤزر میں کھولیں")) }
+    if (browserUnavailable) CustomerDialog(
+        title = copy("Could not open policy", "پالیسی نہیں کھل سکی"), message = browserError,
+        icon = pk.qist.customer.R.drawable.state_error, confirmLabel = copy("Close", "بند کریں"),
+        onConfirm = { browserUnavailable = false }, onDismiss = { browserUnavailable = false },
+    )
 }
