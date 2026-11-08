@@ -14,7 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.Caption
-import pk.qist.customer.ui.components.Chevron
+import pk.qist.customer.ui.components.ExpansionChevron
 import pk.qist.customer.ui.components.CustomerBackButton
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.RetailerContactDialog
@@ -47,7 +47,7 @@ private fun HelpAndSupport(retailer: String, phone: String, address: String) {
     val version = pk.qist.customer.BuildConfig.VERSION_NAME
     Text(
         copy("Qist customer app · Version $version", "قسط کسٹمر ایپ · ورژن $version"),
-        Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium,
     )
 }
 
@@ -58,7 +58,8 @@ private fun RetailerSupportCard(retailer: String, phone: String, address: String
         Caption(copy("Your retailer", "آپ کا دکاندار"))
         Text(retailer.ifBlank { copy("Retailer details unavailable", "دکاندار کی تفصیل دستیاب نہیں") }, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
-        Caption(copy("Contact your retailer for payments, receipts, plan changes and phone lock issues.", "ادائیگیوں، رسیدوں، منصوبے میں تبدیلی اور فون لاک کے مسائل کے لیے دکاندار سے رابطہ کریں۔"))
+        Text(copy("Contact your retailer for payments, receipts, plan changes and phone lock issues.", "ادائیگیوں، رسیدوں، منصوبے میں تبدیلی اور فون لاک کے مسائل کے لیے دکاندار سے رابطہ کریں۔"),
+            style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(16.dp))
         HorizontalDivider(color = Divider)
         Spacer(Modifier.height(16.dp))
@@ -88,14 +89,14 @@ private fun RetailerSupportCard(retailer: String, phone: String, address: String
 @Composable
 private fun SupportDetail(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge)
-        Caption(value)
+        Text(label, style = MaterialTheme.typography.titleMedium)
+        Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 private fun CommonQuestions() {
-    var expanded by rememberSaveable { mutableIntStateOf(0) }
+    var expanded by rememberSaveable { mutableIntStateOf(-1) }
     val questions = listOf(
         copy("When is my installment due?", "میری قسط کب واجب ہے؟") to copy("Open the Plan tab to see every due date, installment amount and payment status. Home also shows your next unpaid installment.", "ہر قسط کی تاریخ، رقم اور ادائیگی کی حالت منصوبے میں دیکھیں۔ ہوم پر اگلی غیر ادا شدہ قسط بھی دکھائی جاتی ہے۔"),
         copy("How do I pay?", "میں ادائیگی کیسے کروں؟") to copy("Tap How to pay on Home to see your retailer's payment methods. Pay your retailer directly and keep your receipt. Qist does not collect payments.", "ہوم پر ادائیگی کا طریقہ کھول کر دکاندار کے طریقے دیکھیں۔ دکاندار کو براہ راست ادائیگی کریں اور رسید محفوظ رکھیں۔ قسط ادائیگی وصول نہیں کرتا۔"),
@@ -119,9 +120,10 @@ private fun CommonQuestions() {
                 horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item),
             ) {
                 Text(question, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                Chevron()
+                ExpansionChevron(expanded == index)
             }
-            if (expanded == index) Box(Modifier.padding(bottom = 14.dp)) { Caption(answer) }
+            if (expanded == index) Text(answer, Modifier.padding(bottom = 16.dp),
+                style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

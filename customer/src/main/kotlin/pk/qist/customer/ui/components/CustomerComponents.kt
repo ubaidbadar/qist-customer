@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -71,6 +72,13 @@ internal fun Caption(text: String) {
 @Composable
 internal fun Chevron() {
     Icon(painterResource(pk.qist.customer.R.drawable.chevron_forward), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Vertical expansion arrows stay consistent in both English and Urdu layouts. */
+@Composable
+internal fun ExpansionChevron(expanded: Boolean) {
+    Icon(painterResource(pk.qist.customer.R.drawable.chevron_down), null,
+        Modifier.size(18.dp).rotate(if (expanded) 180f else 0f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
