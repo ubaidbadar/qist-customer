@@ -65,7 +65,7 @@ internal fun CustomerShell() {
         CustomerUpdateHost(enabled = state.route == CustomerRoute.Home && state.serviceGate == null) {
             val gate = state.serviceGate
             if (state.restoring) {
-                AccountSplash()
+                SessionRestoreLoading()
             } else if (gate != null) {
                 ServiceAvailabilityScreen(state.checkingService, state.message) { model.checkServiceStatus(true) }
             } else when (state.route) {

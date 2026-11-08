@@ -1,6 +1,5 @@
 package pk.qist.customer.ui.components
 
-import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -8,12 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
-import androidx.core.view.WindowCompat
 import pk.qist.customer.R
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.*
@@ -34,18 +30,9 @@ internal fun AccountEmptyState(icon: Int, title: String, description: String, mo
 }
 
 @Composable
-internal fun AccountSplash() {
-    val window = LocalActivity.current?.window
-    DisposableEffect(window) {
-        window?.let { WindowCompat.getInsetsController(it, it.decorView).isAppearanceLightStatusBars = false }
-        onDispose { window?.let { WindowCompat.getInsetsController(it, it.decorView).isAppearanceLightStatusBars = true } }
-    }
-    Column(Modifier.fillMaxSize().background(Navy).systemBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Box(Modifier.size(128.dp).background(Brush.linearGradient(listOf(BrandGradientStart, Blue)), CircleShape), contentAlignment = Alignment.Center) {
-            Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize())
-        }
-        Spacer(Modifier.height(20.dp))
-        Text("Qist", color = Color.White, style = MaterialTheme.typography.headlineLarge)
+internal fun SessionRestoreLoading() {
+    Box(Modifier.fillMaxSize().background(Canvas).systemBarsPadding(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(Modifier.size(28.dp), color = Blue, strokeWidth = 2.dp)
     }
 }
 
