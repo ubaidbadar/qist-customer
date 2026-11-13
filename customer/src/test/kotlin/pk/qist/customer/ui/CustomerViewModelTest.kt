@@ -218,4 +218,50 @@ class CustomerViewModelTest {
         assertTrue(model.syncPushToken("installation")); assertEquals(2, repo.pushCalls)
     }
 
+    @Test fun `initial account loading uses skeleton state without pull indicator`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val repo = Repository().apply { restored = true; this.gate = gate }
+        val model = model(repo); runCurrent()
+        assertTrue(model.state.value.busy); assertNull(model.state.value.data); assertFalse(model.state.value.refreshing)
+        gate.complete(Unit); runCurrent()
+        assertNotNull(model.state.value.data); assertFalse(model.state.value.busy)
+    }
+    @Test fun `foreground update keeps content visible and never starts pull indicator`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        val old = model.state.value.data; val gate = CompletableDeferred<Unit>(); repo.gate = gate
+        model.onForeground(); runCurrent()
+        assertTrue(model.state.value.busy); assertEquals(old, model.state.value.data); assertFalse(model.state.value.refreshing)
+        model.onForeground(); model.onForeground(); runCurrent(); assertEquals(2, repo.reads)
+        gate.complete(Unit); runCurrent(); assertFalse(model.state.value.busy); assertFalse(model.state.value.refreshing)
+    }
+    @Test fun `notification update keeps content visible without pull indicator`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        val old = model.state.value.data; val gate = CompletableDeferred<Unit>(); repo.gate = gate
+        model.onRealtimeChange(); runCurrent()
+        assertTrue(model.state.value.busy); assertEquals(old, model.state.value.data); assertFalse(model.state.value.refreshing)
+        gate.complete(Unit); runCurrent(); assertEquals(2, repo.reads); assertFalse(model.state.value.refreshing)
+    }
+    @Test fun `pull indicator ends before the coalesced notification follow up`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        val manual = CompletableDeferred<Unit>(); repo.gate = manual
+        model.refresh(); runCurrent(); assertTrue(model.state.value.refreshing)
+        repeat(3) { model.onRealtimeChange() }
+        val followUp = CompletableDeferred<Unit>(); repo.gate = followUp
+        manual.complete(Unit); runCurrent()
+        assertEquals(3, repo.reads); assertTrue(model.state.value.busy); assertFalse(model.state.value.refreshing)
+        followUp.complete(Unit); runCurrent(); assertFalse(model.state.value.busy)
+    }
+    @Test fun `silent update failure keeps loaded data and never shows pull indicator`() = runTest(dispatcher) {
+        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
+        val old = model.state.value.data
+        repo.failure = java.io.IOException("offline"); model.onForeground(); runCurrent()
+        assertEquals(old, model.state.value.data); assertNotNull(model.state.value.message)
+        assertFalse(model.state.value.refreshing); assertFalse(model.state.value.busy)
+    }
+    @Test fun `foreground and notification events cannot load a signed out account`() = runTest(dispatcher) {
+        val repo = Repository(); val model = model(repo); runCurrent()
+        model.onForeground(); model.onRealtimeChange(); model.refresh(); runCurrent()
+        assertEquals(0, repo.reads); assertFalse(model.state.value.refreshing)
+    }
+
 }

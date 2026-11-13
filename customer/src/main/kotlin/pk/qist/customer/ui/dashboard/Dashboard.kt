@@ -113,6 +113,6 @@ private fun ProfileTab(data: DashboardSample, phone: String, preferences: Custom
         verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
         Text(copy("Profile", "پروفائل"), style = MaterialTheme.typography.headlineMedium)
         if (message != null) AccountMessage(message)
-        CustomerProfile(data, phone, onLanguage, onLogout, allowed, preferences::setNotifications, notificationStatus, onPage)
+        CustomerProfile(data.name, phone, onLanguage, onLogout, allowed, preferences::setNotifications, notificationStatus, onPage)
     }
 }

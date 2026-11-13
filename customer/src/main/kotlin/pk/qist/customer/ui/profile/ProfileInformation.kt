@@ -73,13 +73,15 @@ private fun RetailerSupportCard(retailer: String, phone: String, address: String
                 })
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-            Button(onClick = { contact = "call" }, enabled = phone.isNotBlank(), modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                Text(copy("Call", "کال کریں"))
-            }
-            OutlinedButton(onClick = { contact = "whatsapp" }, enabled = phone.isNotBlank(), modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
-                Text(copy("WhatsApp", "واٹس ایپ"))
+        if (phone.isNotBlank()) {
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                Button(onClick = { contact = "call" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                    Text(copy("Call", "کال کریں"))
+                }
+                OutlinedButton(onClick = { contact = "whatsapp" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
+                    Text(copy("WhatsApp", "واٹس ایپ"))
+                }
             }
         }
     }

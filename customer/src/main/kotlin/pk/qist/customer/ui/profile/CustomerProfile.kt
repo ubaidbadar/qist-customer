@@ -10,46 +10,30 @@ import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
-import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.Badge
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Chevron
 import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.RetailerContactDialog
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
 import pk.qist.customer.ui.theme.Destructive
 import pk.qist.customer.ui.theme.DestructiveBackground
 import pk.qist.customer.ui.theme.Divider
 import pk.qist.customer.ui.theme.Navy
-import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
-internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: () -> Unit, onLogout: () -> Unit, notifications: Boolean, onNotifications: (Boolean) -> Unit, notificationStatus: String?, onOpenPage: (String) -> Unit) {
+internal fun CustomerProfile(name: String, phone: String, onLanguage: () -> Unit, onLogout: () -> Unit, notifications: Boolean, onNotifications: (Boolean) -> Unit, notificationStatus: String?, onOpenPage: (String) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var dialog by rememberSaveable { mutableStateOf("") }
     val language = copy("English", "اردو")
     Panel {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Box(Modifier.size(52.dp).background(Navy, CircleShape), contentAlignment = Alignment.Center) {
-                Text(data.name.take(1), color = Color.White, style = MaterialTheme.typography.titleLarge)
+                Text(name.take(1), color = Color.White, style = MaterialTheme.typography.titleLarge)
             }
             Column(Modifier.weight(1f)) {
-                Text(data.name, style = MaterialTheme.typography.titleLarge)
+                Text(name, style = MaterialTheme.typography.titleLarge)
                 Caption("+92 $phone")
-            }
-        }
-    }
-    Panel {
-        Caption(copy("Your retailer", "آپ کا دکاندار"))
-        Text(data.retailer, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-            Button(onClick = { dialog = "contact" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                Text(copy("Call", "کال کریں"))
-            }
-            OutlinedButton(onClick = { dialog = "whatsapp" }, modifier = Modifier.weight(1f).heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
-                Text(copy("WhatsApp", "واٹس ایپ"), color = Navy)
             }
         }
     }
@@ -80,7 +64,6 @@ internal fun CustomerProfile(data: DashboardSample, phone: String, onLanguage: (
         SettingsRow(copy("Log out", "لاگ آؤٹ"), R.drawable.detail_logout, destructive = true, onClick = { dialog = "logout" }) { Chevron() }
     }
     when (dialog) {
-        "contact", "whatsapp" -> RetailerContactDialog(data.retailerPhone, dialog == "whatsapp") { dialog = "" }
         "language" -> LanguagePicker(
             selectedUrdu = language == "اردو",
             onDismiss = { dialog = "" },

@@ -70,7 +70,7 @@ internal class CustomerViewModel(
                 val availability = repository.availability()
                 val gate = availability.gate()
                 if (gate != null || userInitiated) mutable.value = mutable.value.copy(serviceGate = gate, message = null)
-                if (userInitiated && gate == null && mutable.value.route == CustomerRoute.Home) refresh()
+                if (userInitiated && gate == null && mutable.value.route == CustomerRoute.Home) refreshOverview()
             } catch (error: CancellationException) { throw error }
             catch (_: IOException) {
                 if (userInitiated) mutable.value = mutable.value.copy(message = "Could not check availability. Check your internet and try again.")
@@ -115,7 +115,7 @@ internal class CustomerViewModel(
             } catch (_: IllegalArgumentException) { invalidResponse()
             } finally {
                 mutable.value = mutable.value.copy(busy = false, restoring = false, switchingPlan = false, refreshing = false)
-                if (pendingRealtime) { pendingRealtime = false; if (mutable.value.route == CustomerRoute.Home) refresh() }
+                if (pendingRealtime) { pendingRealtime = false; if (mutable.value.route == CustomerRoute.Home) refreshOverview() }
             }
         }
     }
@@ -218,8 +218,8 @@ internal class CustomerViewModel(
         catch (_: IOException) { if (session == pushSession && mutable.value.route == CustomerRoute.Home) pushUnavailable(); false }
     }
     fun pushUnavailable() { mutable.value = mutable.value.copy(notificationStatus = "Notifications could not connect. They will retry when you reopen the app.") }
-    fun onForeground() { if (!mutable.value.busy && mutable.value.data != null) refresh() }
-    fun onRealtimeChange() { if (mutable.value.route != CustomerRoute.Home) return; if (mutable.value.busy) pendingRealtime = true else refresh() }
+    fun onForeground() { if (mutable.value.route == CustomerRoute.Home && !mutable.value.busy && mutable.value.data != null) refreshOverview() }
+    fun onRealtimeChange() { if (mutable.value.route != CustomerRoute.Home) return; if (mutable.value.busy) pendingRealtime = true else refreshOverview() }
     fun markNotificationsRead(ids: List<String>) = perform {
         val unread = ids.take(30)
         if (unread.isNotEmpty()) {
@@ -235,7 +235,12 @@ internal class CustomerViewModel(
             load(notice.contractId)
         }
     }
-    fun refresh() = perform { mutable.value = mutable.value.copy(refreshing = true); load(mutable.value.data?.id) }
+    /** Only a user pull requests the top indicator; resume and push updates keep content visible. */
+    fun refresh() = refreshOverview(showIndicator = true)
+    private fun refreshOverview(showIndicator: Boolean = false) {
+        if (mutable.value.route != CustomerRoute.Home) return
+        perform { mutable.value = mutable.value.copy(refreshing = showIndicator); load(mutable.value.data?.id) }
+    }
     fun selectPlan(id: String) {
         if (id == mutable.value.data?.id || mutable.value.busy) return
         perform { mutable.value = mutable.value.copy(switchingPlan = true); load(id) }
