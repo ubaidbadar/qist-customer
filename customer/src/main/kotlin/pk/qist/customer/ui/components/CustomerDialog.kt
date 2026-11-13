@@ -20,7 +20,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import pk.qist.customer.ui.theme.*
 
-/** Shared customer confirmation card, matching the supplied delete-data dialog design. */
+/** Earlier custom confirmation styling, shared across account actions. */
 @Composable
 internal fun CustomerDialog(
     title: String,
@@ -34,28 +34,45 @@ internal fun CustomerDialog(
     busy: Boolean = false,
     error: String? = null,
 ) {
+    val confirmAction: @Composable () -> Unit = {
+        Button(onClick = onConfirm, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = if (destructive) Destructive else Blue, contentColor = Color.White),
+            contentPadding = PaddingValues(horizontal = 8.dp)) {
+            if (busy) {
+                CircularProgressIndicator(Modifier.size(18.dp), color = LocalContentColor.current, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(confirmLabel)
+        }
+    }
+    val dismissAction: @Composable () -> Unit = {
+        if (dismissLabel != null) OutlinedButton(onClick = onDismiss, enabled = !busy,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
+            Text(dismissLabel)
+        }
+    }
     Dialog(onDismissRequest = { if (!busy) onDismiss() }, properties = DialogProperties(
-        usePlatformDefaultWidth = false, dismissOnBackPress = !busy, dismissOnClickOutside = !busy,
+        dismissOnBackPress = !busy, dismissOnClickOutside = !busy,
     )) {
-        Surface(Modifier.padding(24.dp).widthIn(max = 420.dp).fillMaxWidth().semantics { paneTitle = title },
+        Surface(Modifier.widthIn(max = 420.dp).fillMaxWidth().semantics { paneTitle = title },
             shape = QistShapes.Dialog, color = Color.White) {
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(QistSpacing.AuthScreen),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
                 ScreenBadge(icon, if (destructive) Destructive else Blue,
-                    if (destructive) DestructiveBackground else BlueBackground, 64)
+                    if (destructive) DestructiveBackground else BlueBackground, 64, iconSize = 30)
                 Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
                 Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 if (error != null) Text(error, Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     color = Destructive, textAlign = TextAlign.Center)
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    // Side-by-side actions match the reference; narrow screens and large text stack them.
+                    // Preserve the earlier side-by-side buttons; stack when text or space needs it.
                     val stacked = maxWidth < 240.dp || LocalDensity.current.fontScale > 1.3f
-                    if (stacked || dismissLabel == null) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Pill(confirmLabel, onConfirm, busy = busy, destructive = destructive)
-                        if (dismissLabel != null) SecondaryAction(dismissLabel, onDismiss, enabled = !busy)
-                    } else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(Modifier.weight(1f)) { SecondaryAction(dismissLabel, onDismiss, enabled = !busy) }
-                        Box(Modifier.weight(1f)) { Pill(confirmLabel, onConfirm, busy = busy, destructive = destructive) }
+                    if (stacked || dismissLabel == null) Column(verticalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                        confirmAction()
+                        dismissAction()
+                    } else Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                        Box(Modifier.weight(1f)) { dismissAction() }
+                        Box(Modifier.weight(1f)) { confirmAction() }
                     }
                 }
             }

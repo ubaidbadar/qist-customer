@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,6 +48,9 @@ internal class CustomerViewModel(
     private var setupToken: String? = null
     private var recovering = false
     private var pendingRealtime = false
+    private var operation: Job? = null
+    private var operationVersion = 0L
+    private var backgroundOperation = false
     private val pushSync = Mutex()
     private var pushRegistration: PushRegistration? = null
     private var pushSession = 0L
@@ -79,10 +83,16 @@ internal class CustomerViewModel(
             } finally { mutable.value = mutable.value.copy(checkingService = false) }
         }
     }
-    private fun perform(block: suspend () -> Unit) {
+    private fun perform(background: Boolean = false, block: suspend () -> Unit) {
         if (mutable.value.busy) return
-        mutable.value = mutable.value.copy(busy = true, message = null)
-        viewModelScope.launch {
+        if (backgroundOperation && background) return
+        val previous = operation.takeIf { backgroundOperation }
+        // User actions supersede automatic reads. An old coroutine must not clear a newer action's state.
+        val version = ++operationVersion
+        backgroundOperation = background
+        previous?.cancel()
+        mutable.value = mutable.value.copy(busy = !background, message = null)
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
             try {
                 block()
             } catch (error: CancellationException) {
@@ -106,7 +116,9 @@ internal class CustomerViewModel(
                 }
                 mutable.value = mutable.value.copy(message = error.message)
             } catch (_: CustomerNetworkException) {
-                mutable.value = mutable.value.copy(data = mutable.value.data?.copy(fromCache = true), message = "Could not connect. Showing saved data where available.")
+                val saved = mutable.value.data
+                mutable.value = mutable.value.copy(data = saved?.copy(fromCache = true), message = if (saved == null)
+                    "Could not connect. Check your internet and try again." else "Could not connect. Showing saved data where available.")
             } catch (_: CustomerResponseException) { invalidResponse()
             } catch (_: IOException) { mutable.value = mutable.value.copy(message = "Could not connect. Check your internet and try again.")
             } catch (_: java.security.GeneralSecurityException) { mutable.value = mutable.value.copy(message = "Could not securely save your session. Please try again.")
@@ -114,10 +126,16 @@ internal class CustomerViewModel(
             } catch (_: java.text.ParseException) { invalidResponse()
             } catch (_: IllegalArgumentException) { invalidResponse()
             } finally {
-                mutable.value = mutable.value.copy(busy = false, restoring = false, switchingPlan = false, refreshing = false)
-                if (pendingRealtime) { pendingRealtime = false; if (mutable.value.route == CustomerRoute.Home) refreshOverview() }
+                if (version == operationVersion) {
+                    operation = null
+                    backgroundOperation = false
+                    mutable.value = mutable.value.copy(busy = false, restoring = false, switchingPlan = false, refreshing = false)
+                    if (pendingRealtime) { pendingRealtime = false; if (mutable.value.route == CustomerRoute.Home) refreshOverview() }
+                }
             }
         }
+        operation = job
+        job.start()
     }
     private fun invalidResponse() { mutable.value = mutable.value.copy(message = "Could not read the server response. Please try again.") }
     fun editPhone() { if (!mutable.value.busy) mutable.value = mutable.value.copy(phoneNotRegistered = false, message = null) }
@@ -219,7 +237,7 @@ internal class CustomerViewModel(
     }
     fun pushUnavailable() { mutable.value = mutable.value.copy(notificationStatus = "Notifications could not connect. They will retry when you reopen the app.") }
     fun onForeground() { if (mutable.value.route == CustomerRoute.Home && !mutable.value.busy && mutable.value.data != null) refreshOverview() }
-    fun onRealtimeChange() { if (mutable.value.route != CustomerRoute.Home) return; if (mutable.value.busy) pendingRealtime = true else refreshOverview() }
+    fun onRealtimeChange() { if (mutable.value.route != CustomerRoute.Home) return; if (mutable.value.busy || backgroundOperation) pendingRealtime = true else refreshOverview() }
     fun markNotificationsRead(ids: List<String>) = perform {
         val unread = ids.take(30)
         if (unread.isNotEmpty()) {
@@ -239,7 +257,10 @@ internal class CustomerViewModel(
     fun refresh() = refreshOverview(showIndicator = true)
     private fun refreshOverview(showIndicator: Boolean = false) {
         if (mutable.value.route != CustomerRoute.Home) return
-        perform { mutable.value = mutable.value.copy(refreshing = showIndicator); load(mutable.value.data?.id) }
+        perform(background = !showIndicator && mutable.value.data != null) {
+            mutable.value = mutable.value.copy(refreshing = showIndicator)
+            load(mutable.value.data?.id)
+        }
     }
     fun selectPlan(id: String) {
         if (id == mutable.value.data?.id || mutable.value.busy) return
