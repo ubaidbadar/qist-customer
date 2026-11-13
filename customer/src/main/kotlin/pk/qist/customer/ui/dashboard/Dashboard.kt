@@ -74,7 +74,9 @@ internal fun Dashboard(
             return
         }
         DashboardPage.Receipt -> {
-            val receipt = data.payments.firstOrNull { it.id == receiptId }
+            // A refreshed first page may omit an older receipt that the customer already opened.
+            val openedReceipt = remember(data.id, receiptId) { data.payments.firstOrNull { it.id == receiptId } }
+            val receipt = data.payments.firstOrNull { it.id == receiptId } ?: openedReceipt
             if (receipt != null) { CustomerReceipt(data, receipt, ::back); return }
         }
         else -> Unit

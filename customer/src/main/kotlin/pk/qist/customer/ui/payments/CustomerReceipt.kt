@@ -29,6 +29,9 @@ import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.PaymentPage
 import pk.qist.customer.ui.components.ScreenBadge
 import pk.qist.customer.ui.localization.copy
+import pk.qist.customer.ui.localization.LocalUrdu
+import pk.qist.customer.ui.localization.paymentLabel
+import pk.qist.customer.ui.localization.paymentMethodLabel
 import pk.qist.customer.ui.theme.Divider
 import pk.qist.customer.ui.theme.PaidBackground
 import pk.qist.customer.ui.theme.PaidGreen
@@ -43,11 +46,12 @@ internal fun CustomerReceipt(data: DashboardSample, payment: PaymentSample, onBa
     val id = payment.receiptNumber.toString()
     val amount = copy("Rs. ${payment.amount}", "روپے ${payment.amount}")
     val title = copy("Receipt", "رسید")
+    val singleInstallment = payment.kind == "installment" && payment.allocations.size == 1
     val facts = listOf(
-        copy("Installment", "قسط") to if (payment.kind == "installment" && payment.allocations.size == 1)
-            copy("${payment.allocations.single()} of ${data.total}", "${data.total} میں سے ${payment.allocations.single()}") else payment.label,
+        (if (singleInstallment) copy("Installment", "قسط") else copy("Payment", "ادائیگی")) to if (singleInstallment)
+            copy("${payment.allocations.single()} of ${data.total}", "${data.total} میں سے ${payment.allocations.single()}") else paymentLabel(payment, LocalUrdu.current),
         copy("Phone", "فون") to data.model,
-        copy("Payment method", "ادائیگی کا طریقہ") to payment.method,
+        copy("Payment method", "ادائیگی کا طریقہ") to paymentMethodLabel(payment.method, LocalUrdu.current),
         copy("Received by", "وصول کنندہ") to payment.receivedBy.ifBlank { data.retailer },
         copy("Receipt no.", "رسید نمبر") to id,
     ) + if (payment.reference.isNotBlank()) listOf(copy("Reference", "حوالہ") to payment.reference) else emptyList()
