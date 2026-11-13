@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -15,6 +16,7 @@ import java.text.NumberFormat
 import java.util.Locale
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.Destructive
 import pk.qist.customer.ui.theme.Cyan
 import pk.qist.customer.ui.theme.InputBorder
 import pk.qist.customer.ui.theme.Navy
@@ -29,35 +31,38 @@ internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnSco
 }
 
 @Composable
-internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false) {
+internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false, icon: Int? = null, enabled: Boolean = true, busy: Boolean = false, destructive: Boolean = false) {
     Button(
-        onClick = onClick,
+        onClick = onClick, enabled = enabled && !busy,
         modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
         shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = if (cyan) Cyan else Blue, contentColor = if (cyan) Navy else Color.White),
-    ) { Text(label, style = MaterialTheme.typography.labelLarge) }
+        colors = ButtonDefaults.buttonColors(containerColor = when { destructive -> Destructive; cyan -> Cyan; else -> Blue }, contentColor = if (cyan && !destructive) Navy else Color.White),
+    ) { ActionLabel(label, icon, busy) }
 }
 
 @Composable
-internal fun SecondaryAction(label: String, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), border = BorderStroke(1.dp, InputBorder)) {
-        Text(label, color = Navy)
-    }
+internal fun SecondaryAction(label: String, onClick: () -> Unit, icon: Int? = null, enabled: Boolean = true, busy: Boolean = false) {
+    OutlinedButton(onClick = onClick, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = CircleShape,
+        border = BorderStroke(1.dp, InputBorder)) { ActionLabel(label, icon, busy) }
 }
 
 @Composable
-internal fun ScreenBadge(icon: Int, color: Color, background: Color, size: Int) {
+private fun ActionLabel(label: String, icon: Int?, busy: Boolean) {
+    if (busy) CircularProgressIndicator(Modifier.size(18.dp), color = LocalContentColor.current, strokeWidth = 2.dp)
+    else if (icon != null) Icon(painterResource(icon), null, Modifier.size(20.dp))
+    if (busy || icon != null) Spacer(Modifier.width(8.dp))
+    Text(label, style = MaterialTheme.typography.labelLarge)
+}
+
+@Composable
+internal fun ScreenBadge(icon: Int, color: Color, background: Color, size: Int, iconSize: Int = 24) {
     Box(Modifier.size(size.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
-        Icon(painterResource(icon), contentDescription = null, tint = color)
+        Icon(painterResource(icon), contentDescription = null, tint = color, modifier = Modifier.size(iconSize.dp))
     }
 }
 
 @Composable
-internal fun Badge(icon: Int, tint: Color, background: Color) {
-    Box(Modifier.size(36.dp).background(background, CircleShape), contentAlignment = Alignment.Center) {
-        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(19.dp), tint = tint)
-    }
-}
+internal fun Badge(icon: Int, tint: Color, background: Color) = ScreenBadge(icon, tint, background, 36, 19)
 
 @Composable
 internal fun Caption(text: String) {
@@ -66,14 +71,21 @@ internal fun Caption(text: String) {
 
 @Composable
 internal fun Chevron() {
-    Text(copy("›", "‹"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleLarge)
+    Icon(painterResource(pk.qist.customer.R.drawable.chevron_forward), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Vertical expansion arrows stay consistent in both English and Urdu layouts. */
+@Composable
+internal fun ExpansionChevron(expanded: Boolean) {
+    Icon(painterResource(pk.qist.customer.R.drawable.chevron_down), null,
+        Modifier.size(18.dp).rotate(if (expanded) 180f else 0f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
 internal fun DetailRow(
     title: String, subtitle: String, value: String, icon: Int,
     tint: Color = Blue, background: Color = Blue.copy(alpha = 0.08f),
-    valueColor: Color = Navy, status: String? = null, onClick: (() -> Unit)? = null,
+    titleColor: Color = Navy, valueColor: Color = Navy, status: String? = null, onClick: (() -> Unit)? = null,
 ) {
     Row(
         Modifier.fillMaxWidth().then(if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)).padding(vertical = 12.dp),
@@ -82,11 +94,11 @@ internal fun DetailRow(
     ) {
         Badge(icon, tint, background)
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Caption(subtitle)
+            Text(title, color = titleColor, style = MaterialTheme.typography.titleMedium)
+            if (subtitle.isNotEmpty()) Caption(subtitle)
         }
         if (value.isNotEmpty()) {
-            Column(horizontalAlignment = Alignment.End) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                 Text(value, color = valueColor, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.End)
                 if (status != null) Text(status, color = tint, style = MaterialTheme.typography.labelMedium)
             }
@@ -96,25 +108,39 @@ internal fun DetailRow(
 }
 
 @Composable
-internal fun RetailerContactDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(copy("Contact retailer", "دکاندار سے رابطہ")) },
-        text = { Text(copy("This demo has no retailer phone number.", "ڈیمو میں دکاندار کا نمبر موجود نہیں۔")) },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(copy("Close", "بند کریں")) } },
+internal fun RetailerContactDialog(phone: String = "", whatsApp: Boolean = false, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var error by remember(phone, whatsApp) { mutableStateOf<String?>(null) }
+    val unavailable = copy("No app is available for this action.", "اس عمل کے لیے کوئی ایپ دستیاب نہیں۔")
+    CustomerDialog(
+        title = copy("Contact retailer", "دکاندار سے رابطہ"),
+        message = phone.ifBlank { copy("Contact the shop where you purchased your phone. Their contact details are not available here yet.", "جہاں سے فون خریدا ہے اس دکان سے رابطہ کریں۔ ان کی رابطہ تفصیل ابھی یہاں دستیاب نہیں۔") },
+        icon = if (whatsApp) pk.qist.customer.R.drawable.payment_chat else pk.qist.customer.R.drawable.payment_call,
+        confirmLabel = if (phone.isBlank()) copy("Close", "بند کریں") else if (whatsApp) copy("WhatsApp", "واٹس ایپ") else copy("Call", "کال کریں"),
+        dismissLabel = if (phone.isBlank()) null else copy("Cancel", "منسوخ"), error = error, onDismiss = onDismiss,
+        onConfirm = {
+            if (phone.isBlank()) onDismiss() else {
+                val digits = phone.filter(Char::isDigit).let { if (it.startsWith("0")) "92" + it.drop(1) else it }
+                val uri = if (whatsApp) "https://wa.me/$digits" else "tel:$phone"
+                val action = if (whatsApp) android.content.Intent.ACTION_VIEW else android.content.Intent.ACTION_DIAL
+                try { context.startActivity(android.content.Intent(action, android.net.Uri.parse(uri))); onDismiss() }
+                catch (_: android.content.ActivityNotFoundException) { error = unavailable }
+                catch (_: SecurityException) { error = unavailable }
+            }
+        },
     )
 }
 
 @Composable
-internal fun money(amount: Int): String {
-    val formatted = NumberFormat.getIntegerInstance(Locale.US).format(amount)
+internal fun money(amount: Long): String {
+    val formatted = pk.qist.customer.data.formatAmount(amount)
     return copy("Rs. $formatted", "روپے $formatted")
 }
 
 @Composable
-internal fun CustomerBackButton(onBack: () -> Unit) {
+internal fun CustomerBackButton(onBack: () -> Unit, enabled: Boolean = true) {
     FilledIconButton(
-        onClick = onBack,
+        onClick = onBack, enabled = enabled,
         modifier = Modifier.size(48.dp),
         colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White, contentColor = Navy),
     ) {

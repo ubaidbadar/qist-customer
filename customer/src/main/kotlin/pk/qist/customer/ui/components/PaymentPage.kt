@@ -10,13 +10,14 @@ import pk.qist.customer.ui.theme.Canvas
 import pk.qist.customer.ui.theme.QistSpacing
 
 @Composable
-internal fun PaymentPage(title: String, onBack: () -> Unit, actions: @Composable ColumnScope.() -> Unit, body: @Composable ColumnScope.() -> Unit) {
+internal fun PaymentPage(title: String, onBack: () -> Unit, actions: @Composable ColumnScope.() -> Unit, feedback: @Composable () -> Unit = {}, body: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().padding(QistSpacing.Screen)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
             CustomerBackButton(onBack)
             Text(title, style = MaterialTheme.typography.headlineMedium)
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section), content = body)
+        feedback()
         Column(verticalArrangement = Arrangement.spacedBy(QistSpacing.Item), content = actions)
     }
 }

@@ -4,6 +4,7 @@ import java.util.Base64
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 /** Parses .env files into key-value pairs (workspace root, project root, and customer module). */
@@ -53,17 +54,24 @@ android {
         applicationId = "pk.qist.customer"
         minSdk = 24
         targetSdk = 37
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val defaultVersionCode = listOf(
+            rootProject.file("../build-customer.txt"),
+            rootProject.file("build-customer.txt"),
+            project.file("build-customer.txt")
+        ).find { it.isFile }?.readText()?.trim()?.toIntOrNull() ?: 1
+
         versionCode = providers.gradleProperty("qist.customer.versionCode")
             .map { it.toInt() }
             .orElse(
                 providers.provider {
-                    resolveEnv("VERSION_CODE")?.toIntOrNull() ?: 1
+                    resolveEnv("VERSION_CODE")?.toIntOrNull() ?: defaultVersionCode
                 }
             )
             .get()
         versionName = "0.2.1"
         val customerApiUrl = resolveEnv("CUSTOMER_API_URL", "qist.customer.apiUrl")
-            ?: resolveEnv("API_URL")
+            ?: resolveEnv("API_URL")?.trimEnd('/')?.let { "$it/customer-app/" }
             ?: "https://qist.restora.live/api/v1/customer-app/"
         buildConfigField("String", "CUSTOMER_API_URL", "\"$customerApiUrl\"")
     }
@@ -127,4 +135,18 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
     implementation(libs.compose.material3)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.firebase.messaging)
+    implementation(libs.play.app.update)
+    implementation(libs.play.auth)
+    implementation(libs.coroutines.android)
+    implementation(libs.okhttp)
+    implementation(libs.serialization.json)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.junit)
+    debugImplementation(libs.compose.ui.test.manifest)
+    testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
 }

@@ -1,65 +1,55 @@
 package pk.qist.customer.ui.payments
 
-import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.*
+import kotlinx.coroutines.launch
+import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
-import pk.qist.customer.ui.components.Caption
-import pk.qist.customer.ui.components.Panel
-import pk.qist.customer.ui.components.PaymentPage
-import pk.qist.customer.ui.components.Pill
-import pk.qist.customer.ui.components.RetailerContactDialog
-import pk.qist.customer.ui.components.SecondaryAction
+import pk.qist.customer.ui.components.*
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.theme.Blue
-import pk.qist.customer.ui.theme.BlueBackground
-import pk.qist.customer.ui.theme.Muted
-import pk.qist.customer.ui.theme.Navy
-import pk.qist.customer.ui.theme.QistShapes
-import pk.qist.customer.ui.theme.QistSpacing
+import pk.qist.customer.ui.theme.*
 
 @Composable
 internal fun HowToPay(data: DashboardSample, onBack: () -> Unit) {
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val copied = copy("Copied to clipboard", "کلپ بورڈ پر کاپی ہو گیا")
+    val copyError = copy("Could not copy account details.", "اکاؤنٹ کی تفصیل کاپی نہیں ہو سکی۔")
     var contact by rememberSaveable { mutableStateOf(false) }
-    PaymentPage(copy("How to pay", "ادائیگی کیسے کریں"), onBack, actions = {
-        Pill(copy("Call ${data.retailer}", "${data.retailer} کو کال کریں"), { contact = true })
-        SecondaryAction(copy("WhatsApp", "واٹس ایپ")) { contact = true }
+    var whatsApp by remember { mutableStateOf(false) }
+    var methods by rememberSaveable { mutableStateOf(false) }
+    PaymentPage(copy("How to pay", "ادائیگی کیسے کریں"), onBack, feedback = { CustomerSnackbarHost(snackbar) }, actions = {
+        Pill(copy("Call ${data.retailer}", "${data.retailer} کو کال کریں"), { whatsApp = false; contact = true }, icon = R.drawable.payment_call)
+        SecondaryAction(copy("Send payment proof on WhatsApp", "واٹس ایپ پر ادائیگی کا ثبوت بھیجیں"), { whatsApp = true; contact = true }, icon = R.drawable.payment_chat)
     }) {
         Surface(color = Navy, contentColor = Color.White, shape = QistShapes.Card) {
-            Column(Modifier.fillMaxWidth().padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(copy("Amount due", "واجب الادا رقم"), color = Muted)
-                Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
-                Text(copy("Due ${data.dueDate}", "${data.dueDate} تک واجب"), color = Muted)
+            FlowRow(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column {
+                    Text(copy("Amount due", "واجب الادا رقم"), color = Muted)
+                    Text(copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(copy("Due date", "آخری تاریخ"), color = Muted, style = MaterialTheme.typography.bodyMedium)
+                    Text(if (data.completed) "—" else data.dueDate, style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
-        Panel {
-            Column(verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                PaymentStep(1, copy("Contact your retailer", "دکاندار سے رابطہ کریں"), copy("Call or message ${data.retailer} to arrange your payment.", "ادائیگی کے لیے ${data.retailer} سے رابطہ کریں۔"))
-                PaymentStep(2, copy("Pay your retailer", "دکاندار کو ادائیگی کریں"), copy("Pay the amount due in the way your retailer accepts.", "دکاندار کے قبول کردہ طریقے سے ادائیگی کریں۔"))
-                PaymentStep(3, copy("Get your receipt", "اپنی رسید حاصل کریں"), copy("Once your retailer records payment, you can find the receipt in Payments.", "دکاندار ادائیگی درج کرے تو رسید ادائیگیوں میں دیکھیں۔"))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(copy("Pay ${data.retailer} using any of these", "${data.retailer} کو ان طریقوں سے ادا کریں"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            IconButton(onClick = { methods = true }) {
+                Icon(painterResource(R.drawable.tab_payments), copy("View payment methods", "ادائیگی کے طریقے دیکھیں"), tint = Blue)
             }
         }
+        PaymentMethods(data) { success -> scope.launch { snackbar.accountMessage(if (success) copied else copyError, error = !success) } }
+        PaymentNotice()
     }
-    if (contact) {
-        RetailerContactDialog { contact = false }
-    }
-}
-
-@Composable
-private fun PaymentStep(number: Int, title: String, description: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Box(Modifier.size(32.dp).background(BlueBackground, CircleShape), contentAlignment = Alignment.Center) {
-            Text(number.toString(), color = Blue, style = MaterialTheme.typography.labelLarge)
-        }
-        Column {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Caption(description)
-        }
-    }
+    if (methods) PaymentMethodsSheet(data) { methods = false }
+    if (contact) RetailerContactDialog(data.retailerPhone, whatsApp) { contact = false }
 }

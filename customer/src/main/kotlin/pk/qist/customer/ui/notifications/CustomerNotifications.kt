@@ -2,6 +2,8 @@ package pk.qist.customer.ui.notifications
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,6 +15,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
+import pk.qist.customer.ui.components.AccountEmptyState
 import pk.qist.customer.ui.components.CustomerBackButton
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.localization.copy
@@ -47,7 +50,7 @@ internal fun NotificationPrompt(onAllow: () -> Unit, onDismiss: () -> Unit) {
             NoticeIcon(R.drawable.detail_bell, Blue, BlueBackground, large = true)
             Text(copy("Never miss a due date", "قسط کی تاریخ یاد رکھیں"), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
             Text(
-                copy("Allow notifications for installment reminders and payment confirmations. This demo saves your preference on this device.", "قسط کی یاد دہانی اور ادائیگی کی تصدیق کے لیے اطلاعات کی اجازت دیں۔ یہ ڈیمو آپ کی ترجیح اسی فون پر محفوظ کرتا ہے۔"),
+                copy("Get due-date reminders, payment confirmations and phone-status updates. You can change this in Profile.", "قسط کی یاد دہانیاں، ادائیگی کی تصدیق اور فون کی حالت کی اطلاعات پائیں۔ اسے پروفائل میں بدل سکتے ہیں۔"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
@@ -61,55 +64,31 @@ internal fun NotificationPrompt(onAllow: () -> Unit, onDismiss: () -> Unit) {
 }
 
 @Composable
-internal fun NotificationInbox(
-    data: DashboardSample,
-    unread: Int,
-    onBack: () -> Unit,
-    onReadAll: () -> Unit,
-    onRead: (Int) -> Unit,
-) {
-    Column(
-        Modifier.fillMaxSize().background(Canvas).systemBarsPadding().verticalScroll(rememberScrollState()).padding(QistSpacing.Screen),
-        verticalArrangement = Arrangement.spacedBy(QistSpacing.Item),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+internal fun NotificationInbox(notices: List<pk.qist.customer.data.CustomerNotice>, error: String?, busy: Boolean,
+    onBack: () -> Unit, onReadAll: () -> Unit, onOpen: (pk.qist.customer.data.CustomerNotice) -> Unit) {
+    Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().padding(QistSpacing.Screen)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CustomerBackButton(onBack)
-            Text(copy("Notifications", "اطلاعات"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = onReadAll, enabled = unread != 0, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                Text(copy("Mark all read", "سب پڑھ لیے"))
+            Text(copy("Notifications", "اطلاعات"), style = MaterialTheme.typography.headlineMedium)
+        }
+        if (error != null) Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+        if (notices.isEmpty()) BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            AccountEmptyState(R.drawable.detail_bell, copy("No notifications yet", "ابھی کوئی اطلاع نہیں"),
+                copy("No notifications are available yet. Check Home and Payments for current account information.", "ابھی کوئی اطلاع دستیاب نہیں۔ موجودہ معلومات کے لیے ہوم اور ادائیگیاں دیکھیں۔"),
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight))
+        } else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item(key = "read-all", contentType = "action") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onReadAll, enabled = !busy && notices.any { !it.read }) { Text(copy("Mark all read", "سب پڑھ لیے")) }
+                }
+            }
+            items(notices, key = { it.id }, contentType = { "notification" }) { notice ->
+                NoticeCard(notice.title, notice.body, notice.date,
+                    if (notice.kind.startsWith("payment")) R.drawable.tab_payments else if (notice.kind == "due") R.drawable.tab_plan else R.drawable.phone_outline,
+                    Blue, BlueBackground, unread = !notice.read, onRead = { if (!busy) onOpen(notice) })
             }
         }
-        Section(copy("Today", "آج"))
-        val payment = data.payments.first()
-        NoticeCard(
-            copy("Payment received", "ادائیگی موصول ہوئی"),
-            copy("Rs. ${payment.amount} received for installment ${payment.number}. Thank you.", "قسط ${payment.number} کے لیے ${payment.amount} روپے موصول ہوئے۔ شکریہ۔"),
-            "10:30 AM", R.drawable.detail_check, PaidGreen, PaidBackground,
-            unread = unread and 1 != 0, onRead = { onRead(1) },
-        )
-        NoticeCard(
-            copy("Installment due soon", "قسط جلد واجب ہے"),
-            copy("Rs. ${data.amount} is due on ${data.dueDate}.", "${data.amount} روپے ${data.dueDate} کو واجب ہیں۔"),
-            "9:00 AM", R.drawable.detail_clock, DueAmber, DueBackground,
-            unread = unread and 2 != 0, onRead = { onRead(2) },
-        )
-        Section(copy("Earlier", "پہلے"))
-        NoticeCard(
-            copy("Payment overdue", "قسط کی تاریخ گزر گئی"),
-            copy("Your installment of Rs. ${payment.amount} was due on ${payment.date}. Please contact ${data.retailer}.", "${payment.amount} روپے کی قسط ${payment.date} کو واجب تھی۔ ${data.retailer} سے رابطہ کریں۔"),
-            payment.date, R.drawable.notice_overdue, Destructive, DestructiveBackground,
-        )
-        NoticeCard(
-            copy("Phone unlocked", "فون ان لاک ہو گیا"),
-            copy("Your phone is unlocked after your payment.", "ادائیگی کے بعد آپ کا فون ان لاک ہو گیا۔"),
-            payment.date, R.drawable.notice_unlock, Blue, BlueBackground,
-        )
     }
-}
-
-@Composable
-private fun Section(title: String) {
-    Text(title, Modifier.padding(top = 8.dp, start = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
 }
 
 @Composable
@@ -123,7 +102,7 @@ private fun NoticeCard(
         color = Color.White,
     ) {
         Row(
-            Modifier.then(if (unread) Modifier.clickable(onClick = onRead) else Modifier).padding(16.dp),
+            Modifier.fillMaxWidth().clickable(onClick = onRead).padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item),
         ) {
             NoticeIcon(icon, tint, background)
