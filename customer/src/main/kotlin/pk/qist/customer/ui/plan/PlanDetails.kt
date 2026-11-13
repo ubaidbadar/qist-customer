@@ -21,6 +21,8 @@ import androidx.compose.ui.res.painterResource
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.money
 import pk.qist.customer.ui.localization.copy
+import pk.qist.customer.ui.localization.LocalUrdu
+import pk.qist.customer.ui.localization.frequencyLabel
 import pk.qist.customer.ui.theme.Divider
 import pk.qist.customer.ui.theme.DueAmber
 import pk.qist.customer.ui.theme.DueBackground
@@ -67,7 +69,8 @@ private fun PlanSummary(data: DashboardSample, onChange: () -> Unit) {
         Fact(copy("Total price", "کل قیمت"), money(data.totalPrice))
         Fact(copy("Advance paid", "پیشگی ادائیگی"), money(data.advance))
         Fact(copy("Installment", "قسط"), money(data.installment))
-        Fact(copy("Plan length", "مدت"), copy("${data.total} installments · ${data.frequency}", "${data.total} اقساط · ${data.frequency}"))
+        val frequency = frequencyLabel(data.frequency, LocalUrdu.current)
+        Fact(copy("Plan length", "مدت"), copy("${data.total} installments · $frequency", "${data.total} اقساط · $frequency"))
     }
 }
 

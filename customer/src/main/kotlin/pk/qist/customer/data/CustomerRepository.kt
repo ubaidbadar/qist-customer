@@ -9,6 +9,7 @@ import java.util.TimeZone
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -163,8 +164,13 @@ internal class HttpCustomerRepository(
         parsePayments(request("payments", query = mapOf("contractId" to contractId, "cursor" to cursor), authorized = true))
     }
     override suspend fun logout() {
-        request("auth/logout", body = buildJsonObject {}, authorized = true)
-        clearSession()
+        try {
+            request("auth/logout", body = buildJsonObject {}, authorized = true, timeoutSeconds = 5)
+        } catch (_: IOException) {
+            // Remote revocation is best effort; a disconnected device must still be able to sign out.
+        } finally {
+            withContext(NonCancellable) { clearSession() }
+        }
     }
     override suspend fun clearSession() {
         token = null
@@ -231,7 +237,11 @@ private fun notificationDate(value: String): String {
 private fun calendarDate(value: String) = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
     isLenient = false; timeZone = TimeZone.getTimeZone("UTC")
 }.parse(value.take(10)) ?: throw CustomerResponseException("Invalid date in server response.")
-private fun JsonObject.requiredText(key: String) = (get(key) as? JsonPrimitive)?.contentOrNull ?: throw CustomerResponseException("Missing $key in server response.")
+private fun JsonObject.requiredText(key: String): String {
+    val value = get(key) as? JsonPrimitive
+    return value?.takeIf { it.isString }?.contentOrNull?.takeIf { it.isNotBlank() }
+        ?: throw CustomerResponseException("Invalid $key in server response.")
+}
 private fun JsonObject.text(key: String) = get(key)?.jsonPrimitive?.contentOrNull.orEmpty()
 private fun JsonObject.amount(key: String) = (get(key) as? JsonPrimitive)?.longOrNull ?: throw CustomerResponseException("Invalid $key in server response.")
 private fun JsonObject.rows(key: String) = (get(key) as? JsonArray)?.map { it.jsonObject } ?: throw CustomerResponseException("Missing $key in server response.")
