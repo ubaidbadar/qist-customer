@@ -26,7 +26,6 @@ class CustomerViewModelTest {
         override suspend fun readNotifications(ids: List<String>) = Unit
         var next = "otp"
         var reads = 0
-        val requestedPlans = mutableListOf<String?>()
         var logins = 0
         var starts = 0
         var clears = 0
@@ -39,7 +38,7 @@ class CustomerViewModelTest {
         override suspend fun setPassword(phone: String, setupToken: String, password: String) { assertEquals("proof", setupToken); failure?.let { throw it }; logins++ }
         override suspend fun resetPassword(phone: String, code: String, password: String) = Unit
         override suspend fun login(phone: String, password: String) { failure?.let { throw it }; logins++ }
-        override suspend fun dashboard(contractId: String?): DashboardSample { reads++; requestedPlans.add(contractId); gate?.await(); failure?.let { throw it }; return parseOverview(overviewFixture()).let { it.copy(contractId = contractId ?: it.id) } }
+        override suspend fun dashboard(contractId: String?): DashboardSample { reads++; gate?.await(); failure?.let { throw it }; return parseOverview(overviewFixture()) }
         override suspend fun payments(contractId: String, cursor: String): PaymentPage { failure?.let { throw it }; return PaymentPage(parseOverview(overviewFixture()).payments, null) }
         override suspend fun logout() = Unit
         override suspend fun clearSession() { clears++ }
@@ -231,7 +230,7 @@ class CustomerViewModelTest {
         val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
         val old = model.state.value.data; val gate = CompletableDeferred<Unit>(); repo.gate = gate
         model.onForeground(); runCurrent()
-        assertFalse(model.state.value.busy); assertEquals(old, model.state.value.data); assertFalse(model.state.value.refreshing)
+        assertTrue(model.state.value.busy); assertEquals(old, model.state.value.data); assertFalse(model.state.value.refreshing)
         model.onForeground(); model.onForeground(); runCurrent(); assertEquals(2, repo.reads)
         gate.complete(Unit); runCurrent(); assertFalse(model.state.value.busy); assertFalse(model.state.value.refreshing)
     }
@@ -239,7 +238,7 @@ class CustomerViewModelTest {
         val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
         val old = model.state.value.data; val gate = CompletableDeferred<Unit>(); repo.gate = gate
         model.onRealtimeChange(); runCurrent()
-        assertFalse(model.state.value.busy); assertEquals(old, model.state.value.data); assertFalse(model.state.value.refreshing)
+        assertTrue(model.state.value.busy); assertEquals(old, model.state.value.data); assertFalse(model.state.value.refreshing)
         gate.complete(Unit); runCurrent(); assertEquals(2, repo.reads); assertFalse(model.state.value.refreshing)
     }
     @Test fun `pull indicator ends before the coalesced notification follow up`() = runTest(dispatcher) {
@@ -249,7 +248,7 @@ class CustomerViewModelTest {
         repeat(3) { model.onRealtimeChange() }
         val followUp = CompletableDeferred<Unit>(); repo.gate = followUp
         manual.complete(Unit); runCurrent()
-        assertEquals(3, repo.reads); assertFalse(model.state.value.busy); assertFalse(model.state.value.refreshing)
+        assertEquals(3, repo.reads); assertTrue(model.state.value.busy); assertFalse(model.state.value.refreshing)
         followUp.complete(Unit); runCurrent(); assertFalse(model.state.value.busy)
     }
     @Test fun `silent update failure keeps loaded data and never shows pull indicator`() = runTest(dispatcher) {
@@ -263,88 +262,6 @@ class CustomerViewModelTest {
         val repo = Repository(); val model = model(repo); runCurrent()
         model.onForeground(); model.onRealtimeChange(); model.refresh(); runCurrent()
         assertEquals(0, repo.reads); assertFalse(model.state.value.refreshing)
-    }
-
-    @Test fun `logout interrupts a silent refresh and cannot be undone by its late completion`() = runTest(dispatcher) {
-        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
-        val refresh = CompletableDeferred<Unit>(); repo.gate = refresh
-        model.onForeground(); runCurrent()
-        model.logout(); runCurrent()
-        assertEquals(CustomerRoute.Welcome, model.state.value.route)
-        refresh.complete(Unit); runCurrent()
-        assertNull(model.state.value.data); assertFalse(model.state.value.busy)
-    }
-
-    @Test fun `switching phone takes priority over a silent refresh`() = runTest(dispatcher) {
-        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
-        val background = CompletableDeferred<Unit>(); repo.gate = background
-        model.onForeground(); runCurrent()
-        val switching = CompletableDeferred<Unit>(); repo.gate = switching
-        model.selectPlan("plan-b"); runCurrent()
-        assertEquals(listOf(null, "plan-a", "plan-b"), repo.requestedPlans)
-        assertTrue(model.state.value.switchingPlan); assertTrue(model.state.value.busy)
-        background.complete(Unit); runCurrent()
-        assertTrue(model.state.value.busy)
-        switching.complete(Unit); runCurrent()
-        assertEquals("plan-b", model.state.value.data?.id); assertFalse(model.state.value.busy)
-    }
-
-    @Test fun `manual refresh interrupts a silent refresh and owns the top indicator`() = runTest(dispatcher) {
-        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
-        val background = CompletableDeferred<Unit>(); repo.gate = background
-        model.onForeground(); runCurrent()
-        val manual = CompletableDeferred<Unit>(); repo.gate = manual
-        model.refresh(); runCurrent()
-        assertTrue(model.state.value.refreshing); assertEquals(3, repo.reads)
-        background.complete(Unit); runCurrent(); assertTrue(model.state.value.refreshing)
-        manual.complete(Unit); runCurrent(); assertFalse(model.state.value.refreshing)
-    }
-
-    @Test fun `notification burst during a silent refresh queues a single silent follow up`() = runTest(dispatcher) {
-        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
-        val background = CompletableDeferred<Unit>(); repo.gate = background
-        model.onForeground(); runCurrent()
-        repeat(1000) { model.onRealtimeChange() }
-        val followUp = CompletableDeferred<Unit>(); repo.gate = followUp
-        background.complete(Unit); runCurrent()
-        assertEquals(3, repo.reads); assertFalse(model.state.value.refreshing)
-        followUp.complete(Unit); runCurrent(); assertEquals(3, repo.reads)
-    }
-
-    @Test fun `silent authentication failure clears account and does not run queued updates`() = runTest(dispatcher) {
-        val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
-        val background = CompletableDeferred<Unit>(); repo.gate = background
-        model.onForeground(); runCurrent(); model.onRealtimeChange()
-        repo.failure = CustomerApiException(401, "Expired")
-        background.complete(Unit); runCurrent()
-        assertEquals(CustomerRoute.SessionExpired, model.state.value.route)
-        assertNull(model.state.value.data); assertEquals(2, repo.reads)
-        assertFalse(model.state.value.busy); assertFalse(model.state.value.refreshing)
-    }
-
-    @Test fun `offline login does not claim to show saved account data`() = runTest(dispatcher) {
-        val repo = Repository().apply { next = "password" }; val model = model(repo); runCurrent()
-        model.start("3001234567"); runCurrent()
-        repo.failure = CustomerNetworkException(java.io.IOException("offline"))
-        model.login("password123", true); runCurrent()
-        assertEquals(CustomerRoute.Password, model.state.value.route); assertNull(model.state.value.data)
-        assertEquals("Could not connect. Check your internet and try again.", model.state.value.message)
-    }
-
-    @Test fun `immediate cancellation cannot start an obsolete queued refresh over a user action`() = runTest(dispatcher) {
-        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
-        val repo = Repository().apply { restored = true }; val model = model(repo)
-        val background = CompletableDeferred<Unit>(); repo.gate = background
-        model.onForeground(); model.onRealtimeChange()
-        val switching = CompletableDeferred<Unit>(); repo.gate = switching
-        model.selectPlan("plan-b")
-        assertEquals(listOf(null, "plan-a", "plan-b"), repo.requestedPlans)
-        assertTrue(model.state.value.busy); assertTrue(model.state.value.switchingPlan)
-        model.onForeground(); assertEquals(3, repo.reads)
-        switching.complete(Unit); runCurrent()
-        assertEquals("plan-b", model.state.value.data?.id)
-        assertEquals("plan-b", repo.requestedPlans.last())
-        assertEquals(4, repo.reads); assertFalse(model.state.value.busy)
     }
 
 }

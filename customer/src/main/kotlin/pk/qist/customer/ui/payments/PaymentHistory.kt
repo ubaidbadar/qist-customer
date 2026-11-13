@@ -18,9 +18,6 @@ import pk.qist.customer.ui.components.DetailRow
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.components.money
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.localization.LocalUrdu
-import pk.qist.customer.ui.localization.paymentLabel
-import pk.qist.customer.ui.localization.paymentMethodLabel
 import pk.qist.customer.ui.theme.PaidBackground
 import pk.qist.customer.ui.theme.PaidGreen
 import pk.qist.customer.ui.theme.QistSpacing
@@ -52,7 +49,7 @@ internal fun PaymentHistory(data: DashboardSample, busy: Boolean, message: Strin
         }, footer = if (data.nextCursor == null) null else ({
             TextButton(onClick = onMore, enabled = !busy) { Text(copy("Load more", "مزید دکھائیں")) }
         })) { payment ->
-            DetailRow(title = paymentLabel(payment, LocalUrdu.current), subtitle = "${payment.date} · ${paymentMethodLabel(payment.method, LocalUrdu.current)}",
+            DetailRow(title = copy(payment.label, payment.label), subtitle = "${payment.date} · ${payment.method}",
                 value = copy("Rs. ${payment.amount}", "روپے ${payment.amount}"), icon = R.drawable.detail_check,
                 tint = PaidGreen, background = PaidBackground, valueColor = PaidGreen, onClick = { onReceipt(payment) })
         }
