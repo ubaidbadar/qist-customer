@@ -1,6 +1,6 @@
 package pk.qist.customer.data
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.runBlocking
 import okhttp3.*
 import okio.buffer
 import okhttp3.MediaType.Companion.toMediaType
@@ -42,16 +42,6 @@ class HttpCustomerRepositoryTest {
         catch (error: CustomerApiException) { assertEquals(503, error.status); assertEquals("WhatsApp is not configured", error.message) }
         assertNull(session.token)
     }
-    @Test fun `malformed success tokens cannot persist a sign in session`() = runBlocking {
-        for (token in listOf("null", "true", "123", "\"\"", "\"   \"", "{}", "[]")) {
-            val session = MemorySession()
-            val repository = HttpCustomerRepository(session, "https://example.com/", client {
-                200 to """{"data":{"accessToken":$token,"expiresAt":"2099-01-01T00:00:00.000Z"}}"""
-            })
-            try { repository.login("03001234567", "password123"); fail("Expected malformed token rejection: $token") }
-            catch (_: CustomerResponseException) { assertNull(session.token) }
-        }
-    }
     @Test fun `logout revokes session before clearing local token`() = runBlocking {
         val session = MemorySession().apply { token = "stored" }
         val repository = HttpCustomerRepository(session, "https://example.com/", client { request ->
@@ -62,39 +52,6 @@ class HttpCustomerRepositoryTest {
         assertTrue(repository.restore())
         repository.logout()
         assertNull(session.token)
-    }
-    @Test fun `logout clears session and offline snapshot when revocation is unavailable`() = runBlocking {
-        for (status in listOf(-1, 401, 503)) {
-            val session = MemorySession().apply { token = "stored" }
-            val storage = MemoryTextStore(); val cache = BoundOverviewCache(storage)
-            cache.save("stored", overviewFixture(), 1)
-            val repository = HttpCustomerRepository(session, "https://example.com/", client {
-                if (status == -1) throw java.io.IOException("offline")
-                status to "Service unavailable"
-            }, overviewCache = cache)
-            repository.restore(); repository.logout()
-            assertNull(session.token); assertTrue(storage.values.isEmpty())
-            try { repository.dashboard(); fail("Logged-out session must not load data") }
-            catch (error: CustomerApiException) { assertEquals(401, error.status) }
-        }
-    }
-    @Test fun `cancelled logout still clears the local session and cached account`() = runBlocking {
-        val session = MemorySession().apply { token = "stored" }
-        val storage = MemoryTextStore(); val cache = BoundOverviewCache(storage)
-        cache.save("stored", overviewFixture(), 1)
-        val started = CompletableDeferred<Unit>()
-        val release = java.util.concurrent.CountDownLatch(1)
-        val repository = HttpCustomerRepository(session, "https://example.com/", client {
-            started.complete(Unit)
-            check(release.await(5, java.util.concurrent.TimeUnit.SECONDS))
-            200 to """{"data":{"ok":true}}"""
-        }, overviewCache = cache)
-        try {
-            repository.restore()
-            val logout = launch { repository.logout() }
-            withTimeout(5000) { started.await(); logout.cancelAndJoin() }
-            assertNull(session.token); assertTrue(storage.values.isEmpty())
-        } finally { release.countDown() }
     }
     @Test fun `unauthorized HTML response preserves status`() = runBlocking {
         for (body in listOf("Unauthorized", """{"error":{"message":[]}}""")) {

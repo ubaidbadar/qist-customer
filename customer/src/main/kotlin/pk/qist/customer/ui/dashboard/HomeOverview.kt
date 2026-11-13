@@ -14,8 +14,6 @@ import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentSample
 import pk.qist.customer.ui.components.*
 import pk.qist.customer.ui.localization.copy
-import pk.qist.customer.ui.localization.LocalUrdu
-import pk.qist.customer.ui.localization.paymentLabel
 import pk.qist.customer.ui.phones.PlanStatusBadge
 import pk.qist.customer.ui.theme.*
 
@@ -62,26 +60,20 @@ internal fun HomeOverview(data: DashboardSample, message: String?, unread: Boole
 
 @Composable
 private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit, onReceipts: () -> Unit) {
-    val cancelled = data.status == "cancelled"
     val completed = data.completed && data.remaining == 0L
-    val overdue = !cancelled && !completed && data.remaining > 0L && data.days < 0
+    val overdue = !completed && data.remaining > 0L && data.days < 0
     Panel {
         Text(when {
-            cancelled -> copy("Plan status", "منصوبے کی حالت")
             completed -> copy("Plan completed", "منصوبہ مکمل ہو گیا")
             overdue -> copy("Overdue installment", "تاخیر شدہ قسط")
             else -> copy("Next installment", "اگلی قسط")
         }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
-        Text(when {
-            cancelled -> copy("Cancelled", "منسوخ")
-            completed -> copy("All paid", "سب ادا ہو گیا")
-            else -> copy("Rs. ${data.amount}", "روپے ${data.amount}")
-        }, style = MaterialTheme.typography.headlineLarge)
+        Text(if (completed) copy("All paid", "سب ادا ہو گیا") else copy("Rs. ${data.amount}", "روپے ${data.amount}"), style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(8.dp))
         Text(when {
             completed -> copy("You have paid every installment. Thank you!", "آپ نے تمام اقساط ادا کر دی ہیں۔ شکریہ!")
-            cancelled -> copy("Contact your retailer for details about this plan.", "اس منصوبے کی تفصیل کے لیے اپنے دکاندار سے رابطہ کریں۔")
+            data.status == "cancelled" -> copy("Plan cancelled", "منصوبہ منسوخ ہو گیا")
             data.remaining == 0L -> copy("Nothing due", "کوئی رقم واجب نہیں")
             data.days < 0 -> copy("Overdue by ${-data.days} days · was due ${data.dueDate}", "${-data.days} دن تاخیر · آخری تاریخ ${data.dueDate}")
             else -> copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی")
@@ -96,8 +88,7 @@ private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit, onReceipt
         Spacer(Modifier.height(6.dp))
         Text(copy("${data.paid} of ${data.total} installments paid", "${data.total} میں سے ${data.paid} اقساط ادا ہوئیں"), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(16.dp))
-        val showReceipts = completed || cancelled
-        Pill(if (showReceipts) copy("View receipts", "رسیدیں دیکھیں") else copy("How to pay", "ادائیگی کیسے کریں"), if (showReceipts) onReceipts else onHelp)
+        Pill(if (completed) copy("View receipts", "رسیدیں دیکھیں") else copy("How to pay", "ادائیگی کیسے کریں"), if (completed) onReceipts else onHelp)
     }
 }
 
@@ -108,12 +99,11 @@ private fun PaymentsCard(payments: List<PaymentSample>, onViewAll: (() -> Unit)?
             Text(copy("Recent payments", "حالیہ ادائیگیاں"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
             if (onViewAll != null) TextButton(onClick = onViewAll) { Text(copy("View all", "تمام دیکھیں")) }
         }
-        if (payments.isEmpty()) Caption(copy("No payments recorded yet.", "ابھی کوئی ادائیگی درج نہیں ہوئی۔"))
         payments.take(2).forEach { payment ->
             HorizontalDivider(color = Divider)
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(paymentLabel(payment, LocalUrdu.current), style = MaterialTheme.typography.titleMedium)
+                    Text(copy(payment.label, payment.label), style = MaterialTheme.typography.titleMedium)
                     Text(copy("Paid ${payment.date}", "ادا شدہ ${payment.date}"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(copy("Rs. ${payment.amount}", "روپے ${payment.amount}"), color = PaidGreen, style = MaterialTheme.typography.titleMedium)
