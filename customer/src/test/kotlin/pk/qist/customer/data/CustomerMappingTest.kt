@@ -59,6 +59,24 @@ class CustomerMappingTest {
         assertEquals("—", data.dueDate)
         assertEquals(3, data.paid)
     }
+    @Test fun `cancelled plan has no payable balance or retained advance`() {
+        val fixture = overviewFixture()
+        val contract = fixture.getValue("contract").jsonObject.toMutableMap().apply {
+            put("status", JsonPrimitive("cancelled"))
+            put("paidTotal", JsonPrimitive(0))
+            put("installments", JsonArray(getValue("installments").jsonArray.map { row ->
+                JsonObject(row.jsonObject + mapOf("status" to JsonPrimitive("pending"), "paidAmount" to JsonPrimitive(0)))
+            }))
+        }
+        val data = parseOverview(JsonObject(fixture + mapOf("contract" to JsonObject(contract),
+            "payments" to buildJsonObject { put("items", JsonArray(emptyList())); put("nextCursor", JsonNull) })))
+        assertEquals(0L, data.advance)
+        assertEquals(0L, data.paidTotal)
+        assertEquals(0L, data.remaining)
+        assertEquals("0", data.amount)
+        assertEquals("—", data.dueDate)
+        assertEquals(5000050L, data.totalPrice)
+    }
     @Test fun `overview carries the real inbox without a separate request`() {
         val fixture = overviewFixture()
         val updated = kotlinx.serialization.json.JsonObject(fixture + ("notifications" to kotlinx.serialization.json.Json.parseToJsonElement("""[{"id":"notice-a","contractId":"plan-a","kind":"payment","title":"Payment recorded","body":"Open Payments","createdAt":"2026-11-07T00:00:00.000Z","read":false}]""")))

@@ -23,6 +23,7 @@ import pk.qist.customer.ui.localization.paymentLabel
 import pk.qist.customer.ui.localization.paymentMethodLabel
 import pk.qist.customer.ui.profile.CustomerProfile
 import pk.qist.customer.ui.profile.ProfileInformation
+import pk.qist.customer.ui.plan.PlanDetails
 import pk.qist.customer.ui.theme.QistTheme
 
 /** Device-level content assertions complement the JVM state and request tests. */
@@ -62,6 +63,16 @@ class CustomerAccountContentTest {
         compose.onNodeWithText("Overdue installment").assertDoesNotExist()
         compose.onNodeWithText("View receipts").assertExists()
         compose.onNodeWithText("Contact your retailer for details about this plan.").assertExists()
+    }
+
+    @Test fun cancelledScheduleDoesNotDescribeHistoricalRowsAsOverdue() {
+        val data = account().copy(contractId = "cancelled-plan", status = "cancelled", total = 1,
+            schedule = listOf(pk.qist.customer.data.Installment(1, "2020-01-01", 10000, 0, 0, "pending", -100)))
+        compose.setContent { QistTheme { PlanDetails(data, message = null, onChange = {}) } }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Cancelled"))
+        compose.onNodeWithText("Cancelled").assertExists()
+        compose.onNodeWithText("Overdue").assertDoesNotExist()
+        compose.onNodeWithText("Due soon").assertDoesNotExist()
     }
 
     @Test fun urduReceiptsUseTranslatedPaymentDescriptions() {

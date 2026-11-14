@@ -1,0 +1,22 @@
+// Optional device-free Compose UI test harness. Production dependencies and APKs are unchanged.
+// ./gradlew --init-script qa/customer-ui-host.init.gradle :customer:testDebugUnitTest --no-configuration-cache
+gradle.beforeProject { project ->
+    if (project.path == ':customer') {
+        project.pluginManager.withPlugin('com.android.application') {
+            def libraries = project.extensions.getByType(org.gradle.api.artifacts.VersionCatalogsExtension).named('libs')
+            project.android.testOptions.unitTests.includeAndroidResources = true
+            // AGP 9 built-in Kotlin requires Kotlin directories, not AndroidSourceSet.java.
+            project.android.sourceSets.test.kotlin.srcDir('src/androidTest/kotlin')
+            project.android.sourceSets.test.resources.srcDir(new File(project.rootDir, 'qa/robolectric-resources'))
+            project.dependencies.add('testImplementation', libraries.findLibrary('robolectric').get())
+            project.dependencies.add('testImplementation', project.dependencies.platform(libraries.findLibrary('compose-bom').get()))
+            project.dependencies.add('testImplementation', libraries.findLibrary('compose-ui-test-junit4').get())
+            project.dependencies.add('testImplementation', libraries.findLibrary('androidx-junit').get())
+            project.tasks.withType(Test).configureEach {
+                maxParallelForks = 1
+                systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+                jvmArgs '--enable-native-access=ALL-UNNAMED'
+            }
+        }
+    }
+}
