@@ -5,12 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pk.qist.customer.data.*
 import pk.qist.customer.ui.CustomerTab
@@ -84,15 +81,11 @@ internal fun Dashboard(
     if (page == DashboardPage.Phones) PhonePicker(data.contracts, data.id.orEmpty(), { onSelectPhone(it); back() }, ::back)
     if (page == DashboardPage.Contact) RetailerContactDialog(data.retailerPhone, onDismiss = ::back)
     if (showPrompt && page == DashboardPage.Content) NotificationPrompt({ preferences.setNotifications(true); showPrompt = false }, { preferences.setNotifications(false); showPrompt = false })
-    val refresh = rememberPullToRefreshState()
     CustomerScaffold(tab, onTab, offline = data.fromCache) { padding ->
-        PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, state = refresh,
-            modifier = Modifier.fillMaxSize().padding(padding), indicator = {
-                PullToRefreshDefaults.Indicator(state = refresh, isRefreshing = refreshing,
-                    modifier = Modifier.align(Alignment.TopCenter), containerColor = Color.White, color = Blue)
-            }) {
-            val visibleMessage = message.takeIf { !data.fromCache }
-            key(tab, data.id) {
+        key(tab, data.id) {
+            CustomerRefreshBox(refreshing = refreshing, onRefresh = onRefresh,
+                modifier = Modifier.fillMaxSize().padding(padding)) {
+                val visibleMessage = message.takeIf { !data.fromCache }
                 when (tab) {
                     CustomerTab.Home -> HomeOverview(data, visibleMessage, data.notifications.any { !it.read }, onHelp,
                         { onTab(CustomerTab.Payments) }, { page = DashboardPage.Phones }, { page = DashboardPage.Inbox }, { page = DashboardPage.Contact })
