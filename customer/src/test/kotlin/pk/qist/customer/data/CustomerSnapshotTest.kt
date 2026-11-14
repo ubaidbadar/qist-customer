@@ -47,6 +47,13 @@ class CustomerSnapshotTest {
         val storage = MemoryTextStore().apply { values["customer-session"] = "broken" }
         assertNull(CustomerSessionStore(storage).read())
     }
+    @Test fun `expiry must match the complete stored timestamp`() = runBlocking {
+        for (expiry in listOf("2099-01-01T00:00:00.000Zjunk", "2099-01-01T00:00:00.000Z ", "2099-02-30T00:00:00.000Z")) {
+            val storage = MemoryTextStore().apply { values["customer-session"] = "$expiry\nopaque-session" }
+            assertNull("Malformed expiry must not authenticate: $expiry", CustomerSessionStore(storage).read())
+            assertTrue(storage.values.isEmpty())
+        }
+    }
     @Test fun `maintenance blocks but optional version recommendations do not`() {
         assertEquals(ServiceGate.Maintenance, AppAvailability(true).gate())
         assertNull(AppAvailability(false).gate())

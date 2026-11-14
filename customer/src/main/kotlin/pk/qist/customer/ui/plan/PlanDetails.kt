@@ -46,7 +46,7 @@ internal fun PlanDetails(data: DashboardSample, message: String?, onChange: () -
             }
             panelSection("schedule", data.schedule, { it.number.toString() }, title = {
                 Text(copy("Schedule", "اقساط کا شیڈول"), style = MaterialTheme.typography.titleLarge)
-            }) { installment -> ScheduleRow(installment) }
+            }) { installment -> ScheduleRow(installment, cancelled = data.status == "cancelled") }
         }
     }
 }
@@ -75,22 +75,24 @@ private fun PlanSummary(data: DashboardSample, onChange: () -> Unit) {
 }
 
 @Composable
-private fun ScheduleRow(row: pk.qist.customer.data.Installment) {
-    val paid = row.status == "paid" || row.status == "waived"
-    val overdue = !paid && (row.status == "overdue" || row.dueInDays < 0)
-    val dueSoon = !paid && row.dueInDays in 0..3
-    val tint = when { paid -> PaidGreen; overdue -> pk.qist.customer.ui.theme.Destructive; dueSoon || row.status == "partial" -> DueAmber; else -> MaterialTheme.colorScheme.onSurfaceVariant }
-    val background = when { paid -> PaidBackground; overdue -> pk.qist.customer.ui.theme.DestructiveBackground; dueSoon || row.status == "partial" -> DueBackground; else -> Divider }
+private fun ScheduleRow(row: pk.qist.customer.data.Installment, cancelled: Boolean) {
+    val paid = !cancelled && (row.status == "paid" || row.status == "waived")
+    val overdue = !cancelled && !paid && (row.status == "overdue" || row.dueInDays < 0)
+    val dueSoon = !cancelled && !paid && row.dueInDays in 0..3
+    val partial = !cancelled && row.status == "partial"
+    val tint = when { paid -> PaidGreen; overdue -> pk.qist.customer.ui.theme.Destructive; dueSoon || partial -> DueAmber; else -> MaterialTheme.colorScheme.onSurfaceVariant }
+    val background = when { paid -> PaidBackground; overdue -> pk.qist.customer.ui.theme.DestructiveBackground; dueSoon || partial -> DueBackground; else -> Divider }
     val label = when {
+        cancelled -> copy("Cancelled", "منسوخ")
         row.status == "waived" -> copy("Waived", "معاف")
         paid -> copy("Paid", "ادا شدہ")
         overdue -> copy("Overdue", "تاخیر")
-        row.status == "partial" -> copy("Partially paid", "جزوی ادا شدہ")
+        partial -> copy("Partially paid", "جزوی ادا شدہ")
         dueSoon -> copy("Due soon", "جلد واجب")
         else -> copy("Upcoming", "آئندہ")
     }
     DetailRow(copy("Installment ${row.number}", "قسط ${row.number}"), pk.qist.customer.data.displayDate(row.date), money(row.amount + row.lateFee),
-        icon = when { paid -> R.drawable.detail_check; overdue || dueSoon || row.status == "partial" -> R.drawable.detail_clock; else -> R.drawable.tab_plan },
+        icon = when { paid -> R.drawable.detail_check; overdue || dueSoon || partial -> R.drawable.detail_clock; else -> R.drawable.tab_plan },
         tint = tint, background = background, status = label)
 }
 

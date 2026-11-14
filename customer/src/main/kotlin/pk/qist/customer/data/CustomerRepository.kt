@@ -255,13 +255,16 @@ internal fun parseOverview(data: JsonObject): DashboardSample {
     val today = calendarDate(data.requiredText("today")).time
     val profile = data.getValue("profile").jsonObject
     val contract = data["contract"] as? JsonObject
+    val cancelled = contract?.text("status") == "cancelled"
     val schedule = contract?.rows("installments")?.map { row ->
         Installment(row.getValue("number").jsonPrimitive.int, row.requiredText("dueDate"), row.amount("amount"), row.amount("paidAmount"), row.amount("lateFee"), row.requiredText("status"),
             ((calendarDate(row.requiredText("dueDate")).time - today) / 86_400_000L).toInt())
     }.orEmpty()
-    val next = schedule.firstOrNull { it.status != "paid" && it.status != "waived" && it.amount + it.lateFee > it.paidAmount }
+    val next = if (cancelled) null else schedule.firstOrNull { it.status != "paid" && it.status != "waived" && it.amount + it.lateFee > it.paidAmount }
     val page = parsePayments(data.getValue("payments").jsonObject)
-    val advance = contract?.amount("downPayment") ?: 0L
+    val agreedAdvance = contract?.amount("downPayment") ?: 0L
+    // Cancellation refunds/voids the advance; the original sale price remains historical.
+    val advance = if (cancelled) 0L else agreedAdvance
     val payable = contract?.amount("totalPayable") ?: 0L
     val paid = contract?.amount("paidTotal") ?: 0L
     return DashboardSample(
@@ -272,8 +275,9 @@ internal fun parseOverview(data: JsonObject): DashboardSample {
         days = next?.dueInDays ?: 0,
         paid = schedule.count { it.status == "paid" }, total = schedule.size,
         retailer = contract?.text("retailer") ?: profile.text("retailer"), advance = advance, installment = next?.amount ?: schedule.firstOrNull()?.amount ?: 0L,
-        schedule = schedule, payments = page.items, totalPrice = advance + payable,
-        paidTotal = advance + paid, remaining = (payable + (contract?.amount("lateFees") ?: 0L) - paid).coerceAtLeast(0L),
+        schedule = schedule, payments = page.items, totalPrice = agreedAdvance + payable,
+        paidTotal = if (cancelled) 0L else advance + paid,
+        remaining = if (cancelled) 0L else (payable + (contract?.amount("lateFees") ?: 0L) - paid).coerceAtLeast(0L),
         frequency = contract?.text("frequency").orEmpty(), status = contract?.text("status").orEmpty(),
         lockState = contract?.get("deviceLockState")?.jsonPrimitive?.contentOrNull,
         retailerPhone = contract?.text("retailerPhone") ?: profile.text("retailerPhone"), retailerAddress = contract?.text("retailerAddress").orEmpty(),
