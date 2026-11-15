@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
@@ -100,7 +101,7 @@ internal fun CustomerLoading(tab: CustomerTab, onTab: (CustomerTab) -> Unit) {
 }
 
 @Composable
-private fun HomeSkeleton() {
+internal fun HomeSkeleton() {
     HomeFrame(headerContent = {
         Column(Modifier.weight(1f)) {
             // Reserve the same line heights as the greeting and name, not just bar heights.
@@ -113,7 +114,7 @@ private fun HomeSkeleton() {
         }
         SkeletonBlock(Modifier.size(48.dp), onNavy = true)
     }) {
-        Panel {
+        Panel(Modifier.testTag("home-first-card")) {
             Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
                 SkeletonBar(110.dp, 14.dp)
             }
