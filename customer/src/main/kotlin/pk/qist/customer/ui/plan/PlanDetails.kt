@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.draw.alpha
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.AccountMessage
@@ -88,6 +89,24 @@ internal fun PlanFactFrame(
     }
 }
 
+/**
+ * Keep the loading action's measured width and height identical to the real
+ * Change button, including translated labels and system font scaling.
+ */
+@Composable
+internal fun PlanChangeAction(onClick: () -> Unit, placeholder: Boolean = false) {
+    TextButton(
+        onClick = onClick,
+        enabled = !placeholder,
+        modifier = Modifier.alpha(if (placeholder) 0f else 1f),
+        contentPadding = PaddingValues(horizontal = 4.dp),
+    ) {
+        Text(copy("Change", "بدلیں"))
+        Spacer(Modifier.width(4.dp))
+        Icon(painterResource(R.drawable.chevron_forward), null, Modifier.size(18.dp))
+    }
+}
+
 @Composable
 private fun PlanSummary(data: DashboardSample, onChange: () -> Unit) {
     PlanSummaryFrame(header = {
@@ -96,11 +115,7 @@ private fun PlanSummary(data: DashboardSample, onChange: () -> Unit) {
             Text(data.model, style = MaterialTheme.typography.titleMedium)
             Caption(data.retailer)
         }
-        TextButton(onClick = onChange, contentPadding = PaddingValues(horizontal = 4.dp)) {
-            Text(copy("Change", "بدلیں"))
-            Spacer(Modifier.width(4.dp))
-            Icon(painterResource(R.drawable.chevron_forward), null, Modifier.size(18.dp))
-        }
+        PlanChangeAction(onChange)
     }) {
         Fact(copy("Total price", "کل قیمت"), money(data.totalPrice))
         Fact(copy("Advance paid", "پیشگی ادائیگی"), money(data.advance))
