@@ -14,12 +14,16 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.text.TextStyle
 import androidx.core.view.WindowCompat
 import pk.qist.customer.R
 import pk.qist.customer.ui.CustomerTab
 import pk.qist.customer.ui.components.Panel
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.*
+import pk.qist.customer.ui.plan.PlanSummaryFrame
+import pk.qist.customer.ui.plan.PlanFactFrame
+import pk.qist.customer.ui.plan.PlanChangeAction
 
 @Composable
 internal fun tabTitle(tab: CustomerTab): String = when (tab) {
@@ -167,26 +171,23 @@ internal fun HomeSkeleton() {
 }
 
 @Composable
-private fun PlanSkeleton() {
+internal fun PlanSkeleton() {
     Column(Modifier.fillMaxWidth().padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
         Text(copy("My plan", "میرا منصوبہ"), style = MaterialTheme.typography.headlineMedium)
-        Panel {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                SkeletonBlock(Modifier.size(44.dp))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SkeletonBar(130.dp, 16.dp)
-                    SkeletonBar(90.dp, 12.dp)
-                }
+        PlanSummaryFrame(header = {
+            SkeletonBlock(Modifier.size(44.dp))
+            Column(Modifier.weight(1f)) {
+                SkeletonTypographyLine(130.dp, 16.dp, MaterialTheme.typography.titleMedium)
+                SkeletonTypographyLine(90.dp, 12.dp, MaterialTheme.typography.bodyMedium)
             }
-            Spacer(Modifier.height(28.dp))
-            repeat(4) { index ->
-                if (index > 0) Spacer(Modifier.height(32.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f)) { SkeletonBar(90.dp, 13.dp) }
-                    SkeletonBlock(Modifier.width(80.dp).height(14.dp))
-                }
+            PlanChangeAction(onClick = {}, placeholder = true)
+        }) {
+            repeat(4) {
+                PlanFactFrame(
+                    label = { SkeletonTypographyLine(90.dp, 13.dp, MaterialTheme.typography.bodyLarge) },
+                    value = { SkeletonTypographyLine(80.dp, 14.dp, MaterialTheme.typography.titleMedium) },
+                )
             }
-            Spacer(Modifier.height(12.dp))
         }
         Panel {
             SkeletonBar(100.dp, 16.dp)
@@ -203,6 +204,15 @@ private fun PlanSkeleton() {
                 }
             }
         }
+    }
+}
+
+/** A transparent glyph reserves the same font-scaled line height as the loaded text. */
+@Composable
+private fun SkeletonTypographyLine(width: Dp, height: Dp, style: TextStyle) {
+    Box(contentAlignment = Alignment.CenterStart) {
+        Text("0", style = style, color = Color.Transparent)
+        SkeletonBar(width, height)
     }
 }
 
