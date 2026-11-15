@@ -19,43 +19,59 @@ import pk.qist.customer.ui.localization.paymentLabel
 import pk.qist.customer.ui.phones.PlanStatusBadge
 import pk.qist.customer.ui.theme.*
 
+/**
+ * The loading and loaded Home states share the same backdrop, horizontal insets,
+ * header row and card spacing so the first installment card does not jump.
+ */
+@Composable
+internal fun HomeFrame(
+    headerContent: @Composable RowScope.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Box(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
+        Column(Modifier.fillMaxWidth().padding(QistSpacing.Screen),
+            verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically, content = headerContent)
+            content()
+        }
+    }
+}
+
 @Composable
 internal fun HomeOverview(data: DashboardSample, message: String?, unread: Boolean, onHelp: () -> Unit,
     onPayments: () -> Unit, onPhones: () -> Unit, onInbox: () -> Unit, onContact: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         if (message != null) Box(Modifier.padding(QistSpacing.Screen)) { AccountMessage(message) }
-        Box {
-            Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
-            Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
-                        Text(data.name, color = Color.White, style = MaterialTheme.typography.titleLarge)
-                    }
-                    HomeNotificationsButton(unread, onInbox)
-                }
-                if (data.lockState == "locked") PhoneLockNotice(data, data.fromCache)
-                if (data.id != null) InstallmentCard(data, onHelp, onPayments)
-                else Panel {
-                    AccountEmptyState(R.drawable.phone_outline, copy("No phone added yet", "ابھی کوئی فون شامل نہیں"),
-                        copy("Your retailer has not added a phone to your account yet. Contact them to get started.", "دکاندار نے ابھی آپ کے اکاؤنٹ میں فون شامل نہیں کیا۔ شروع کرنے کے لیے ان سے رابطہ کریں۔")) {
-                        Spacer(Modifier.height(24.dp))
-                        Pill(copy("Contact your retailer", "اپنے دکاندار سے رابطہ کریں"), onContact)
-                    }
-                }
-                if (data.id != null) Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں"), onClick = onPhones)) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-                        ScreenBadge(R.drawable.phone_outline, Blue, Blue.copy(alpha = 0.08f), 44)
-                        Column(Modifier.weight(1f)) {
-                            Text(data.model, style = MaterialTheme.typography.titleMedium)
-                            Text(copy("${data.contracts.size} phones · Tap to switch", "${data.contracts.size} فون · بدلنے کے لیے ٹیپ کریں"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                        }
-                        PlanStatusBadge(data.status, data.days.takeIf { data.dueDate != "—" }, locked = data.lockState == "locked")
-                        Chevron()
-                    }
-                }
-                if (data.id != null) PaymentsCard(data.payments, onPayments)
+        HomeFrame(headerContent = {
+            Column(Modifier.weight(1f)) {
+                Text(copy("Assalam o Alaikum", "السلام علیکم"), color = Muted)
+                Text(data.name, color = Color.White, style = MaterialTheme.typography.titleLarge)
             }
+            HomeNotificationsButton(unread, onInbox)
+        }) {
+            if (data.lockState == "locked") PhoneLockNotice(data, data.fromCache)
+            if (data.id != null) InstallmentCard(data, onHelp, onPayments)
+            else Panel {
+                AccountEmptyState(R.drawable.phone_outline, copy("No phone added yet", "ابھی کوئی فون شامل نہیں"),
+                    copy("Your retailer has not added a phone to your account yet. Contact them to get started.", "دکاندار نے ابھی آپ کے اکاؤنٹ میں فون شامل نہیں کیا۔ شروع کرنے کے لیے ان سے رابطہ کریں۔")) {
+                    Spacer(Modifier.height(24.dp))
+                    Pill(copy("Contact your retailer", "اپنے دکاندار سے رابطہ کریں"), onContact)
+                }
+            }
+            if (data.id != null) Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں"), onClick = onPhones)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+                    ScreenBadge(R.drawable.phone_outline, Blue, Blue.copy(alpha = 0.08f), 44)
+                    Column(Modifier.weight(1f)) {
+                        Text(data.model, style = MaterialTheme.typography.titleMedium)
+                        Text(copy("${data.contracts.size} phones · Tap to switch", "${data.contracts.size} فون · بدلنے کے لیے ٹیپ کریں"), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    PlanStatusBadge(data.status, data.days.takeIf { data.dueDate != "—" }, locked = data.lockState == "locked")
+                    Chevron()
+                }
+            }
+            if (data.id != null) PaymentsCard(data.payments, onPayments)
         }
     }
 }
