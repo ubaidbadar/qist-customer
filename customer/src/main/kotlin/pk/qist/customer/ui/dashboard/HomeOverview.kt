@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
@@ -29,7 +30,7 @@ internal fun HomeFrame(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Box(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height(160.dp).background(Navy))
+        Box(Modifier.fillMaxWidth().height(160.dp).background(Navy).testTag("home-navy-header"))
         Column(Modifier.fillMaxWidth().padding(QistSpacing.Screen),
             verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -81,7 +82,7 @@ private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit, onReceipt
     val cancelled = data.status == "cancelled"
     val completed = data.completed && data.remaining == 0L
     val overdue = !cancelled && !completed && data.remaining > 0L && data.days < 0
-    Panel {
+    Panel(Modifier.testTag("home-first-card")) {
         Text(when {
             cancelled -> copy("Plan status", "منصوبے کی حالت")
             completed -> copy("Plan completed", "منصوبہ مکمل ہو گیا")
