@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.platform.testTag
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.AccountMessage
@@ -51,21 +52,56 @@ internal fun PlanDetails(data: DashboardSample, message: String?, onChange: () -
     }
 }
 
+/**
+ * The plan summary uses the exact same structural layout while loading and once
+ * account data is available. Only its contents change, so card and fact rows
+ * retain their positions.
+ */
+@Composable
+internal fun PlanSummaryFrame(
+    header: @Composable RowScope.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Panel(Modifier.testTag("plan-summary-card")) {
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            content = header,
+        )
+        content()
+    }
+}
+
+@Composable
+internal fun PlanFactFrame(
+    label: @Composable () -> Unit,
+    value: @Composable () -> Unit,
+) {
+    HorizontalDivider(color = Divider)
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 14.dp).testTag("plan-fact-row"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { label() }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) { value() }
+    }
+}
+
 @Composable
 private fun PlanSummary(data: DashboardSample, onChange: () -> Unit) {
-    Panel {
-        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ScreenBadge(R.drawable.phone_outline, Blue, BlueBackground, 44)
-            Column(Modifier.weight(1f)) {
-                Text(data.model, style = MaterialTheme.typography.titleMedium)
-                Caption(data.retailer)
-            }
-            TextButton(onClick = onChange, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                Text(copy("Change", "بدلیں"))
-                Spacer(Modifier.width(4.dp))
-                Icon(painterResource(R.drawable.chevron_forward), null, Modifier.size(18.dp))
-            }
+    PlanSummaryFrame(header = {
+        ScreenBadge(R.drawable.phone_outline, Blue, BlueBackground, 44)
+        Column(Modifier.weight(1f)) {
+            Text(data.model, style = MaterialTheme.typography.titleMedium)
+            Caption(data.retailer)
         }
+        TextButton(onClick = onChange, contentPadding = PaddingValues(horizontal = 4.dp)) {
+            Text(copy("Change", "بدلیں"))
+            Spacer(Modifier.width(4.dp))
+            Icon(painterResource(R.drawable.chevron_forward), null, Modifier.size(18.dp))
+        }
+    }) {
         Fact(copy("Total price", "کل قیمت"), money(data.totalPrice))
         Fact(copy("Advance paid", "پیشگی ادائیگی"), money(data.advance))
         Fact(copy("Installment", "قسط"), money(data.installment))
@@ -98,9 +134,9 @@ private fun ScheduleRow(row: pk.qist.customer.data.Installment, cancelled: Boole
 
 @Composable
 private fun Fact(label: String, value: String) {
-    HorizontalDivider(color = Divider)
-    Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End, style = MaterialTheme.typography.titleMedium)
-    }
+    PlanFactFrame(
+        label = { Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        value = { Text(value, textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            style = MaterialTheme.typography.titleMedium) },
+    )
 }
