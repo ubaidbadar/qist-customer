@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.platform.testTag
 import pk.qist.customer.R
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentSample
@@ -35,16 +36,16 @@ internal fun PaymentHistory(data: DashboardSample, busy: Boolean, message: Strin
             if (message != null) { AccountMessage(message); Spacer(Modifier.height(QistSpacing.Section)) }
         }
         item(key = "summary", contentType = "summary") {
-            Row(horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-                Panel(Modifier.weight(1f)) {
+            PaymentSummaryCards(
+                paid = {
                     Caption(copy("Total paid", "کل ادا شدہ"))
                     Text(money(data.paidTotal), color = PaidGreen, style = MaterialTheme.typography.titleLarge)
-                }
-                Panel(Modifier.weight(1f)) {
+                },
+                remaining = {
                     Caption(copy("Remaining", "باقی"))
                     Text(money(data.remaining), style = MaterialTheme.typography.titleLarge)
-                }
-            }
+                },
+            )
             Spacer(Modifier.height(QistSpacing.Section))
         }
         panelSection("payments", data.payments, { it.id }, title = {
@@ -52,10 +53,25 @@ internal fun PaymentHistory(data: DashboardSample, busy: Boolean, message: Strin
         }, footer = if (data.nextCursor == null) null else ({
             TextButton(onClick = onMore, enabled = !busy) { Text(copy("Load more", "مزید دکھائیں")) }
         })) { payment ->
-            DetailRow(title = paymentLabel(payment, LocalUrdu.current), subtitle = "${payment.date} · ${paymentMethodLabel(payment.method, LocalUrdu.current)}",
-                value = copy("Rs. ${payment.amount}", "روپے ${payment.amount}"), icon = R.drawable.detail_check,
-                tint = PaidGreen, background = PaidBackground, valueColor = PaidGreen, onClick = { onReceipt(payment) })
+            Box(Modifier.testTag("payments-history-row")) {
+                DetailRow(title = paymentLabel(payment, LocalUrdu.current), subtitle = "${payment.date} · ${paymentMethodLabel(payment.method, LocalUrdu.current)}",
+                    value = copy("Rs. ${payment.amount}", "روپے ${payment.amount}"), icon = R.drawable.detail_check,
+                    tint = PaidGreen, background = PaidBackground, valueColor = PaidGreen, onClick = { onReceipt(payment) })
+            }
         }
+    }
+}
+
+
+/** Keeps the paid/remaining cards identical in loading and loaded states. */
+@Composable
+internal fun PaymentSummaryCards(
+    paid: @Composable ColumnScope.() -> Unit,
+    remaining: @Composable ColumnScope.() -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+        Panel(Modifier.weight(1f).testTag("payments-paid-card"), content = paid)
+        Panel(Modifier.weight(1f).testTag("payments-remaining-card"), content = remaining)
     }
 }
 
