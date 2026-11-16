@@ -3,6 +3,7 @@ package pk.qist.customer.ui.dashboard
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +20,8 @@ import androidx.core.view.WindowCompat
 import pk.qist.customer.R
 import pk.qist.customer.ui.CustomerTab
 import pk.qist.customer.ui.components.Panel
+import pk.qist.customer.ui.components.panelSection
+import pk.qist.customer.ui.payments.PaymentSummaryCards
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.*
 import pk.qist.customer.ui.plan.PlanSummaryFrame
@@ -76,31 +79,91 @@ internal fun CustomerScaffold(tab: CustomerTab, onTab: (CustomerTab) -> Unit, of
 internal fun CustomerLoading(tab: CustomerTab, onTab: (CustomerTab) -> Unit) {
     val label = copy("Loading your account", "آپ کا اکاؤنٹ لوڈ ہو رہا ہے")
     CustomerScaffold(tab, onTab) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).clearAndSetSemantics {
-            contentDescription = label; liveRegion = LiveRegionMode.Polite
-        }) {
-            if (tab == CustomerTab.Home) {
-                HomeSkeleton()
-            } else if (tab == CustomerTab.Plan) {
-                PlanSkeleton()
-            } else {
-                Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
-                    SkeletonLine(0.42f, 28)
-                    Panel {
-                        SkeletonLine(0.45f, 18); Spacer(Modifier.height(16.dp)); SkeletonLine(0.7f, 34)
-                        Spacer(Modifier.height(18.dp)); SkeletonLine(0.85f, 16)
-                        Spacer(Modifier.height(20.dp)); SkeletonLine(1f, 16)
-                    }
-                    Panel { SkeletonLine(0.7f, 18); Spacer(Modifier.height(12.dp)); SkeletonLine(0.45f, 14) }
-                    Panel {
-                        repeat(3) { index ->
-                            if (index > 0) Spacer(Modifier.height(20.dp))
-                            SkeletonLine(0.8f, 18); Spacer(Modifier.height(8.dp)); SkeletonLine(0.55f, 14)
+        if (tab == CustomerTab.Payments) {
+            Box(Modifier.fillMaxSize().padding(padding).clearAndSetSemantics {
+                contentDescription = label; liveRegion = LiveRegionMode.Polite
+            }) {
+                PaymentsSkeleton()
+            }
+        } else {
+            Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).clearAndSetSemantics {
+                contentDescription = label; liveRegion = LiveRegionMode.Polite
+            }) {
+                when (tab) {
+                    CustomerTab.Home -> HomeSkeleton()
+                    CustomerTab.Plan -> PlanSkeleton()
+                    else -> Column(Modifier.padding(QistSpacing.Screen), verticalArrangement = Arrangement.spacedBy(QistSpacing.Section)) {
+                        SkeletonLine(0.42f, 28)
+                        Panel {
+                            SkeletonLine(0.45f, 18); Spacer(Modifier.height(16.dp)); SkeletonLine(0.7f, 34)
+                            Spacer(Modifier.height(18.dp)); SkeletonLine(0.85f, 16)
+                            Spacer(Modifier.height(20.dp)); SkeletonLine(1f, 16)
+                        }
+                        Panel { SkeletonLine(0.7f, 18); Spacer(Modifier.height(12.dp)); SkeletonLine(0.45f, 14) }
+                        Panel {
+                            repeat(3) { index ->
+                                if (index > 0) Spacer(Modifier.height(20.dp))
+                                SkeletonLine(0.8f, 18); Spacer(Modifier.height(8.dp)); SkeletonLine(0.55f, 14)
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Use the same lazy sections and card frames as PaymentHistory so the loading
+ * state occupies the correct positions without duplicate or fictitious payments.
+ */
+@Composable
+internal fun PaymentsSkeleton() {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(QistSpacing.Screen)) {
+        item(key = "title", contentType = "heading") {
+            Text(copy("Payments", "ادائیگیاں"), style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(QistSpacing.Section))
+        }
+        item(key = "summary", contentType = "summary") {
+            PaymentSummaryCards(
+                paid = {
+                    SkeletonTypographyLine(70.dp, 13.dp, MaterialTheme.typography.bodyMedium)
+                    SkeletonTypographyLine(120.dp, 21.dp, MaterialTheme.typography.titleLarge)
+                },
+                remaining = {
+                    SkeletonTypographyLine(80.dp, 13.dp, MaterialTheme.typography.bodyMedium)
+                    SkeletonTypographyLine(90.dp, 21.dp, MaterialTheme.typography.titleLarge)
+                },
+            )
+            Spacer(Modifier.height(QistSpacing.Section))
+        }
+        panelSection("payments-loading", listOf(0, 1), { it.toString() }, title = {
+            Text(copy("History", "ادائیگیوں کی تفصیل"), style = MaterialTheme.typography.titleLarge)
+        }) {
+            Box(Modifier.testTag("payments-history-row")) {
+                PaymentsSkeletonRow()
+            }
+        }
+    }
+}
+
+/** Mirrors the row structure used by DetailRow, including both text lines. */
+@Composable
+private fun PaymentsSkeletonRow() {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        SkeletonBlock(Modifier.size(36.dp))
+        Column(Modifier.weight(1f)) {
+            SkeletonTypographyLine(110.dp, 14.dp, MaterialTheme.typography.titleMedium)
+            SkeletonTypographyLine(120.dp, 12.dp, MaterialTheme.typography.bodyMedium)
+        }
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+            SkeletonTypographyLine(95.dp, 14.dp, MaterialTheme.typography.titleMedium)
+        }
+        SkeletonBlock(Modifier.size(18.dp))
     }
 }
 
