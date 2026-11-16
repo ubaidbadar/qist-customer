@@ -127,11 +127,11 @@ internal fun PaymentsSkeleton() {
         item(key = "summary", contentType = "summary") {
             PaymentSummaryCards(
                 paid = {
-                    SkeletonTypographyLine(70.dp, 13.dp, MaterialTheme.typography.bodyMedium)
+                    SkeletonTypographyLine(70.dp, 13.dp, MaterialTheme.typography.bodyMedium, copy("Total paid", "کل ادا شدہ"))
                     SkeletonTypographyLine(120.dp, 21.dp, MaterialTheme.typography.titleLarge)
                 },
                 remaining = {
-                    SkeletonTypographyLine(80.dp, 13.dp, MaterialTheme.typography.bodyMedium)
+                    SkeletonTypographyLine(80.dp, 13.dp, MaterialTheme.typography.bodyMedium, copy("Remaining", "باقی"))
                     SkeletonTypographyLine(90.dp, 21.dp, MaterialTheme.typography.titleLarge)
                 },
             )
@@ -272,9 +272,9 @@ internal fun PlanSkeleton() {
 
 /** A transparent glyph reserves the same font-scaled line height as the loaded text. */
 @Composable
-private fun SkeletonTypographyLine(width: Dp, height: Dp, style: TextStyle) {
+private fun SkeletonTypographyLine(width: Dp, height: Dp, style: TextStyle, reserveText: String = "0") {
     Box(contentAlignment = Alignment.CenterStart) {
-        Text("0", style = style, color = Color.Transparent)
+        Text(reserveText, style = style, color = Color.Transparent)
         SkeletonBar(width, height)
     }
 }
