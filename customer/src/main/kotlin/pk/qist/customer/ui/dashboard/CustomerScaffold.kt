@@ -65,7 +65,7 @@ internal fun CustomerScaffold(tab: CustomerTab, onTab: (CustomerTab) -> Unit, of
                 CustomerTab.entries.forEachIndexed { index, item ->
                     NavigationBarItem(selected = tab == item, onClick = { onTab(item) },
                         icon = { Icon(painterResource(icons[index]), null, Modifier.size(24.dp)) },
-                        label = { Text(tabTitle(item), maxLines = 1, style = MaterialTheme.typography.labelMedium) },
+                        label = { Text(tabTitle(item), maxLines = 2, style = MaterialTheme.typography.labelMedium) },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = Blue, selectedTextColor = Blue,
                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant, indicatorColor = Color.Transparent))

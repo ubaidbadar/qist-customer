@@ -120,7 +120,15 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            it.jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+        }
+    }
+
     buildFeatures {
+        aidl = true
         compose = true
         buildConfig = true
     }
@@ -147,6 +155,10 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.compose.ui.test.manifest)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.robolectric)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
 }
