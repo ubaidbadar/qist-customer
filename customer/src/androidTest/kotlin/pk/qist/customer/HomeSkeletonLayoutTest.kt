@@ -46,5 +46,30 @@ class HomeSkeletonLayoutTest {
         assertEquals(beforeHeader.height, afterHeader.height)
         assertEquals(beforeCard.top, afterCard.top)
         assertEquals(beforeCard.left, afterCard.left)
+        assertEquals(beforeCard.height, afterCard.height)
     }
+
+    @Test fun completedPlanUsesTheSameFirstCardHeightAsSkeleton() {
+        var loading by mutableStateOf(true)
+        val data = DashboardSample(
+            name = "Customer", phone = "", model = "Vivo Y01", amount = "0",
+            dueDate = "—", days = 0, paid = 6, total = 6,
+            retailer = "Retailer", advance = 10000, installment = 10000,
+            schedule = emptyList(), payments = emptyList(), totalPrice = 70000,
+            paidTotal = 70000, remaining = 0, frequency = "monthly",
+            status = "completed", lockState = null, retailerPhone = "", retailerAddress = "",
+            paymentMethods = emptyList(), contractId = "completed-contract", contracts = emptyList(),
+            nextCursor = null,
+        )
+        compose.setContent { QistTheme {
+            if (loading) HomeSkeleton()
+            else HomeOverview(data, null, false, {}, {}, {}, {}, {})
+        } }
+        val before = compose.onNodeWithTag("home-first-card").getUnclippedBoundsInRoot()
+        compose.runOnIdle { loading = false }
+        val after = compose.onNodeWithTag("home-first-card").getUnclippedBoundsInRoot()
+        assertEquals(before.top, after.top)
+        assertEquals(before.height, after.height)
+    }
+
 }
