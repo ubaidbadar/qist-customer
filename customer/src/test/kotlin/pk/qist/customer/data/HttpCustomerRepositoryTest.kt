@@ -37,9 +37,9 @@ class HttpCustomerRepositoryTest {
     }
     @Test fun `server error remains visible and code response never logs in`() = runBlocking {
         val session = MemorySession()
-        val repository = HttpCustomerRepository(session, "https://example.com/", client { 503 to """{"error":{"message":"Locker verification is unavailable"}}""" })
-        try { repository.remoteChallenge("03001234567", "n".repeat(43)); fail("Expected failure") }
-        catch (error: CustomerApiException) { assertEquals(503, error.status); assertEquals("Locker verification is unavailable", error.message) }
+        val repository = HttpCustomerRepository(session, "https://example.com/", client { 503 to """{"error":{"message":"WhatsApp is not configured"}}""" })
+        try { repository.requestCode("03001234567"); fail("Expected failure") }
+        catch (error: CustomerApiException) { assertEquals(503, error.status); assertEquals("WhatsApp is not configured", error.message) }
         assertNull(session.token)
     }
     @Test fun `malformed success tokens cannot persist a sign in session`() = runBlocking {
@@ -119,14 +119,14 @@ class HttpCustomerRepositoryTest {
         val repository = HttpCustomerRepository(session, "https://example.com/api/v1/customer-app/", client { request ->
             paths.add(request.url.encodedPath)
             200 to when {
-                request.url.encodedPath.endsWith("/start") -> """{"data":{"next":"device","retryAfterSeconds":60}}"""
-                else -> """{"data":{"ticket":"${"t".repeat(43)}","phone":"03001234567"}}"""
+                request.url.encodedPath.endsWith("/start") -> """{"data":{"next":"otp","retryAfterSeconds":60}}"""
+                else -> """{"data":{"setupToken":"proof","expiresAt":"2026-12-07T00:00:00.000Z"}}"""
             }
         })
-        assertEquals("device", repository.start("03001234567").next)
-        assertEquals("t".repeat(43), repository.verifyLockerCode("a".repeat(24), "n".repeat(43), "123456").ticket)
+        assertEquals("otp", repository.start("03001234567").next)
+        assertEquals("proof", repository.verifyCode("03001234567", "123456"))
         assertNull(session.token)
-        assertEquals(listOf("/api/v1/customer-app/auth/start", "/api/v1/customer-app/auth/device/verify-code"), paths)
+        assertEquals(listOf("/api/v1/customer-app/auth/start", "/api/v1/customer-app/auth/verify-code"), paths)
     }
     @Test fun `password setup consumes proof endpoint and stores returned session`() = runBlocking {
         val session = MemorySession()
@@ -204,7 +204,7 @@ class HttpCustomerRepositoryTest {
         val repository = HttpCustomerRepository(MemorySession(), "https://example.com/", client {
             429 to """{"error":{"code":"OTP_ATTEMPTS_EXCEEDED","message":"Wait","details":{"retryAfterSeconds":212}}}"""
         })
-        try { repository.verifyLockerCode("a".repeat(24), "n".repeat(43), "000000"); fail("Expected cooldown") }
+        try { repository.verifyCode("03001234567", "000000"); fail("Expected cooldown") }
         catch (error: CustomerApiException) { assertEquals(212L, error.retryAfterSeconds); assertEquals("OTP_ATTEMPTS_EXCEEDED", error.code) }
     }
     @Test fun `push registration and inbox read use authenticated customer endpoints`() = runBlocking {

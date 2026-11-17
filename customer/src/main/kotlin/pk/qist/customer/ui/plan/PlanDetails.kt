@@ -32,7 +32,7 @@ import pk.qist.customer.ui.theme.PaidBackground
 import pk.qist.customer.ui.theme.PaidGreen
 
 @Composable
-internal fun PlanDetails(data: DashboardSample, message: String?, onDocuments: () -> Unit = {}, onChange: () -> Unit) {
+internal fun PlanDetails(data: DashboardSample, message: String?, onChange: () -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(QistSpacing.Screen)) {
         item(key = "title", contentType = "heading") {
             Text(copy("My plan", "میرا منصوبہ"), style = MaterialTheme.typography.headlineMedium)
@@ -44,10 +44,6 @@ internal fun PlanDetails(data: DashboardSample, message: String?, onDocuments: (
         } else {
             item(key = "summary", contentType = "summary") {
                 PlanSummary(data, onChange)
-                Spacer(Modifier.height(QistSpacing.Section))
-            }
-            item(key = "documents", contentType = "action") {
-                OutlinedButton(onClick = onDocuments, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(copy("Documents", "دستاویزات")) }
                 Spacer(Modifier.height(QistSpacing.Section))
             }
             panelSection("schedule", data.schedule, { it.number.toString() }, title = {

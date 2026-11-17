@@ -17,8 +17,7 @@ import kotlinx.coroutines.withContext
 
 /** AES-GCM with fresh IVs, atomic writes and a non-exportable key; compatible with existing sessions. */
 internal class KeystoreTextStore(context: Context) : SecureTextStore {
-    private val appContext = context.applicationContext
-    private val directory = appContext.noBackupFilesDir
+    private val directory = context.applicationContext.noBackupFilesDir
     private fun file(name: String): AtomicFile {
         require(name == "customer-session" || name == "customer-overview")
         return AtomicFile(File(directory, name))
@@ -56,12 +55,5 @@ internal class KeystoreTextStore(context: Context) : SecureTextStore {
         catch (_: IllegalArgumentException) { target.delete(); null }
         catch (_: IOException) { target.delete(); null }
     }
-    override suspend fun delete(name: String) = withContext(Dispatchers.IO) {
-        file(name).delete()
-        if (name == "customer-session") {
-            androidx.work.WorkManager.getInstance(appContext).cancelAllWorkByTag(pk.qist.customer.documents.UPLOAD_TAG)
-            File(directory, "document-uploads").deleteRecursively()
-        }
-        Unit
-    }
+    override suspend fun delete(name: String) = withContext(Dispatchers.IO) { file(name).delete() }
 }
