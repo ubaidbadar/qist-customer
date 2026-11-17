@@ -149,6 +149,7 @@ dependencies {
     implementation(libs.play.app.update)
     implementation(libs.play.auth)
     implementation(libs.coroutines.android)
+    implementation(libs.work.runtime)
     implementation(libs.okhttp)
     implementation(libs.serialization.json)
     androidTestImplementation(platform(libs.compose.bom))
