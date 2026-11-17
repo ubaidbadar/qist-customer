@@ -16,6 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import pk.qist.customer.ui.auth.SigninMethodsScreen
+import pk.qist.customer.ui.auth.Welcome
 import pk.qist.customer.ui.layout.CustomerViewport
 import pk.qist.customer.ui.theme.QistTheme
 
@@ -46,4 +47,20 @@ class LockerSigninLayoutTest {
             node.performClick(); assertEquals(expected, selected)
         }
     }
+    @Test @Config(qualifiers = "w393dp-h852dp-mdpi")
+    fun `original Qist welcome remains visible and continues to sign in`() {
+        var started = 0
+        compose.setContent {
+            QistTheme {
+                CustomerViewport(authentication = true) {
+                    Welcome(onLanguage = {}, onContinue = { started++ })
+                }
+            }
+        }
+        compose.onNodeWithText("Qist").assertIsDisplayed()
+        compose.onNodeWithText("Your installments, always clear.").assertIsDisplayed()
+        compose.onNodeWithText("Get started").performClick()
+        compose.runOnIdle { assertEquals(1, started) }
+    }
+
 }
