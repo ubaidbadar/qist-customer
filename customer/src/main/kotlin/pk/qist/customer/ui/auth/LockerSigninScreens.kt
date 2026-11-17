@@ -1,5 +1,6 @@
 package pk.qist.customer.ui.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -56,10 +57,9 @@ internal fun SigninMethodsScreen(
                     .background(Brush.linearGradient(listOf(BrandGradientStart, Blue)), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
+                Image(
                     painterResource(R.drawable.ic_launcher_foreground),
                     contentDescription = null,
-                    tint = Color.White,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
