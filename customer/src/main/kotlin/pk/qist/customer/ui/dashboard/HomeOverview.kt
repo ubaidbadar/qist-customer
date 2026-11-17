@@ -77,45 +77,82 @@ internal fun HomeOverview(data: DashboardSample, message: String?, unread: Boole
     }
 }
 
+/**
+ * A single vertical rhythm for the first Home card in loading and loaded states.
+ * Text and skeleton placeholders only supply content, never their own spacing.
+ */
+@Composable
+internal fun HomeInstallmentFrame(
+    label: @Composable () -> Unit,
+    amount: @Composable () -> Unit,
+    description: @Composable () -> Unit,
+    progress: @Composable () -> Unit,
+    count: @Composable () -> Unit,
+    action: @Composable () -> Unit,
+) {
+    Panel(Modifier.testTag("home-first-card")) {
+        label()
+        Spacer(Modifier.height(8.dp))
+        amount()
+        Spacer(Modifier.height(8.dp))
+        description()
+        Spacer(Modifier.height(16.dp))
+        progress()
+        Spacer(Modifier.height(6.dp))
+        count()
+        Spacer(Modifier.height(16.dp))
+        action()
+    }
+}
+
 @Composable
 private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit, onReceipts: () -> Unit) {
     val cancelled = data.status == "cancelled"
     val completed = data.completed && data.remaining == 0L
     val overdue = !cancelled && !completed && data.remaining > 0L && data.days < 0
-    Panel(Modifier.testTag("home-first-card")) {
-        Text(when {
-            cancelled -> copy("Plan status", "منصوبے کی حالت")
-            completed -> copy("Plan completed", "منصوبہ مکمل ہو گیا")
-            overdue -> copy("Overdue installment", "تاخیر شدہ قسط")
-            else -> copy("Next installment", "اگلی قسط")
-        }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        Text(when {
-            cancelled -> copy("Cancelled", "منسوخ")
-            completed -> copy("All paid", "سب ادا ہو گیا")
-            else -> copy("Rs. ${data.amount}", "روپے ${data.amount}")
-        }, style = MaterialTheme.typography.headlineLarge)
-        Spacer(Modifier.height(8.dp))
-        Text(when {
-            completed -> copy("You have paid every installment. Thank you!", "آپ نے تمام اقساط ادا کر دی ہیں۔ شکریہ!")
-            cancelled -> copy("Contact your retailer for details about this plan.", "اس منصوبے کی تفصیل کے لیے اپنے دکاندار سے رابطہ کریں۔")
-            data.remaining == 0L -> copy("Nothing due", "کوئی رقم واجب نہیں")
-            data.days < 0 -> copy("Overdue by ${-data.days} days · was due ${data.dueDate}", "${-data.days} دن تاخیر · آخری تاریخ ${data.dueDate}")
-            else -> copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی")
-        }, color = if (overdue) pk.qist.customer.ui.theme.Destructive else Navy)
-        Spacer(Modifier.height(16.dp))
-        LinearProgressIndicator(
-            progress = { if (completed) 1f else if (data.total == 0) 0f else (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth().height(8.dp),
-            color = Blue,
-            trackColor = Divider,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(copy("${data.paid} of ${data.total} installments paid", "${data.total} میں سے ${data.paid} اقساط ادا ہوئیں"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(16.dp))
-        val showReceipts = completed || cancelled
-        Pill(if (showReceipts) copy("View receipts", "رسیدیں دیکھیں") else copy("How to pay", "ادائیگی کیسے کریں"), if (showReceipts) onReceipts else onHelp)
-    }
+    val showReceipts = completed || cancelled
+    HomeInstallmentFrame(
+        label = {
+            Text(when {
+                cancelled -> copy("Plan status", "منصوبے کی حالت")
+                completed -> copy("Plan completed", "منصوبہ مکمل ہو گیا")
+                overdue -> copy("Overdue installment", "تاخیر شدہ قسط")
+                else -> copy("Next installment", "اگلی قسط")
+            }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
+        },
+        amount = {
+            Text(when {
+                cancelled -> copy("Cancelled", "منسوخ")
+                completed -> copy("All paid", "سب ادا ہو گیا")
+                else -> copy("Rs. ${data.amount}", "روپے ${data.amount}")
+            }, style = MaterialTheme.typography.headlineLarge)
+        },
+        description = {
+            Text(when {
+                completed -> copy("You have paid every installment. Thank you!", "آپ نے تمام اقساط ادا کر دی ہیں۔ شکریہ!")
+                cancelled -> copy("Contact your retailer for details about this plan.", "اس منصوبے کی تفصیل کے لیے اپنے دکاندار سے رابطہ کریں۔")
+                data.remaining == 0L -> copy("Nothing due", "کوئی رقم واجب نہیں")
+                data.days < 0 -> copy("Overdue by ${-data.days} days · was due ${data.dueDate}", "${-data.days} دن تاخیر · آخری تاریخ ${data.dueDate}")
+                else -> copy("Due ${data.dueDate} · in ${data.days} days", "${data.dueDate} تک · ${data.days} دن باقی")
+            }, color = if (overdue) pk.qist.customer.ui.theme.Destructive else Navy)
+        },
+        progress = {
+            LinearProgressIndicator(
+                progress = { if (completed) 1f else if (data.total == 0) 0f else (data.paid.toFloat() / data.total).coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth().height(8.dp),
+                color = Blue,
+                trackColor = Divider,
+            )
+        },
+        count = {
+            Text(copy("${data.paid} of ${data.total} installments paid", "${data.total} میں سے ${data.paid} اقساط ادا ہوئیں"),
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+        action = {
+            Pill(if (showReceipts) copy("View receipts", "رسیدیں دیکھیں") else copy("How to pay", "ادائیگی کیسے کریں"),
+                if (showReceipts) onReceipts else onHelp)
+        },
+    )
 }
 
 @Composable
