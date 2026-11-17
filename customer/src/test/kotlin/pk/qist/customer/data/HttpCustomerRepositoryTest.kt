@@ -238,4 +238,29 @@ class HttpCustomerRepositoryTest {
         catch (error: CustomerApiException) { assertEquals(401, error.status) }
     }
 
+    @Test fun `device approval pending and password proof cannot persist a session`() = runBlocking {
+        val session = MemorySession(); val requests = mutableListOf<Request>()
+        var reply = """{"data":{"state":"pending"}}"""
+        val repository = HttpCustomerRepository(session, "https://example.com/", client { requests.add(it); 200 to reply })
+        assertEquals("pending", repository.claimDevice("a".repeat(24), "n".repeat(43)).state)
+        assertNull(session.token)
+        reply = """{"data":{"next":"password","phone":"03001234567","setupToken":"${"p".repeat(43)}"}}"""
+        val identity = repository.exchangeDevice("t".repeat(43), "n".repeat(43))
+        assertEquals("password", identity.next); assertNull(session.token)
+        assertFalse(identity.toString().contains("p".repeat(43)))
+        assertTrue(requests.all { it.header("Authorization") == null })
+    }
+    @Test fun `only backend issued valid device sessions are persisted`() = runBlocking {
+        for (next in listOf("unknown", "session")) {
+            val session = MemorySession()
+            val repository = HttpCustomerRepository(session, "https://example.com/", client { 200 to """{"data":{"next":"$next","accessToken":true,"expiresAt":"2099-01-01T00:00:00Z"}}""" })
+            try { repository.exchangeDevice("t".repeat(43), "n".repeat(43)); fail("Expected invalid session rejection") }
+            catch (_: CustomerResponseException) { assertNull(session.token) }
+        }
+        val session = MemorySession()
+        val repository = HttpCustomerRepository(session, "https://example.com/", client { 200 to """{"data":{"next":"session","accessToken":"verified-token","expiresAt":"2099-01-01T00:00:00Z"}}""" })
+        assertEquals("session", repository.exchangeDevice("t".repeat(43), "n".repeat(43)).next)
+        assertEquals("verified-token", session.token)
+    }
+
 }

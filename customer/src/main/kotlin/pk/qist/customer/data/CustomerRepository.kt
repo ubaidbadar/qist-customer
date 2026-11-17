@@ -69,6 +69,11 @@ internal data class AppAvailability(val maintenance: Boolean = false) {
 internal data class AuthStart(val next: String, val retryAfterSeconds: Int)
 
 internal interface CustomerRepository {
+    suspend fun localChallenge(nonce: String): DeviceChallenge = throw CustomerApiException(503, "Quick sign-in is unavailable.")
+    suspend fun remoteChallenge(phone: String, nonce: String): DeviceChallenge = throw CustomerApiException(503, "Device approval is unavailable.")
+    suspend fun claimDevice(requestId: String, nonce: String): DeviceClaim = throw CustomerApiException(503, "Device approval is unavailable.")
+    suspend fun cancelDevice(requestId: String, nonce: String) = Unit
+    suspend fun exchangeDevice(ticket: String, nonce: String): DeviceIdentity = throw CustomerApiException(503, "Device approval is unavailable.")
     suspend fun registerPush(token: String)
     suspend fun unregisterPush()
     suspend fun readNotifications(ids: List<String>)
@@ -101,6 +106,47 @@ internal class HttpCustomerRepository(
     }
     private var token: String? = null
 
+    override suspend fun localChallenge(nonce: String): DeviceChallenge {
+        val response = request("auth/device/local", body = buildJsonObject { put("nonce", nonce) })
+        return DeviceChallenge(response.requiredText("requestId"), response.requiredText("expiresAt"))
+    }
+    override suspend fun remoteChallenge(phone: String, nonce: String): DeviceChallenge {
+        val response = request("auth/device/request", body = buildJsonObject { put("phone", phone); put("nonce", nonce) })
+        val number = response.requiredText("number")
+        if (!number.matches(Regex("[0-9]{3}"))) throw CustomerResponseException("Invalid sign-in number.")
+        return DeviceChallenge(response.requiredText("requestId"), response.requiredText("expiresAt"), number)
+    }
+    override suspend fun claimDevice(requestId: String, nonce: String): DeviceClaim {
+        val response = request("auth/device/claim", body = buildJsonObject { put("requestId", requestId); put("nonce", nonce) })
+        val state = response.requiredText("state")
+        if (state !in listOf("pending", "denied", "approved")) throw CustomerResponseException("Invalid sign-in state.")
+        val ticket = if (state == "approved") response.requiredText("ticket") else null
+        if (ticket != null && !ticket.matches(Regex("[A-Za-z0-9_-]{43}"))) throw CustomerResponseException("Invalid sign-in proof.")
+        return DeviceClaim(state, ticket)
+    }
+    override suspend fun cancelDevice(requestId: String, nonce: String) {
+        request("auth/device/cancel", body = buildJsonObject { put("requestId", requestId); put("nonce", nonce) })
+    }
+    override suspend fun exchangeDevice(ticket: String, nonce: String): DeviceIdentity {
+        val response = request("auth/device/exchange", body = buildJsonObject { put("ticket", ticket); put("nonce", nonce) })
+        return when (response.requiredText("next")) {
+            "session" -> {
+                val accessToken = response.requiredText("accessToken")
+                session.save(accessToken, response.requiredText("expiresAt"))
+                token = accessToken
+                overviewCache?.clear()
+                DeviceIdentity("session")
+            }
+            "password" -> {
+                val phone = response.requiredText("phone")
+                val setupToken = response.requiredText("setupToken")
+                if (!phone.matches(Regex("03[0-9]{9}")) || !setupToken.matches(Regex("[A-Za-z0-9_-]{43}"))) throw CustomerResponseException("Invalid password setup proof.")
+                DeviceIdentity("password", phone, setupToken)
+            }
+            else -> throw CustomerResponseException("Invalid device sign-in response.")
+        }
+    }
+
     override suspend fun restore(): Boolean {
         token = try { session.read() } catch (error: CustomerApiException) { overviewCache?.clear(); throw error }
         if (token == null) overviewCache?.clear()
@@ -129,7 +175,7 @@ internal class HttpCustomerRepository(
         overviewCache?.clear()
     }
     override suspend fun requestCode(phone: String): Int {
-        val response = request("auth/request-code", body = buildJsonObject { put("phone", phone) })
+        val response = request("auth/request-code", body = buildJsonObject { put("phone", phone); put("channel", "whatsapp") })
         return (response["retryAfterSeconds"] as? JsonPrimitive)?.intOrNull ?: 60
     }
     override suspend fun resetPassword(phone: String, code: String, password: String) {

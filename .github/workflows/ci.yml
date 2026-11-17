@@ -44,3 +44,40 @@ jobs:
             customer/build/test-results/
           if-no-files-found: ignore
           retention-days: 14
+
+      # A manual branch build supplies an update-compatible APK without publishing to Play.
+      - name: Build signed validation APK
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!key}" ]]; then echo "::error::Missing signing setting $key"; exit 1; fi
+          done
+          umask 077
+          SIGNING_FILE="$RUNNER_TEMP/customer-validation.jks"
+          trap 'rm -f "$SIGNING_FILE"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$SIGNING_FILE"
+          VERSION_CODE=$(python3 -c 'import time; print(int(time.time()) - 1577836800 + 1000000)')
+          ./gradlew :customer:assembleRelease \
+            -Pqist.customer.versionCode="$VERSION_CODE" \
+            -Pqist.signing.storeFile="$SIGNING_FILE" \
+            -Pqist.signing.storePassword="$KEYSTORE_PASSWORD" \
+            -Pqist.signing.keyAlias="$KEY_ALIAS" \
+            -Pqist.signing.keyPassword="$KEY_PASSWORD" --no-daemon
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose --print-certs customer/build/outputs/apk/release/customer-release.apk
+
+      - name: Upload signed validation APK
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v5
+        with:
+          name: qist-customer-signed-validation-${{ github.run_id }}
+          path: customer/build/outputs/apk/release/customer-release.apk
+          if-no-files-found: error
+          retention-days: 14

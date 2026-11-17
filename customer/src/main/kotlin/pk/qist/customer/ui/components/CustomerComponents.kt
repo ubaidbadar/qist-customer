@@ -93,11 +93,16 @@ internal fun DetailRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Badge(icon, tint, background)
+        val stacked = pk.qist.customer.ui.layout.LocalCustomerLayout.current.stackDetails
         Column(Modifier.weight(1f)) {
             Text(title, color = titleColor, style = MaterialTheme.typography.titleMedium)
             if (subtitle.isNotEmpty()) Caption(subtitle)
+            if (stacked && value.isNotEmpty()) {
+                Text(value, color = valueColor, style = MaterialTheme.typography.titleMedium)
+                if (status != null) Text(status, color = tint, style = MaterialTheme.typography.labelMedium)
+            }
         }
-        if (value.isNotEmpty()) {
+        if (!stacked && value.isNotEmpty()) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                 Text(value, color = valueColor, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.End)
                 if (status != null) Text(status, color = tint, style = MaterialTheme.typography.labelMedium)

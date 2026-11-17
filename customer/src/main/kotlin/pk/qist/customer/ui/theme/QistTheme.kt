@@ -50,8 +50,10 @@ internal object QistShapes {
 }
 
 internal object QistSpacing {
-    val Screen = 20.dp
-    val AuthScreen = 24.dp
+    val Screen: androidx.compose.ui.unit.Dp
+        @Composable get() = pk.qist.customer.ui.layout.LocalCustomerLayout.current.screenPadding
+    val AuthScreen: androidx.compose.ui.unit.Dp
+        @Composable get() = pk.qist.customer.ui.layout.LocalCustomerLayout.current.authPadding
     val Section = 16.dp
     val Item = 12.dp
 }

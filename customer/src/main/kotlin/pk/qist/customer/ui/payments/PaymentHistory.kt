@@ -69,9 +69,16 @@ internal fun PaymentSummaryCards(
     paid: @Composable ColumnScope.() -> Unit,
     remaining: @Composable ColumnScope.() -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
-        Panel(Modifier.weight(1f).testTag("payments-paid-card"), content = paid)
-        Panel(Modifier.weight(1f).testTag("payments-remaining-card"), content = remaining)
+    if (pk.qist.customer.ui.layout.LocalCustomerLayout.current.stackDetails) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+            Panel(Modifier.testTag("payments-paid-card"), content = paid)
+            Panel(Modifier.testTag("payments-remaining-card"), content = remaining)
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
+            Panel(Modifier.weight(1f).testTag("payments-paid-card"), content = paid)
+            Panel(Modifier.weight(1f).testTag("payments-remaining-card"), content = remaining)
+        }
     }
 }
 

@@ -147,7 +147,7 @@ internal fun CodeField(code: String, error: Boolean = false, enabled: Boolean = 
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         repeat(6) { index ->
                             Surface(
-                                Modifier.weight(1f).height(56.dp),
+                                Modifier.weight(1f).heightIn(min = 56.dp),
                                 shape = QistShapes.CodeCell,
                                 color = if (!enabled) pk.qist.customer.ui.theme.Divider else if (error) pk.qist.customer.ui.theme.DestructiveBackground.copy(alpha = 0.4f) else Color.White,
                                 border = BorderStroke(if (error || (enabled && index == code.length)) 2.dp else 1.dp,
