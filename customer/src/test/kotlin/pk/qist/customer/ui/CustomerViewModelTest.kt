@@ -518,7 +518,7 @@ class CustomerViewModelTest {
 
     @Test fun `unavailable or rejecting Locker keeps the current sign in route`() = runTest(dispatcher) {
         val unavailableRepo = Repository()
-        val unavailableModel = CustomerViewModel(unavailableRepo, true, locker = Locker(available = false))
+        val unavailableModel = CustomerViewModel(unavailableRepo, true, locker = Locker(available = false), clock = { testScheduler.currentTime })
         runCurrent()
         unavailableModel.start("3001234567"); runCurrent()
         unavailableModel.askLockerSignin(); runCurrent()
@@ -528,7 +528,7 @@ class CustomerViewModelTest {
         assertEquals(0, unavailableRepo.exchanges)
 
         val rejectingRepo = Repository()
-        val rejectingModel = CustomerViewModel(rejectingRepo, true, locker = Locker(approved = false))
+        val rejectingModel = CustomerViewModel(rejectingRepo, true, locker = Locker(approved = false), clock = { testScheduler.currentTime })
         runCurrent()
         rejectingModel.start("3001234567"); runCurrent()
         rejectingModel.askLockerSignin(); runCurrent()
