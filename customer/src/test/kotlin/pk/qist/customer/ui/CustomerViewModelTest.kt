@@ -609,7 +609,7 @@ class CustomerViewModelTest {
             }
             override suspend fun authenticate(requestId: String, nonce: String) = true
         }
-        val model = CustomerViewModel(repo, true, locker = locker)
+        val model = CustomerViewModel(repo, true, locker = locker, clock = { testScheduler.currentTime })
         runCurrent(); model.start("3001234567"); runCurrent()
         model.askLockerSignin(); runCurrent(); model.confirmLockerSignin(); runCurrent()
         assertEquals(CustomerRoute.Verify, model.state.value.route)
