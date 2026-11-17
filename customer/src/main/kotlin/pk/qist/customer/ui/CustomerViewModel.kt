@@ -22,9 +22,9 @@ import pk.qist.customer.data.LockerAuthenticator
 import pk.qist.customer.data.DeviceIdentity
 import pk.qist.customer.data.newSigninNonce
 
-internal val customerPhonePattern = customerPhonePattern
-private val verifiedPhonePattern = verifiedPhonePattern
-private val verificationCodePattern = verificationCodePattern
+internal val customerPhonePattern = Regex("3[0-9]{9}")
+private val verifiedPhonePattern = Regex("03[0-9]{9}")
+private val verificationCodePattern = Regex("[0-9]{6}")
 
 internal data class CustomerState(
     val route: CustomerRoute = CustomerRoute.Welcome,
