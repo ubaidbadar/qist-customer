@@ -24,7 +24,7 @@ import pk.qist.customer.data.newSigninNonce
 
 internal val customerPhonePattern = Regex("3[0-9]{9}")
 private val verifiedPhonePattern = Regex("03[0-9]{9}")
-private val verificationCodePattern = Regex("[0-9]{6}")
+internal val customerVerificationCodePattern = Regex("[0-9]{6}")
 
 internal data class CustomerState(
     val route: CustomerRoute = CustomerRoute.Welcome,
@@ -195,16 +195,16 @@ internal class CustomerViewModel(
         var requestId: String? = null
         var identity: DeviceIdentity? = null
         try {
-            val challenge = repository.localChallenge(nonce, mutable.value.phone.takeIf { it.matches(customerPhonePattern) }?.let { "0$it" })
+            val challenge = repository.localChallenge(nonce, "0${mutable.value.phone}")
             requestId = challenge.requestId
             if (!authenticator.authenticate(challenge.requestId, nonce)) {
                 mutable.value = mutable.value.copy(route = localFallbackRoute, message = "Quick sign-in is unavailable. Unlock your financed phone, or use a code or password.")
                 return
             }
             val claim = repository.claimDevice(challenge.requestId, nonce)
-            if (claim.phone != "0${mutable.value.phone}") throw CustomerResponseException("The financed phone is linked to another number.")
-            val ticket = claim.ticket ?: throw CustomerResponseException("The phone did not approve sign-in.")
             val verifiedPhone = claim.phone ?: throw CustomerResponseException("The linked number could not be verified.")
+            if (verifiedPhone != "0${mutable.value.phone}") throw CustomerResponseException("The financed phone is linked to another number.")
+            val ticket = claim.ticket ?: throw CustomerResponseException("The phone did not approve sign-in.")
             if (!verifiedPhone.matches(verifiedPhonePattern)) throw CustomerResponseException("Invalid verified number.")
             mutable.value = mutable.value.copy(phone = verifiedPhone.removePrefix("0"), verifiedName = claim.name, signinStage = 2)
             identity = repository.exchangeDevice(ticket, nonce)
@@ -252,9 +252,10 @@ internal class CustomerViewModel(
         val challenge = repository.remoteChallenge("0$phone", nonce)
         abandonSignin()
         setupToken = null
-        pendingSignin = PendingSignin(challenge.requestId, nonce, clock() + 180_000)
+        val now = clock()
+        pendingSignin = PendingSignin(challenge.requestId, nonce, now + 180_000)
         mutable.value = mutable.value.copy(route = CustomerRoute.Verify, phone = phone,
-            deadline = clock() + 60_000, codeRejected = false, verifyBlockedUntil = 0, message = null)
+            deadline = now + 60_000, codeRejected = false, verifyBlockedUntil = 0, message = null)
     }
 
     private fun abandonSignin() {
@@ -322,13 +323,15 @@ internal class CustomerViewModel(
         else mutable.value = mutable.value.copy(route = CustomerRoute.Phone, message = null)
     }
     fun requestCode() {
-        if (clock() < mutable.value.verifyBlockedUntil || clock() < mutable.value.deadline) return
+        val now = clock()
+        if (now < mutable.value.verifyBlockedUntil || now < mutable.value.deadline) return
         requestApproval(mutable.value.phone)
     }
     fun verify(code: String) {
         val pending = pendingSignin ?: return
-        if (clock() < mutable.value.verifyBlockedUntil || !code.matches(verificationCodePattern)) return
-        if (clock() >= pending.until) { mutable.value = mutable.value.copy(message = "This code expired. Request a new code."); return }
+        val now = clock()
+        if (now < mutable.value.verifyBlockedUntil || !code.matches(customerVerificationCodePattern)) return
+        if (now >= pending.until) { mutable.value = mutable.value.copy(message = "This code expired. Request a new code."); return }
         perform {
             val claim = repository.verifyLockerCode(pending.requestId, pending.nonce, code)
             if (claim.phone != "0${mutable.value.phone}") throw CustomerResponseException("The code belongs to another number.")
