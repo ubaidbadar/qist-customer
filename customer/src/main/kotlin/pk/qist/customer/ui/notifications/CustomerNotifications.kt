@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
+import pk.qist.customer.ui.components.CustomerBottomSheet
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.AccountEmptyState
 import pk.qist.customer.ui.components.CustomerBackButton
@@ -35,13 +36,7 @@ import pk.qist.customer.ui.theme.QistSpacing
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NotificationPrompt(onAllow: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color.White,
-        shape = QistShapes.Sheet,
-        scrimColor = Navy.copy(alpha = 0.60f),
-    ) {
+    CustomerBottomSheet(onDismiss = onDismiss) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
