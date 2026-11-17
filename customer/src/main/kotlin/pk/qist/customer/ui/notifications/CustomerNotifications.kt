@@ -10,12 +10,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
 import pk.qist.customer.ui.components.CustomerBottomSheet
-import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.ui.components.AccountEmptyState
 import pk.qist.customer.ui.components.CustomerBackButton
 import pk.qist.customer.ui.components.Pill
@@ -23,17 +21,9 @@ import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
 import pk.qist.customer.ui.theme.BlueBackground
 import pk.qist.customer.ui.theme.Canvas
-import pk.qist.customer.ui.theme.Destructive
-import pk.qist.customer.ui.theme.DestructiveBackground
-import pk.qist.customer.ui.theme.DueAmber
-import pk.qist.customer.ui.theme.DueBackground
-import pk.qist.customer.ui.theme.Navy
-import pk.qist.customer.ui.theme.PaidBackground
-import pk.qist.customer.ui.theme.PaidGreen
 import pk.qist.customer.ui.theme.QistShapes
 import pk.qist.customer.ui.theme.QistSpacing
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NotificationPrompt(onAllow: () -> Unit, onDismiss: () -> Unit) {
     CustomerBottomSheet(onDismiss = onDismiss) {
