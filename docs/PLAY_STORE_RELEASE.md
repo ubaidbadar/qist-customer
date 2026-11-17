@@ -47,3 +47,7 @@ The app currently uses sample data and demo sign-in. Store-readiness, privacy de
 - https://developers.google.com/android-publisher/getting_started
 - https://developer.android.com/studio/publish/versioning
 - https://github.com/r0adkll/upload-google-play
+
+## Optional private document uploads
+
+Before releasing a build containing Documents, update Data safety and the hosted privacy policy to describe optional user-selected photos/files, identity information (including CNIC or a permitted guarantor submission), account/contract identifiers, encrypted queued copies, authorized retailer access and the retailer's retention disclosure. Confirm the declarations against the actual enabled backend configuration; do not describe documents as transient when the retailer retains them. No broad media or storage permission is needed: use the system photo/document picker. No document scanning or OCR SDK receives these files. Sign-out removes queued local copies; app-account deletion does not delete separate retailer business records. Validate that all linked disclosures are reachable without sign-in before publication.

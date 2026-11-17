@@ -38,7 +38,7 @@ lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-com
 # viewModel() in composables and viewModelScope.
 lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 # Periodic check-ins that survive reboots and respect Doze, without a service or wake lock.
-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 # Atomic, Flow-based storage for the app's small state file (replaces SharedPreferences).
 datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
