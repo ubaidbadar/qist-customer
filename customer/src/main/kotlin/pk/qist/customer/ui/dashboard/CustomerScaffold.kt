@@ -171,37 +171,24 @@ private fun PaymentsSkeletonRow() {
 internal fun HomeSkeleton() {
     HomeFrame(headerContent = {
         Column(Modifier.weight(1f)) {
-            // Reserve the same line heights as the greeting and name, not just bar heights.
-            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(110.dp, 12.dp, onNavy = true)
-            }
-            Box(Modifier.height(28.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(180.dp, 22.dp, shape = QistShapes.CodeCell, onNavy = true)
-            }
+            SkeletonTypographyLine(110.dp, 12.dp, MaterialTheme.typography.bodyLarge,
+                copy("Assalam o Alaikum", "السلام علیکم"), onNavy = true)
+            SkeletonTypographyLine(180.dp, 22.dp, MaterialTheme.typography.titleLarge,
+                copy("Customer", "صارف"), onNavy = true)
         }
         SkeletonBlock(Modifier.size(48.dp), onNavy = true)
     }) {
-        Panel(Modifier.testTag("home-first-card")) {
-            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(110.dp, 14.dp)
-            }
-            Spacer(Modifier.height(8.dp))
-            Box(Modifier.height(40.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(200.dp, 34.dp, shape = QistShapes.CodeCell)
-            }
-            Spacer(Modifier.height(8.dp))
-            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(170.dp, 14.dp)
-            }
-            Spacer(Modifier.height(16.dp))
-            SkeletonBlock(Modifier.fillMaxWidth().height(8.dp))
-            Spacer(Modifier.height(6.dp))
-            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(150.dp, 12.dp)
-            }
-            Spacer(Modifier.height(16.dp))
-            SkeletonBlock(Modifier.fillMaxWidth().height(54.dp))
-        }
+        HomeInstallmentFrame(
+            label = { SkeletonTypographyLine(110.dp, 14.dp, MaterialTheme.typography.titleMedium) },
+            amount = { SkeletonTypographyLine(200.dp, 34.dp, MaterialTheme.typography.headlineLarge) },
+            description = {
+                SkeletonTypographyLine(170.dp, 14.dp, MaterialTheme.typography.bodyLarge,
+                    copy("You have paid every installment. Thank you!", "آپ نے تمام اقساط ادا کر دی ہیں۔ شکریہ!"))
+            },
+            progress = { SkeletonBlock(Modifier.fillMaxWidth().height(8.dp)) },
+            count = { SkeletonTypographyLine(150.dp, 12.dp, MaterialTheme.typography.bodyLarge) },
+            action = { SkeletonBlock(Modifier.fillMaxWidth().height(54.dp)) },
+        )
         Panel {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
@@ -272,10 +259,10 @@ internal fun PlanSkeleton() {
 
 /** A transparent glyph reserves the same font-scaled line height as the loaded text. */
 @Composable
-private fun SkeletonTypographyLine(width: Dp, height: Dp, style: TextStyle, reserveText: String = "0") {
+private fun SkeletonTypographyLine(width: Dp, height: Dp, style: TextStyle, reserveText: String = "0", onNavy: Boolean = false) {
     Box(contentAlignment = Alignment.CenterStart) {
         Text(reserveText, style = style, color = Color.Transparent)
-        SkeletonBar(width, height)
+        SkeletonBar(width, height, onNavy = onNavy)
     }
 }
 
