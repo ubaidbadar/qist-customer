@@ -69,9 +69,10 @@ internal data class AppAvailability(val maintenance: Boolean = false) {
 internal data class AuthStart(val next: String, val retryAfterSeconds: Int)
 
 internal interface CustomerRepository {
-    suspend fun localChallenge(nonce: String): DeviceChallenge = throw CustomerApiException(503, "Quick sign-in is unavailable.")
+    suspend fun localChallenge(nonce: String, phone: String? = null): DeviceChallenge = throw CustomerApiException(503, "Quick sign-in is unavailable.")
     suspend fun remoteChallenge(phone: String, nonce: String): DeviceChallenge = throw CustomerApiException(503, "Device approval is unavailable.")
     suspend fun claimDevice(requestId: String, nonce: String): DeviceClaim = throw CustomerApiException(503, "Device approval is unavailable.")
+    suspend fun verifyLockerCode(requestId: String, nonce: String, code: String): DeviceClaim = throw CustomerApiException(503, "Locker verification is unavailable.")
     suspend fun cancelDevice(requestId: String, nonce: String) = Unit
     suspend fun exchangeDevice(ticket: String, nonce: String): DeviceIdentity = throw CustomerApiException(503, "Device approval is unavailable.")
     suspend fun registerPush(token: String)
@@ -80,10 +81,7 @@ internal interface CustomerRepository {
     suspend fun availability(): AppAvailability
     suspend fun deleteAccount()
     suspend fun start(phone: String): AuthStart
-    suspend fun verifyCode(phone: String, code: String): String
     suspend fun setPassword(phone: String, setupToken: String, password: String)
-    suspend fun requestCode(phone: String): Int
-    suspend fun resetPassword(phone: String, code: String, password: String)
     suspend fun login(phone: String, password: String)
     suspend fun restore(): Boolean
     suspend fun dashboard(contractId: String? = null): DashboardSample
@@ -106,15 +104,13 @@ internal class HttpCustomerRepository(
     }
     private var token: String? = null
 
-    override suspend fun localChallenge(nonce: String): DeviceChallenge {
-        val response = request("auth/device/local", body = buildJsonObject { put("nonce", nonce) })
+    override suspend fun localChallenge(nonce: String, phone: String?): DeviceChallenge {
+        val response = request("auth/device/local", body = buildJsonObject { put("nonce", nonce); if (phone != null) put("phone", phone) })
         return DeviceChallenge(response.requiredText("requestId"), response.requiredText("expiresAt"))
     }
     override suspend fun remoteChallenge(phone: String, nonce: String): DeviceChallenge {
-        val response = request("auth/device/request", body = buildJsonObject { put("phone", phone); put("nonce", nonce) })
-        val number = response.requiredText("number")
-        if (!number.matches(Regex("[0-9]{3}"))) throw CustomerResponseException("Invalid sign-in number.")
-        return DeviceChallenge(response.requiredText("requestId"), response.requiredText("expiresAt"), number)
+        val response = request("auth/device/request", body = buildJsonObject { put("phone", phone); put("nonce", nonce); put("method", "otp") })
+        return DeviceChallenge(response.requiredText("requestId"), response.requiredText("expiresAt"))
     }
     override suspend fun claimDevice(requestId: String, nonce: String): DeviceClaim {
         val response = request("auth/device/claim", body = buildJsonObject { put("requestId", requestId); put("nonce", nonce) })
@@ -122,7 +118,13 @@ internal class HttpCustomerRepository(
         if (state !in listOf("pending", "denied", "approved")) throw CustomerResponseException("Invalid sign-in state.")
         val ticket = if (state == "approved") response.requiredText("ticket") else null
         if (ticket != null && !ticket.matches(Regex("[A-Za-z0-9_-]{43}"))) throw CustomerResponseException("Invalid sign-in proof.")
-        return DeviceClaim(state, ticket)
+        return DeviceClaim(state, ticket, if (state == "approved") response.requiredText("phone") else null, (response["name"] as? JsonPrimitive)?.contentOrNull)
+    }
+    override suspend fun verifyLockerCode(requestId: String, nonce: String, code: String): DeviceClaim {
+        val response = request("auth/device/verify-code", body = buildJsonObject { put("requestId", requestId); put("nonce", nonce); put("code", code) })
+        val ticket = response.requiredText("ticket")
+        if (!ticket.matches(Regex("[A-Za-z0-9_-]{43}"))) throw CustomerResponseException("Invalid sign-in proof.")
+        return DeviceClaim("approved", ticket, response.requiredText("phone"))
     }
     override suspend fun cancelDevice(requestId: String, nonce: String) {
         request("auth/device/cancel", body = buildJsonObject { put("requestId", requestId); put("nonce", nonce) })
@@ -162,24 +164,14 @@ internal class HttpCustomerRepository(
     override suspend fun start(phone: String): AuthStart {
         val response = request("auth/start", body = buildJsonObject { put("phone", phone) })
         val next = response.requiredText("next")
-        if (next !in listOf("password", "otp", "unregistered")) throw CustomerResponseException("Invalid sign-in response.")
+        if (next !in listOf("password", "device", "unregistered")) throw CustomerResponseException("Invalid sign-in response.")
         return AuthStart(next, (response["retryAfterSeconds"] as? JsonPrimitive)?.intOrNull ?: 60)
     }
-    override suspend fun verifyCode(phone: String, code: String): String = request("auth/verify-code", body = buildJsonObject {
-        put("phone", phone); put("code", code)
-    }).requiredText("setupToken")
     override suspend fun setPassword(phone: String, setupToken: String, password: String) {
         val response = request("auth/set-password", body = buildJsonObject { put("phone", phone); put("setupToken", setupToken); put("password", password) })
         val accessToken = response.requiredText("accessToken")
         session.save(accessToken, response.requiredText("expiresAt")); token = accessToken
         overviewCache?.clear()
-    }
-    override suspend fun requestCode(phone: String): Int {
-        val response = request("auth/request-code", body = buildJsonObject { put("phone", phone); put("channel", "whatsapp") })
-        return (response["retryAfterSeconds"] as? JsonPrimitive)?.intOrNull ?: 60
-    }
-    override suspend fun resetPassword(phone: String, code: String, password: String) {
-        request("auth/reset-password", body = buildJsonObject { put("phone", phone); put("code", code); put("password", password) })
     }
     override suspend fun registerPush(token: String) { request("push-token", authorized = true, body = buildJsonObject { put("token", token) }) }
     override suspend fun unregisterPush() { request("push-token", authorized = true, deleteRequest = true) }
