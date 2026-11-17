@@ -16,7 +16,7 @@ The reference palette, typography, spacing, cards, payment page/sheet and bottom
 
 Skeleton cards appear only while signed-in content first loads or the selected phone changes. Pull-down refresh keeps loaded content visible. Failures end loading and provide useful feedback; initial failures offer retry. Buttons guard duplicate submissions. Password visibility uses the eye icon; passwords, OTPs and setup proofs stay only in memory. An app-scoped ViewModel owns request/state lifetime across rotation and HTTP calls cancel with their coroutine.
 
-Sessions are encrypted using Android Keystore under `noBackupFilesDir`; the current session is restored after reopening and removed when expired/unauthorized. Updated privacy acceptance is required. Receipt exports use real receipt identifiers and metadata. Call/WhatsApp links use the retailer's provided number. Payment methods come from the selected retailer, with no invented fallback accounts. The backend has no customer notification API, so the inbox is empty and its switch is marked coming soon.
+Sessions are encrypted using Android Keystore under `noBackupFilesDir`; the current session is restored after reopening and removed when expired/unauthorized. Updated privacy acceptance is required. Receipt exports use real receipt identifiers and metadata. Call/WhatsApp links use the retailer's provided number. Payment methods come from the selected retailer, with no invented fallback accounts. The notification inbox receives account updates from the authenticated overview. Push alerts are opt-in and new events refresh the overview silently when the customer is signed in.
 
 ## Verification
 
