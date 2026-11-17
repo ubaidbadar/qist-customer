@@ -97,6 +97,23 @@ class CustomerViewModelTest {
         assertEquals(CustomerRoute.Phone, model.state.value.route)
     }
 
+    @Test fun `new account can use Locker instead of code and still sets password`() = runTest(dispatcher) {
+        val repo = Repository()
+        val model = CustomerViewModel(repo, true, locker = Locker(), clock = { testScheduler.currentTime })
+        runCurrent()
+        model.begin()
+        model.start("3001234567"); runCurrent()
+        assertEquals(CustomerRoute.Verify, model.state.value.route)
+        assertEquals(1, repo.remoteRequests)
+        model.askLockerSignin(); runCurrent()
+        assertTrue(model.state.value.lockerOffer)
+        model.confirmLockerSignin(); runCurrent()
+        assertEquals(CustomerRoute.SetPassword, model.state.value.route)
+        assertEquals("03001234567", repo.localPhone)
+        assertEquals(1, repo.exchanges)
+        assertEquals(1, repo.cancellations) // Prior OTP is invalidated after trusted verification.
+    }
+
     @Test fun `Locker auto sign in from password returns to password on denial`() = runTest(dispatcher) {
         val repo = Repository().apply { next = "password" }
         val model = CustomerViewModel(repo, true, locker = Locker(available = true, approved = false))
