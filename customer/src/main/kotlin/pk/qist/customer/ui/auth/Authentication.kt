@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -28,10 +29,49 @@ import pk.qist.customer.ui.components.CustomerBackButton
 import pk.qist.customer.ui.components.Pill
 import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
+import pk.qist.customer.ui.theme.BrandGradientStart
 import pk.qist.customer.ui.theme.Canvas
+import pk.qist.customer.ui.theme.Muted
+import pk.qist.customer.ui.theme.Navy
 import pk.qist.customer.ui.theme.InputBorder
 import pk.qist.customer.ui.theme.QistShapes
 import pk.qist.customer.ui.theme.QistSpacing
+
+@Composable
+internal fun Welcome(onLanguage: () -> Unit, onContinue: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().background(Navy).systemBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        OutlinedButton(onClick = onLanguage, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
+            Text(copy("اردو", "English"), color = Color.White)
+        }
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier.size(104.dp).background(Brush.linearGradient(listOf(BrandGradientStart, Blue)), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, modifier = Modifier.fillMaxSize())
+            }
+            Spacer(Modifier.height(20.dp))
+            Text("Qist", color = Color.White, style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(24.dp))
+            Text(copy("Your installments, always clear.", "آپ کی اقساط، ہمیشہ واضح."), color = Color.White,
+                style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
+            Text(copy("See your plan, due dates and payments in one place.", "اپنا منصوبہ، آخری تاریخیں اور ادائیگیاں ایک جگہ دیکھیں۔"),
+                color = Muted, textAlign = TextAlign.Center)
+        }
+        Pill(copy("Get started", "شروع کریں"), onContinue, true)
+        Spacer(Modifier.height(12.dp))
+        Text(copy("New here? Your retailer adds you to Qist.", "نئے ہیں؟ آپ کا دکاندار آپ کو قسط میں شامل کرتا ہے۔"),
+            color = Muted, textAlign = TextAlign.Center)
+    }
+}
 
 @Composable
 internal fun AuthScreen(
