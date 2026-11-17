@@ -37,8 +37,11 @@ class LockerSigninLayoutTest {
                 }
             }
         }
+        compose.onNodeWithText("Your installments, always clear.").assertExists()
         for ((title, expected) in listOf("Continue with this phone" to "local", "Get a code on your financed phone" to "code", "Use your password" to "password")) {
-            val node = compose.onNodeWithText(title).performScrollTo().assertIsDisplayed()
+            val node = compose.onNodeWithText(title)
+            if (expected != "local") node.performScrollTo()
+            node.assertIsDisplayed()
             val layouts = mutableListOf<TextLayoutResult>()
             node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertFalse(layouts.single().didOverflowHeight)
