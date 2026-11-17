@@ -407,10 +407,17 @@ internal class CustomerViewModel(
         }
     }
     fun openNotification(id: String) {
-        val notice = mutable.value.data?.notifications?.firstOrNull { it.id == id } ?: return
+        val current = mutable.value.data ?: return
+        val notice = current.notifications.firstOrNull { it.id == id } ?: return
+        if (notice.contractId == current.id) {
+            // The destination already has the requested device's overview.
+            // Only acknowledge the notification; navigating tabs needs no dashboard request.
+            if (!notice.read) markNotificationsRead(listOf(id))
+            return
+        }
         perform {
             mutable.value = mutable.value.copy(switchingPlan = true)
-            repository.readNotifications(listOf(id))
+            if (!notice.read) repository.readNotifications(listOf(id))
             load(notice.contractId)
         }
     }
