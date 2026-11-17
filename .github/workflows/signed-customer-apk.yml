@@ -4,7 +4,7 @@ name: Signed Qist customer APK
 # be started manually from GitHub Actions without committing any app changes.
 on:
   push:
-    branches: [main]
+    branches: [main, build/customer-apk-20261118]
     paths: [.github/workflows/signed-customer-apk.yml]
   workflow_dispatch:
 
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   signed-customer-apk:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build/customer-apk-20261118'
     name: Build, verify and upload signed release APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
