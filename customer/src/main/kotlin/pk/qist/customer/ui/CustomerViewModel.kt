@@ -211,7 +211,7 @@ internal class CustomerViewModel(
             return
         }
         if (!authenticator.available()) {
-            mutable.value = mutable.value.copy(route = CustomerRoute.Methods, message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.")
+            mutable.value = mutable.value.copy(route = fallbackSigninRoute(), message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.")
             return
         }
         mutable.value = mutable.value.copy(signinStage = 1)
