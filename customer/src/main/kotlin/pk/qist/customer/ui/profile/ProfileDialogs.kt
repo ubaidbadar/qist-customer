@@ -20,11 +20,9 @@ import pk.qist.customer.ui.localization.copy
 import pk.qist.customer.ui.theme.Blue
 import pk.qist.customer.ui.theme.BlueBackground
 import pk.qist.customer.ui.theme.InputBorder
-import pk.qist.customer.ui.theme.Navy
 import pk.qist.customer.ui.theme.QistShapes
 import pk.qist.customer.ui.theme.QistSpacing
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LanguagePicker(selectedUrdu: Boolean, onDismiss: () -> Unit, onApply: (Boolean) -> Unit) {
     var urdu by rememberSaveable { mutableStateOf(selectedUrdu) }
