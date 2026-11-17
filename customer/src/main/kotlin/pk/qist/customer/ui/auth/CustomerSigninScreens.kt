@@ -24,9 +24,6 @@ internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
     ) {
         PhoneField(phone, state.phoneNotRegistered) { if (!state.busy) { phone = normalizePhone(it); model.editPhone() } }
         PhoneNumberHint(phone.isEmpty(), !state.busy) { phone = it; model.editPhone() }
-
-        TextButton(onClick = { model.usePassword(phone) }, enabled = !state.busy && phone.matches(Regex("3[0-9]{9}"))) { Text(copy("Use password", "پاس ورڈ استعمال کریں")) }
-
         AuthError(state.message)
     }
 }
@@ -43,10 +40,18 @@ internal fun PasswordSigninScreen(state: CustomerState, model: CustomerViewModel
         busy = state.busy, enabled = password.length in 8..128,
     ) {
         PasswordField(password, creating) { if (!state.busy) password = it.take(128) }
-        TextButton(onClick = { model.requestApproval(state.phone) }, enabled = !state.busy) {
-            Text(if (creating) copy("Verify again", "دوبارہ تصدیق کریں") else copy("Get a code from your financed phone", "قسط والے فون سے کوڈ لیں"))
+        if (!creating) {
+            TextButton(onClick = model::askLockerSignin, enabled = !state.busy) {
+                Text(copy("Sign in automatically with Qist Locker", "Qist Locker سے خودکار لاگ ان کریں"))
+            }
+            TextButton(onClick = { model.requestApproval(state.phone) }, enabled = !state.busy) {
+                Text(copy("Get a code on your financed phone", "قسط والے فون پر کوڈ حاصل کریں"))
+            }
+        } else {
+            TextButton(onClick = { model.requestApproval(state.phone) }, enabled = !state.busy) {
+                Text(copy("Verify again", "دوبارہ تصدیق کریں"))
+            }
         }
-        if (!creating) TextButton(onClick = model::askLockerSignin, enabled = !state.busy) { Text(copy("Sign in with Locker on this phone", "اسی فون کے لاکر سے لاگ ان کریں")) }
         AuthError(state.message)
     }
 }
@@ -68,6 +73,13 @@ internal fun CodeSigninScreen(state: CustomerState, model: CustomerViewModel) {
                 if (pasted?.matches(Regex("[0-9]{6}")) == true) { code = pasted; clipboardError = null; model.editCode() }
                 else clipboardError = "Copy the six-digit code from Qist Locker first."
             }, enabled = !state.busy) { Text(copy("Paste code", "کوڈ پیسٹ کریں")) }
-            TextButton(onClick = { model.usePassword(state.phone) }, enabled = !state.busy) { Text(copy("Use password instead", "پاس ورڈ استعمال کریں")) }
+            TextButton(onClick = model::askLockerSignin, enabled = !state.busy) {
+                Text(copy("Sign in automatically with Qist Locker", "Qist Locker سے خودکار لاگ ان کریں"))
+            }
+            if (state.passwordKnown) {
+                TextButton(onClick = { model.usePassword(state.phone) }, enabled = !state.busy) {
+                    Text(copy("Use password instead", "پاس ورڈ استعمال کریں"))
+                }
+            }
         })
 }
