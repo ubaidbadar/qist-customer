@@ -156,7 +156,9 @@ internal class CustomerViewModel(
     fun editCode() { if (!mutable.value.busy && mutable.value.codeRejected) mutable.value = mutable.value.copy(codeRejected = false, message = null) }
     fun signInAgain() { if (!mutable.value.busy) mutable.value = CustomerState(route = CustomerRoute.Phone, restoring = false) }
     fun begin() {
-        if (!mutable.value.busy) mutable.value = mutable.value.copy(route = CustomerRoute.Phone, message = null)
+        if (mutable.value.busy) return
+        preferCode = false
+        mutable.value = mutable.value.copy(route = CustomerRoute.Phone, message = null)
     }
     fun enterPhone(code: Boolean) {
         if (mutable.value.busy) return
