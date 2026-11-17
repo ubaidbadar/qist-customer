@@ -43,4 +43,17 @@ class DocumentsTest {
         assertFalse(result.canUpload)
         assertEquals(10485760L, result.maxBytes)
     }
+    @Test fun `malformed rows and unrecognized processing states become recoverable response errors`() {
+        val malformed = listOf(
+            """{"items":[false],"policy":{}}""",
+            """{"items":[{"_id":"../outside","version":1,"processing":"ready","review":"pending"}],"policy":{}}""",
+            """{"items":[{"_id":"0123456789abcdef01234567","version":1,"processing":"unchecked-v2","review":"accepted"}],"policy":{}}""",
+            """{"items":{},"policy":{}}""",
+        )
+        for (body in malformed) {
+            try { parseDocuments(Json.parseToJsonElement(body).jsonObject); fail("Expected invalid metadata rejection") }
+            catch (_: pk.qist.customer.data.CustomerResponseException) { /* UI/worker can recover without a crash. */ }
+        }
+    }
+
 }

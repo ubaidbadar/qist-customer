@@ -35,19 +35,33 @@ internal data class CustomerDocuments(
     val items: List<CustomerDocument>, val requests: List<CustomerDocumentRequest>, val next: String?,
     val canUpload: Boolean, val maxBytes: Long, val notice: String,
 )
-internal fun parseDocument(row: JsonObject) = CustomerDocument(
-    row.string("_id"), row.string("category"), row.string("processing"), row.string("review"), row.string("feedback"),
-    row["version"]?.jsonPrimitive?.intOrNull ?: throw CustomerResponseException("Invalid document version"),
-    row["canView"]?.jsonPrimitive?.booleanOrNull == true, row["canDelete"]?.jsonPrimitive?.booleanOrNull == true, row.string("contentType"),
-)
+internal fun parseDocument(row: JsonObject): CustomerDocument {
+    val id = row.string("_id")
+    val processing = row.string("processing")
+    val review = row.string("review")
+    val version = (row["version"] as? JsonPrimitive)?.intOrNull
+    if (!id.matches(Regex("[a-f0-9]{24}")) || version == null || version < 0 ||
+        processing !in listOf("uploading", "processing", "ready", "failed", "rejected", "deleted") ||
+        review !in listOf("pending", "accepted", "rejected", "superseded")) {
+        throw CustomerResponseException("Invalid document metadata")
+    }
+    return CustomerDocument(id, row.string("category"), processing, review, row.string("feedback"), version,
+        (row["canView"] as? JsonPrimitive)?.booleanOrNull == true,
+        (row["canDelete"] as? JsonPrimitive)?.booleanOrNull == true, row.string("contentType"))
+}
 internal fun parseDocuments(data: JsonObject): CustomerDocuments {
-    val policy = data["policy"]?.jsonObject ?: throw CustomerResponseException("Document settings are missing")
+    val policy = data["policy"] as? JsonObject ?: throw CustomerResponseException("Document settings are missing")
+    val items = data["items"] as? JsonArray ?: throw CustomerResponseException("Document list is missing")
+    val requests = data["requests"] as? JsonArray ?: JsonArray(emptyList())
     return CustomerDocuments(
-        data["items"]?.jsonArray?.map { parseDocument(it.jsonObject) } ?: throw CustomerResponseException("Document list is missing"),
-        data["requests"]?.jsonArray?.map { val row = it.jsonObject; CustomerDocumentRequest(row.string("_id"), row.string("category"), row.string("message")) }.orEmpty(),
-        data["nextCursor"]?.jsonPrimitive?.contentOrNull,
-        data["canUpload"]?.jsonPrimitive?.booleanOrNull == true,
-        policy["maxFileBytes"]?.jsonPrimitive?.longOrNull?.coerceIn(1024, 10 * 1024 * 1024) ?: 10 * 1024 * 1024,
+        items.map { parseDocument(it as? JsonObject ?: throw CustomerResponseException("Invalid document row")) },
+        requests.map { value ->
+            val row = value as? JsonObject ?: throw CustomerResponseException("Invalid document request")
+            CustomerDocumentRequest(row.string("_id"), row.string("category"), row.string("message"))
+        },
+        (data["nextCursor"] as? JsonPrimitive)?.contentOrNull,
+        (data["canUpload"] as? JsonPrimitive)?.booleanOrNull == true,
+        (policy["maxFileBytes"] as? JsonPrimitive)?.longOrNull?.coerceIn(1024, 10 * 1024 * 1024) ?: 10 * 1024 * 1024,
         policy.string("retentionNotice"),
     )
 }
