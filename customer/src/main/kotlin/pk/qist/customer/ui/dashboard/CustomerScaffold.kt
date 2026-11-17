@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
@@ -27,6 +28,7 @@ import pk.qist.customer.ui.theme.*
 import pk.qist.customer.ui.plan.PlanSummaryFrame
 import pk.qist.customer.ui.plan.PlanFactFrame
 import pk.qist.customer.ui.plan.PlanChangeAction
+import pk.qist.customer.ui.phones.PlanStatusBadge
 
 @Composable
 internal fun tabTitle(tab: CustomerTab): String = when (tab) {
@@ -171,57 +173,53 @@ private fun PaymentsSkeletonRow() {
 internal fun HomeSkeleton() {
     HomeFrame(headerContent = {
         Column(Modifier.weight(1f)) {
-            // Reserve the same line heights as the greeting and name, not just bar heights.
-            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(110.dp, 12.dp, onNavy = true)
-            }
-            Box(Modifier.height(28.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(180.dp, 22.dp, shape = QistShapes.CodeCell, onNavy = true)
-            }
+            SkeletonTypographyLine(110.dp, 12.dp, MaterialTheme.typography.bodyLarge,
+                copy("Assalam o Alaikum", "السلام علیکم"), onNavy = true)
+            SkeletonTypographyLine(180.dp, 22.dp, MaterialTheme.typography.titleLarge,
+                "Customer name", onNavy = true, shape = QistShapes.CodeCell)
         }
         SkeletonBlock(Modifier.size(48.dp), onNavy = true)
     }) {
-        Panel(Modifier.testTag("home-first-card")) {
-            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(110.dp, 14.dp)
-            }
-            Spacer(Modifier.height(8.dp))
-            Box(Modifier.height(40.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(200.dp, 34.dp, shape = QistShapes.CodeCell)
-            }
-            Spacer(Modifier.height(8.dp))
-            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(170.dp, 14.dp)
-            }
-            Spacer(Modifier.height(16.dp))
-            SkeletonBlock(Modifier.fillMaxWidth().height(8.dp))
-            Spacer(Modifier.height(6.dp))
-            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                SkeletonBar(150.dp, 12.dp)
-            }
-            Spacer(Modifier.height(16.dp))
-            SkeletonBlock(Modifier.fillMaxWidth().height(54.dp))
-        }
-        Panel {
+        HomeInstallmentFrame(
+            label = {
+                SkeletonTypographyLine(110.dp, 14.dp, MaterialTheme.typography.titleMedium, copy("Plan completed", "منصوبہ مکمل ہو گیا"))
+            },
+            amount = {
+                SkeletonTypographyLine(200.dp, 34.dp, MaterialTheme.typography.headlineLarge,
+                    copy("All paid", "سب ادا ہو گیا"), shape = QistShapes.CodeCell)
+            },
+            description = {
+                SkeletonTypographyLine(170.dp, 14.dp, MaterialTheme.typography.bodyLarge,
+                    copy("You have paid every installment. Thank you!", "آپ نے تمام اقساط ادا کر دی ہیں۔ شکریہ!"))
+            },
+            progress = { SkeletonBlock(Modifier.fillMaxWidth().height(8.dp)) },
+            progressCaption = {
+                SkeletonTypographyLine(150.dp, 12.dp, MaterialTheme.typography.bodyLarge,
+                    copy("6 of 6 installments paid", "6 میں سے 6 اقساط ادا ہوئیں"))
+            },
+            action = { SkeletonBlock(Modifier.fillMaxWidth().height(54.dp)) },
+        )
+        Panel(Modifier.testTag("home-phone-card")) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                 SkeletonBlock(Modifier.size(44.dp))
                 Column(Modifier.weight(1f)) {
-                    Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                        SkeletonBar(150.dp, 14.dp)
-                    }
-                    Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
-                        SkeletonBar(90.dp, 12.dp)
-                    }
+                    SkeletonTypographyLine(150.dp, 14.dp, MaterialTheme.typography.titleMedium, "Vivo Y01")
+                    SkeletonTypographyLine(90.dp, 12.dp, MaterialTheme.typography.bodyMedium,
+                        copy("1 phones · Tap to switch", "1 فون · بدلنے کے لیے ٹیپ کریں"))
                 }
-                SkeletonBlock(Modifier.width(72.dp).height(28.dp))
-                SkeletonBlock(Modifier.size(16.dp))
+                Box(contentAlignment = Alignment.Center) {
+                    Box(Modifier.alpha(0f)) { PlanStatusBadge("completed", null) }
+                    SkeletonBlock(Modifier.matchParentSize())
+                }
+                SkeletonBlock(Modifier.size(18.dp))
             }
         }
-        Panel {
+        Panel(Modifier.testTag("home-payments-card")) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f).height(40.dp), contentAlignment = Alignment.CenterStart) {
-                    SkeletonBar(150.dp, 18.dp)
+                Box(Modifier.weight(1f)) {
+                    SkeletonTypographyLine(150.dp, 18.dp, MaterialTheme.typography.titleLarge,
+                        copy("Recent payments", "حالیہ ادائیگیاں"))
                 }
                 SkeletonBlock(Modifier.width(70.dp).height(40.dp))
             }
@@ -272,10 +270,14 @@ internal fun PlanSkeleton() {
 
 /** A transparent glyph reserves the same font-scaled line height as the loaded text. */
 @Composable
-private fun SkeletonTypographyLine(width: Dp, height: Dp, style: TextStyle, reserveText: String = "0") {
+private fun SkeletonTypographyLine(
+    width: Dp, height: Dp, style: TextStyle, reserveText: String = "0",
+    onNavy: Boolean = false, shape: Shape = CircleShape,
+) {
     Box(contentAlignment = Alignment.CenterStart) {
+        // The real Text measures this line, including its font scale and wrapping.
         Text(reserveText, style = style, color = Color.Transparent)
-        SkeletonBar(width, height)
+        SkeletonBar(width, height, shape = shape, onNavy = onNavy)
     }
 }
 
