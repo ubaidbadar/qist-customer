@@ -57,9 +57,6 @@ internal class CustomerViewModel(
     val state = mutable.asStateFlow()
     private data class PendingSignin(val requestId: String, val nonce: String, val until: Long)
     private var pendingSignin: PendingSignin? = null
-    private data class LocalProof(val ticket: String, val nonce: String) { override fun toString() = "LocalProof" }
-    private var localProof: LocalProof? = null
-    private var preferCode = false
     private var localFallbackRoute = CustomerRoute.Phone
     private var setupToken: String? = null
     private var pendingRealtime = false
@@ -159,44 +156,22 @@ internal class CustomerViewModel(
     fun begin() {
         if (!mutable.value.busy) mutable.value = mutable.value.copy(route = CustomerRoute.Phone, message = null)
     }
-    fun enterPhone(code: Boolean) {
-        if (mutable.value.busy) return
-        preferCode = code
-        mutable.value = mutable.value.copy(route = CustomerRoute.Phone, phone = "", message = null)
-    }
-    fun continueWithThisPhone() {
-        if (mutable.value.busy) return
-        mutable.value = mutable.value.copy(phone = "", lockerOffer = false)
-        perform { attemptLocal(privacyAccepted(), true) }
-    }
     fun askLockerSignin() = perform {
         if (locker?.available() == true) mutable.value = mutable.value.copy(lockerOffer = true)
         else mutable.value = mutable.value.copy(message = "Qist Locker is not available on this phone. Get a code from your financed phone instead.")
     }
     fun dismissLockerOffer() {
-        if (!mutable.value.busy) {
-            localProof = null
-            mutable.value = mutable.value.copy(lockerOffer = false, route = if (mutable.value.route == CustomerRoute.QuickSignin) localFallbackRoute else mutable.value.route)
-        }
-    }
-    fun confirmLockerSignin() {
-        val proof = localProof
-        mutable.value = mutable.value.copy(lockerOffer = false)
-        if (proof != null) {
-            localProof = null
-            perform {
-                try { applyIdentity(repository.exchangeDevice(proof.ticket, proof.nonce), privacyAccepted()) }
-                catch (error: IOException) {
-                    mutable.value = mutable.value.copy(route = localFallbackRoute)
-                    throw error
-                }
-            }
-        } else if (mutable.value.phone.matches(Regex("3[0-9]{9}"))) {
-            perform { attemptLocal(privacyAccepted()) }
-        }
+        if (!mutable.value.busy) mutable.value = mutable.value.copy(lockerOffer = false)
     }
 
-    private suspend fun attemptLocal(accepted: Boolean, confirmNumber: Boolean = false) {
+    fun confirmLockerSignin() {
+        val phone = mutable.value.phone
+        if (mutable.value.busy || !phone.matches(Regex("3[0-9]{9}"))) return
+        mutable.value = mutable.value.copy(lockerOffer = false)
+        perform { attemptLocal(privacyAccepted()) }
+    }
+
+    private suspend fun attemptLocal(accepted: Boolean) {
         localFallbackRoute = when (mutable.value.route) {
             CustomerRoute.Password -> CustomerRoute.Password
             CustomerRoute.Verify -> CustomerRoute.Verify
@@ -204,12 +179,11 @@ internal class CustomerViewModel(
         }
         mutable.value = mutable.value.copy(route = CustomerRoute.QuickSignin, message = null, signinStage = 0, verifiedName = null)
         val authenticator = locker
-        if (authenticator == null) {
-            mutable.value = mutable.value.copy(route = localFallbackRoute, message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.")
-            return
-        }
-        if (!authenticator.available()) {
-            mutable.value = mutable.value.copy(route = localFallbackRoute, message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.")
+        if (authenticator == null || !authenticator.available()) {
+            mutable.value = mutable.value.copy(
+                route = localFallbackRoute,
+                message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.",
+            )
             return
         }
         mutable.value = mutable.value.copy(signinStage = 1)
@@ -224,17 +198,11 @@ internal class CustomerViewModel(
                 return
             }
             val claim = repository.claimDevice(challenge.requestId, nonce)
-            if (!confirmNumber && claim.phone != "0${mutable.value.phone}") throw CustomerResponseException("The financed phone is linked to another number.")
+            if (claim.phone != "0${mutable.value.phone}") throw CustomerResponseException("The financed phone is linked to another number.")
             val ticket = claim.ticket ?: throw CustomerResponseException("The phone did not approve sign-in.")
             val verifiedPhone = claim.phone ?: throw CustomerResponseException("The linked number could not be verified.")
             if (!verifiedPhone.matches(Regex("03[0-9]{9}"))) throw CustomerResponseException("Invalid verified number.")
             mutable.value = mutable.value.copy(phone = verifiedPhone.removePrefix("0"), verifiedName = claim.name, signinStage = 2)
-            if (confirmNumber) {
-                localProof = LocalProof(ticket, nonce)
-                mutable.value = mutable.value.copy(lockerOffer = true)
-                requestId = null
-                return
-            }
             identity = repository.exchangeDevice(ticket, nonce)
             requestId = null
         } catch (error: CancellationException) {
@@ -286,7 +254,6 @@ internal class CustomerViewModel(
     }
 
     private fun abandonSignin() {
-        localProof = null
         val previous = pendingSignin
         pendingSignin = null
         if (previous != null) viewModelScope.launch {
@@ -298,7 +265,6 @@ internal class CustomerViewModel(
 
     fun usePassword(phone: String) {
         if (mutable.value.busy || !phone.matches(Regex("3[0-9]{9}"))) return
-        preferCode = false
         abandonSignin()
         if (mutable.value.phone == phone && mutable.value.passwordAvailable) {
             // Account status was already checked. Don't repeat the lookup when leaving OTP.
@@ -320,7 +286,7 @@ internal class CustomerViewModel(
         abandonSignin()
         setupToken = null
         val next = when (mutable.value.route) {
-            CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword, CustomerRoute.VerifyDevice -> CustomerRoute.Phone
+            CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword -> CustomerRoute.Phone
             CustomerRoute.QuickSignin -> localFallbackRoute
             CustomerRoute.Phone -> CustomerRoute.Welcome
             else -> CustomerRoute.Welcome
@@ -337,23 +303,19 @@ internal class CustomerViewModel(
             setupToken = null
             mutable.value = mutable.value.copy(phone = phone, phoneNotRegistered = false, passwordAvailable = false, codeRejected = false, verifyBlockedUntil = 0)
             when (repository.start("0$phone").next) {
-                "password" -> {
-                    mutable.value = mutable.value.copy(route = CustomerRoute.Password, passwordAvailable = true, lockerOffer = false)
-                    if (preferCode) createLockerCode(phone)
-                }
+                "password" -> mutable.value = mutable.value.copy(route = CustomerRoute.Password, passwordAvailable = true, lockerOffer = false)
                 "device" -> createLockerCode(phone)
                 else -> mutable.value = mutable.value.copy(route = CustomerRoute.Phone, phoneNotRegistered = true,
                     message = "No plan is linked to this number. Ask your retailer to check your registered number.")
             }
-            preferCode = false
         }
     }
     fun useCodeInstead() {
         if (mutable.value.route == CustomerRoute.QuickSignin && mutable.value.busy) back()
         if (mutable.value.busy) return
-        localProof = null
-        if (mutable.value.phone.matches(Regex("3[0-9]{9}"))) requestApproval(mutable.value.phone)
-        else enterPhone(true)
+        val phone = mutable.value.phone
+        if (phone.matches(Regex("3[0-9]{9}"))) requestApproval(phone)
+        else mutable.value = mutable.value.copy(route = CustomerRoute.Phone, message = null)
     }
     fun requestCode() {
         if (clock() < mutable.value.verifyBlockedUntil || clock() < mutable.value.deadline) return
