@@ -27,7 +27,7 @@ internal fun PrivacyConsent(onPolicy: () -> Unit, onAgree: () -> Unit, onDecline
             ScreenBadge(R.drawable.detail_shield, Color.White, Blue, 56)
             Text(copy("Your privacy matters", "آپ کی رازداری اہم ہے"), style = MaterialTheme.typography.headlineMedium)
             Caption(copy("Here is what Qist uses and why.", "قسط کیا استعمال کرتا ہے اور کیوں۔"))
-            ConsentItem(R.drawable.phone_outline, copy("Your phone number", "آپ کا فون نمبر"), copy("To sign in with your password or verify through your enrolled Qist Locker.", "پاس ورڈ یا اپنے رجسٹرڈ Qist Locker سے لاگ ان کی تصدیق کے لیے۔"))
+            ConsentItem(R.drawable.phone_outline, copy("Your phone number", "آپ کا فون نمبر"), copy("To sign in and recover your password via WhatsApp.", "لاگ ان اور واٹس ایپ سے پاس ورڈ بحال کرنے کے لیے۔"))
             ConsentItem(R.drawable.tab_plan, copy("Your plan and payments", "آپ کا منصوبہ اور ادائیگیاں"), copy("To show your due dates, amounts and receipts.", "تاریخیں، رقوم اور رسیدیں دکھانے کے لیے۔"))
             ConsentItem(R.drawable.detail_bell, copy("Notifications (optional)", "اطلاعات (اختیاری)"), copy("Remote notifications are not available in this version.", "اس ورژن میں ریموٹ اطلاعات دستیاب نہیں۔"))
         }

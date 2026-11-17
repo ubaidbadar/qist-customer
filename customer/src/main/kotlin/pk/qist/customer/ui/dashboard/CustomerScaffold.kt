@@ -10,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
@@ -28,7 +27,6 @@ import pk.qist.customer.ui.theme.*
 import pk.qist.customer.ui.plan.PlanSummaryFrame
 import pk.qist.customer.ui.plan.PlanFactFrame
 import pk.qist.customer.ui.plan.PlanChangeAction
-import pk.qist.customer.ui.phones.PlanStatusBadge
 
 @Composable
 internal fun tabTitle(tab: CustomerTab): String = when (tab) {
@@ -191,35 +189,28 @@ internal fun HomeSkeleton() {
             count = { SkeletonTypographyLine(150.dp, 12.dp, MaterialTheme.typography.bodyLarge) },
             action = { SkeletonBlock(Modifier.fillMaxWidth().height(54.dp)) },
         )
-        Panel(Modifier.testTag("home-phone-card")) {
+        Panel {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                 SkeletonBlock(Modifier.size(44.dp))
                 Column(Modifier.weight(1f)) {
-                    SkeletonTypographyLine(150.dp, 14.dp, MaterialTheme.typography.titleMedium, "Vivo Y01")
-                    SkeletonTypographyLine(90.dp, 12.dp, MaterialTheme.typography.bodyMedium,
-                        copy("1 phones · Tap to switch", "1 فون · بدلنے کے لیے ٹیپ کریں"))
+                    Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
+                        SkeletonBar(150.dp, 14.dp)
+                    }
+                    Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
+                        SkeletonBar(90.dp, 12.dp)
+                    }
                 }
-                Box(contentAlignment = Alignment.Center) {
-                    // Reserve exactly the completed badge's size, rather than a guessed 72dp pill.
-                    Box(Modifier.alpha(0f)) { PlanStatusBadge("completed", null) }
-                    SkeletonBlock(Modifier.matchParentSize())
-                }
-                SkeletonBlock(Modifier.size(18.dp))
+                SkeletonBlock(Modifier.width(72.dp).height(28.dp))
+                SkeletonBlock(Modifier.size(16.dp))
             }
         }
-        Panel(Modifier.testTag("home-payments-card")) {
+        Panel {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) {
-                    SkeletonTypographyLine(150.dp, 18.dp, MaterialTheme.typography.titleLarge,
-                        copy("Recent payments", "حالیہ ادائیگیاں"))
+                Box(Modifier.weight(1f).height(40.dp), contentAlignment = Alignment.CenterStart) {
+                    SkeletonBar(150.dp, 18.dp)
                 }
-                Box(contentAlignment = Alignment.Center) {
-                    Box(Modifier.alpha(0f)) {
-                        TextButton(onClick = {}) { Text(copy("View all", "تمام دیکھیں")) }
-                    }
-                    SkeletonBar(70.dp, 18.dp)
-                }
+                SkeletonBlock(Modifier.width(70.dp).height(40.dp))
             }
             repeat(2) {
                 HorizontalDivider(color = Divider)
@@ -277,13 +268,16 @@ private fun SkeletonTypographyLine(width: Dp, height: Dp, style: TextStyle, rese
 
 @Composable
 private fun SkeletonPaymentRow() {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.weight(1f)) {
-            SkeletonTypographyLine(110.dp, 14.dp, MaterialTheme.typography.titleMedium)
-            SkeletonTypographyLine(90.dp, 12.dp, MaterialTheme.typography.bodyLarge)
+            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
+                SkeletonBar(110.dp, 14.dp)
+            }
+            Box(Modifier.height(24.dp), contentAlignment = Alignment.CenterStart) {
+                SkeletonBar(90.dp, 12.dp)
+            }
         }
-        SkeletonTypographyLine(70.dp, 14.dp, MaterialTheme.typography.titleMedium)
+        SkeletonBlock(Modifier.width(70.dp).height(14.dp))
     }
 }
 
