@@ -23,13 +23,14 @@ class CustomerViewModelTest {
         var cancellations = 0
         var remoteState = DeviceClaim("pending")
         var deviceIdentity = DeviceIdentity("password", "03001234567", "proof")
+        var verifiedNonce = ""
         var lastNonce = ""
         override suspend fun localChallenge(nonce: String, phone: String?): DeviceChallenge { localRequests++; localPhone = phone; lastNonce = nonce; return DeviceChallenge("a".repeat(24), "2099-01-01T00:00:00.000Z") }
         override suspend fun remoteChallenge(phone: String, nonce: String): DeviceChallenge { failure?.let { throw it }; remoteRequests++; lastNonce = nonce; return DeviceChallenge("b".repeat(24), "2099-01-01T00:00:00.000Z", "123") }
         override suspend fun claimDevice(requestId: String, nonce: String): DeviceClaim { claims++; return if (requestId.startsWith("a")) DeviceClaim("approved", "t".repeat(43), verifiedPhone, "A Customer") else remoteState }
         override suspend fun exchangeDevice(ticket: String, nonce: String): DeviceIdentity { exchanges++; failure?.let { throw it }; return deviceIdentity }
         override suspend fun cancelDevice(requestId: String, nonce: String) { cancellations++ }
-        override suspend fun verifyLockerCode(requestId: String, nonce: String, code: String): DeviceClaim { failure?.let { throw it }; return DeviceClaim("approved", "t".repeat(43), "03001234567") }
+        override suspend fun verifyLockerCode(requestId: String, nonce: String, code: String): DeviceClaim { verifiedNonce = nonce; failure?.let { throw it }; return DeviceClaim("approved", "t".repeat(43), "03001234567") }
         var restored = false
         var status = AppAvailability()
         var deletes = 0
@@ -566,7 +567,7 @@ class CustomerViewModelTest {
         assertEquals("03001234567", repo.localPhone)
         assertEquals(0, repo.exchanges); assertEquals(CustomerRoute.Password, model.state.value.route)
     }
-    @Test fun `use code instead cancels Locker sign in and requests a fresh challenge`() = runTest(dispatcher) {
+    @Test fun `use code instead cancels local sign in and preserves the existing code challenge`() = runTest(dispatcher) {
         val repo = Repository()
         val gate = CompletableDeferred<Unit>()
         val locker = object : LockerAuthenticator {
@@ -579,6 +580,7 @@ class CustomerViewModelTest {
         val model = CustomerViewModel(repo, true, locker = locker, clock = { testScheduler.currentTime })
         runCurrent()
         model.start("3001234567"); runCurrent()
+        val otpNonce = repo.lastNonce
         model.askLockerSignin(); runCurrent()
         model.confirmLockerSignin(); runCurrent()
         assertEquals(CustomerRoute.QuickSignin, model.state.value.route)
@@ -586,11 +588,34 @@ class CustomerViewModelTest {
         model.useCodeInstead(); runCurrent()
         assertEquals(CustomerRoute.Verify, model.state.value.route)
         assertFalse(model.state.value.busy)
-        assertEquals(2, repo.remoteRequests)
+        assertEquals(1, repo.remoteRequests)
         assertEquals(1, repo.localRequests)
         assertEquals(0, repo.exchanges)
         gate.complete(Unit); runCurrent()
         assertEquals(0, repo.exchanges)
+        model.verify("123456"); runCurrent()
+        assertEquals(otpNonce, repo.verifiedNonce)
+        assertEquals(CustomerRoute.SetPassword, model.state.value.route)
+    }
+
+    @Test fun `Locker availability failure after confirmation returns to working code entry`() = runTest(dispatcher) {
+        val repo = Repository()
+        var lookups = 0
+        val locker = object : LockerAuthenticator {
+            override suspend fun available(): Boolean {
+                lookups++
+                if (lookups > 1) throw java.io.IOException("package lookup unavailable")
+                return true
+            }
+            override suspend fun authenticate(requestId: String, nonce: String) = true
+        }
+        val model = CustomerViewModel(repo, true, locker = locker)
+        runCurrent(); model.start("3001234567"); runCurrent()
+        model.askLockerSignin(); runCurrent(); model.confirmLockerSignin(); runCurrent()
+        assertEquals(CustomerRoute.Verify, model.state.value.route)
+        assertFalse(model.state.value.busy); assertEquals(0, repo.exchanges)
+        model.verify("123456"); runCurrent()
+        assertEquals(CustomerRoute.SetPassword, model.state.value.route)
     }
 
 }

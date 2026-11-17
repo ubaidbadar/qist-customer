@@ -182,7 +182,11 @@ internal class CustomerViewModel(
         }
         mutable.value = mutable.value.copy(route = CustomerRoute.QuickSignin, message = null, signinStage = 0, verifiedName = null)
         val authenticator = locker
-        if (authenticator == null || !authenticator.available()) {
+        val available = try { authenticator?.available() == true }
+        catch (error: CancellationException) { throw error }
+        catch (_: IOException) { false }
+        catch (_: SecurityException) { false }
+        if (authenticator == null || !available) {
             mutable.value = mutable.value.copy(
                 route = localFallbackRoute,
                 message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.",
@@ -287,7 +291,8 @@ internal class CustomerViewModel(
             backgroundOperation = false
             mutable.value = mutable.value.copy(busy = false, lockerOffer = false)
         }
-        abandonSignin()
+        val returningToCode = mutable.value.route == CustomerRoute.QuickSignin && localFallbackRoute == CustomerRoute.Verify
+        if (!returningToCode) abandonSignin()
         setupToken = null
         val next = when (mutable.value.route) {
             CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword -> CustomerRoute.Phone
@@ -317,6 +322,7 @@ internal class CustomerViewModel(
     fun useCodeInstead() {
         if (mutable.value.route == CustomerRoute.QuickSignin && mutable.value.busy) back()
         if (mutable.value.busy) return
+        if (mutable.value.route == CustomerRoute.Verify && pendingSignin?.let { clock() < it.until } == true) return
         val phone = mutable.value.phone
         if (phone.matches(customerPhonePattern)) requestApproval(phone)
         else mutable.value = mutable.value.copy(route = CustomerRoute.Phone, message = null)
