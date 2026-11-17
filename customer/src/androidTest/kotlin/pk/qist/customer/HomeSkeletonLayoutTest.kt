@@ -9,6 +9,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import pk.qist.customer.data.DashboardSample
+import pk.qist.customer.data.PaymentSample
+import pk.qist.customer.data.PlanChoice
 import pk.qist.customer.ui.dashboard.HomeOverview
 import pk.qist.customer.ui.dashboard.HomeSkeleton
 import pk.qist.customer.ui.theme.QistTheme
@@ -18,16 +20,24 @@ import pk.qist.customer.ui.theme.QistTheme
 class HomeSkeletonLayoutTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun headerAndInstallmentCardStayAnchoredWhenDataAppears() {
+    @Test fun completedPlanKeepsAllThreeCardsAlignedWhenDataAppears() {
         var loading by mutableStateOf(true)
+        val payments = listOf(
+            PaymentSample("one", 5, "17 Nov 2026", "20,000", "cash", 1,
+                "", "installment", "", listOf(5, 6)),
+            PaymentSample("two", 4, "17 Nov 2026", "10,000", "cash", 2,
+                "", "installment", "", listOf(4)),
+        )
         val data = DashboardSample(
-            name = "Rana Umar", phone = "", model = "Phone", amount = "7,500",
-            dueDate = "15 Nov 2026", days = 5, paid = 1, total = 4,
-            retailer = "Retailer", advance = 0, installment = 7500,
-            schedule = emptyList(), payments = emptyList(), totalPrice = 30000,
-            paidTotal = 7500, remaining = 22500, frequency = "monthly",
-            status = "active", lockState = null, retailerPhone = "", retailerAddress = "",
-            paymentMethods = emptyList(), contractId = "test-contract", contracts = emptyList(),
+            name = "Ubaid Badar", phone = "", model = "Vivo Y01", amount = "0",
+            dueDate = "—", days = 0, paid = 6, total = 6,
+            retailer = "Retailer", advance = 0, installment = 10000,
+            schedule = emptyList(), payments = payments, totalPrice = 60000,
+            paidTotal = 60000, remaining = 0, frequency = "monthly",
+            status = "completed", lockState = null, retailerPhone = "", retailerAddress = "",
+            paymentMethods = emptyList(), contractId = "test-contract",
+            contracts = listOf(PlanChoice("test-contract", "Vivo Y01", "Retailer", "completed",
+                "—", "0", 0, 6, "17 Nov 2026")),
             nextCursor = null,
         )
         compose.setContent {
@@ -36,15 +46,16 @@ class HomeSkeletonLayoutTest {
                 else HomeOverview(data, null, false, {}, {}, {}, {}, {})
             }
         }
+        val tags = listOf("home-navy-header", "home-first-card", "home-phone-card", "home-payments-card")
+        val before = tags.map { compose.onNodeWithTag(it).getUnclippedBoundsInRoot() }
 
-        val beforeCard = compose.onNodeWithTag("home-first-card").getUnclippedBoundsInRoot()
-        val beforeHeader = compose.onNodeWithTag("home-navy-header").getUnclippedBoundsInRoot()
         compose.runOnIdle { loading = false }
-        val afterCard = compose.onNodeWithTag("home-first-card").getUnclippedBoundsInRoot()
-        val afterHeader = compose.onNodeWithTag("home-navy-header").getUnclippedBoundsInRoot()
 
-        assertEquals(beforeHeader.height, afterHeader.height)
-        assertEquals(beforeCard.top, afterCard.top)
-        assertEquals(beforeCard.left, afterCard.left)
+        val after = tags.map { compose.onNodeWithTag(it).getUnclippedBoundsInRoot() }
+        before.zip(after).forEach { (skeleton, loaded) ->
+            assertEquals(skeleton.top, loaded.top)
+            assertEquals(skeleton.left, loaded.left)
+            assertEquals(skeleton.height, loaded.height)
+        }
     }
 }
