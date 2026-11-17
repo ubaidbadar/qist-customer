@@ -256,6 +256,8 @@ internal class CustomerViewModel(
     }
 
     private suspend fun applyIdentity(identity: DeviceIdentity, accepted: Boolean) {
+        // A successful trusted-phone exchange supersedes any unused OTP challenge.
+        abandonSignin()
         when (identity.next) {
             "session" -> signedIn(accepted)
             "password" -> {
