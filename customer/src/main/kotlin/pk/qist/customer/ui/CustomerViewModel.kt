@@ -180,6 +180,7 @@ internal class CustomerViewModel(
     }
     private fun fallbackSigninRoute(): CustomerRoute = when {
         mutable.value.phone.isBlank() -> CustomerRoute.Phone
+        pendingSignin != null -> CustomerRoute.Verify
         mutable.value.passwordKnown -> CustomerRoute.Password
         else -> CustomerRoute.VerifyDevice
     }
@@ -329,12 +330,17 @@ internal class CustomerViewModel(
             setupToken = null
             mutable.value = mutable.value.copy(phone = phone, phoneNotRegistered = false, codeRejected = false, verifyBlockedUntil = 0)
             val result = repository.start("0$phone")
-            if (preferCode && result.next != "unregistered") { createLockerCode(phone); return@perform }
-            val offer = false
-            mutable.value = when (result.next) {
-                "password" -> mutable.value.copy(route = CustomerRoute.Password, lockerOffer = offer, passwordKnown = true)
-                "device" -> mutable.value.copy(route = CustomerRoute.VerifyDevice, lockerOffer = offer, passwordKnown = false)
-                else -> mutable.value.copy(route = CustomerRoute.Phone, phoneNotRegistered = true, message = "No plan is linked to this number. Ask your retailer to check your registered number.")
+            when (result.next) {
+                "password" -> {
+                    mutable.value = mutable.value.copy(passwordKnown = true, route = CustomerRoute.Password)
+                    if (preferCode) createLockerCode(phone)
+                }
+                "device" -> {
+                    mutable.value = mutable.value.copy(passwordKnown = false, route = CustomerRoute.VerifyDevice)
+                    createLockerCode(phone)
+                }
+                else -> mutable.value = mutable.value.copy(route = CustomerRoute.Phone, phoneNotRegistered = true,
+                    message = "No plan is linked to this number. Ask your retailer to check your registered number.")
             }
         }
     }
