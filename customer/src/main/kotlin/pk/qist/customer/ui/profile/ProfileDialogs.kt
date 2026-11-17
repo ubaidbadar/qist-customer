@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
+import pk.qist.customer.ui.components.CustomerBottomSheet
 import pk.qist.customer.ui.components.CustomerDialog
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Pill
@@ -27,13 +28,7 @@ import pk.qist.customer.ui.theme.QistSpacing
 @Composable
 internal fun LanguagePicker(selectedUrdu: Boolean, onDismiss: () -> Unit, onApply: (Boolean) -> Unit) {
     var urdu by rememberSaveable { mutableStateOf(selectedUrdu) }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color.White,
-        shape = QistShapes.Sheet,
-        scrimColor = Navy.copy(alpha = 0.60f),
-    ) {
+    CustomerBottomSheet(onDismiss = onDismiss) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(QistSpacing.Section),
