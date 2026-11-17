@@ -73,9 +73,9 @@ internal fun CustomerShell() {
                     ServiceAvailabilityScreen(state.checkingService, state.message) { model.checkServiceStatus(true) }
                 } else when (state.route) {
                     CustomerRoute.SessionExpired -> SessionExpired(model::signInAgain)
-                    CustomerRoute.Welcome -> SigninMethodsScreen(state.message, model::continueWithThisPhone, { model.enterPhone(true) }, { model.enterPhone(false) }, { urdu = !urdu; preferences.setUrdu(urdu) })
+                    CustomerRoute.Welcome -> SigninMethodsScreen(state.message, model::begin) { urdu = !urdu; preferences.setUrdu(urdu) }
                     CustomerRoute.Phone -> PhoneSigninScreen(state, model)
-                    CustomerRoute.Methods -> SigninMethodsScreen(state.message, model::continueWithThisPhone, { model.enterPhone(true) }, { model.enterPhone(false) }, { urdu = !urdu; preferences.setUrdu(urdu) })
+                    CustomerRoute.Methods -> SigninMethodsScreen(state.message, model::begin) { urdu = !urdu; preferences.setUrdu(urdu) }
                     CustomerRoute.QuickSignin -> PhoneVerificationProgress(state.verifiedName, state.signinStage, model::back, model::useCodeInstead)
                     CustomerRoute.VerifyDevice -> AuthScreen(
                         copy("Create your password", "اپنا پاس ورڈ بنائیں"),
