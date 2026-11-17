@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
+import pk.qist.customer.ui.components.CustomerBottomSheet
 import pk.qist.customer.data.DashboardSample
 import pk.qist.customer.data.PaymentMethodSample
 import pk.qist.customer.ui.components.CustomerSnackbarHost
@@ -32,9 +33,9 @@ internal fun PaymentMethodsSheet(data: DashboardSample, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val copied = copy("Copied to clipboard", "کلپ بورڈ پر کاپی ہو گیا")
     val error = copy("Could not copy account details.", "اکاؤنٹ کی تفصیل کاپی نہیں ہو سکی۔")
-    ModalBottomSheet(
-        onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        shape = QistShapes.Sheet, containerColor = Color.White, scrimColor = Navy.copy(alpha = 0.72f),
+    CustomerBottomSheet(
+        onDismiss = onDismiss,
+        scrimColor = Navy.copy(alpha = 0.72f),
         dragHandle = { BottomSheetDefaults.DragHandle(color = InputBorder, width = 40.dp) },
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = QistSpacing.Screen).padding(bottom = 20.dp),
