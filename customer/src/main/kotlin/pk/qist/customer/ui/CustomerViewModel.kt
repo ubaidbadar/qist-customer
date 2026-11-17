@@ -34,6 +34,7 @@ internal data class CustomerState(
     val deadline: Long = 0L,
     val verifyBlockedUntil: Long = 0L,
     val phoneNotRegistered: Boolean = false,
+    val passwordKnown: Boolean = false,
     val codeRejected: Boolean = false,
     val signinStage: Int = 0,
     val verifiedName: String? = null,
@@ -155,7 +156,7 @@ internal class CustomerViewModel(
     fun editCode() { if (!mutable.value.busy && mutable.value.codeRejected) mutable.value = mutable.value.copy(codeRejected = false, message = null) }
     fun signInAgain() { if (!mutable.value.busy) mutable.value = CustomerState(route = CustomerRoute.Phone, restoring = false) }
     fun begin() {
-        if (!mutable.value.busy) mutable.value = mutable.value.copy(route = CustomerRoute.Methods, message = null)
+        if (!mutable.value.busy) mutable.value = mutable.value.copy(route = CustomerRoute.Phone, message = null)
     }
     fun enterPhone(code: Boolean) {
         if (mutable.value.busy) return
@@ -174,8 +175,13 @@ internal class CustomerViewModel(
     fun dismissLockerOffer() {
         if (!mutable.value.busy) {
             localProof = null
-            mutable.value = mutable.value.copy(lockerOffer = false, route = if (mutable.value.route == CustomerRoute.QuickSignin) CustomerRoute.Methods else mutable.value.route)
+            mutable.value = mutable.value.copy(lockerOffer = false, route = if (mutable.value.route == CustomerRoute.QuickSignin) fallbackSigninRoute() else mutable.value.route)
         }
+    }
+    private fun fallbackSigninRoute(): CustomerRoute = when {
+        mutable.value.phone.isBlank() -> CustomerRoute.Phone
+        mutable.value.passwordKnown -> CustomerRoute.Password
+        else -> CustomerRoute.VerifyDevice
     }
     fun confirmLockerSignin() {
         val proof = localProof
@@ -185,7 +191,7 @@ internal class CustomerViewModel(
             perform {
                 try { applyIdentity(repository.exchangeDevice(proof.ticket, proof.nonce), privacyAccepted()) }
                 catch (error: IOException) {
-                    mutable.value = mutable.value.copy(route = CustomerRoute.Methods)
+                    mutable.value = mutable.value.copy(route = fallbackSigninRoute())
                     throw error
                 }
             }
@@ -198,7 +204,7 @@ internal class CustomerViewModel(
         mutable.value = mutable.value.copy(route = CustomerRoute.QuickSignin, message = null, signinStage = 0, verifiedName = null)
         val authenticator = locker
         if (authenticator == null) {
-            mutable.value = mutable.value.copy(route = CustomerRoute.Methods, message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.")
+            mutable.value = mutable.value.copy(route = fallbackSigninRoute(), message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.")
             return
         }
         if (!authenticator.available()) {
@@ -213,7 +219,7 @@ internal class CustomerViewModel(
             val challenge = repository.localChallenge(nonce, mutable.value.phone.takeIf { it.matches(Regex("3[0-9]{9}")) }?.let { "0$it" })
             requestId = challenge.requestId
             if (!authenticator.authenticate(challenge.requestId, nonce)) {
-                mutable.value = mutable.value.copy(route = CustomerRoute.Methods, message = "Quick sign-in is unavailable. Unlock your financed phone, or use a code or password.")
+                mutable.value = mutable.value.copy(route = fallbackSigninRoute(), message = "Quick sign-in is unavailable. Unlock your financed phone, or use a code or password.")
                 return
             }
             val claim = repository.claimDevice(challenge.requestId, nonce)
@@ -244,7 +250,7 @@ internal class CustomerViewModel(
                 catch (_: IOException) { /* The unclaimed request also expires on the backend. */ }
             }
         }
-        if (identity == null) mutable.value = mutable.value.copy(route = CustomerRoute.Methods)
+        if (identity == null) mutable.value = mutable.value.copy(route = fallbackSigninRoute())
         identity?.let { applyIdentity(it, accepted) }
     }
 
@@ -307,8 +313,8 @@ internal class CustomerViewModel(
         setupToken = null
         val next = when (mutable.value.route) {
             CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword, CustomerRoute.VerifyDevice -> CustomerRoute.Phone
-            CustomerRoute.QuickSignin -> if (mutable.value.phone.isBlank()) CustomerRoute.Methods else CustomerRoute.Phone
-            CustomerRoute.Phone -> CustomerRoute.Methods
+            CustomerRoute.QuickSignin -> fallbackSigninRoute()
+            CustomerRoute.Phone -> CustomerRoute.Welcome
             else -> CustomerRoute.Welcome
         }
         mutable.value = mutable.value.copy(route = next, message = null)
@@ -326,8 +332,8 @@ internal class CustomerViewModel(
             if (preferCode && result.next != "unregistered") { createLockerCode(phone); return@perform }
             val offer = false
             mutable.value = when (result.next) {
-                "password" -> mutable.value.copy(route = CustomerRoute.Password, lockerOffer = offer)
-                "device" -> mutable.value.copy(route = CustomerRoute.VerifyDevice, lockerOffer = offer)
+                "password" -> mutable.value.copy(route = CustomerRoute.Password, lockerOffer = offer, passwordKnown = true)
+                "device" -> mutable.value.copy(route = CustomerRoute.VerifyDevice, lockerOffer = offer, passwordKnown = false)
                 else -> mutable.value.copy(route = CustomerRoute.Phone, phoneNotRegistered = true, message = "No plan is linked to this number. Ask your retailer to check your registered number.")
             }
         }
