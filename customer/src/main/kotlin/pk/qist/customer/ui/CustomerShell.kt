@@ -27,7 +27,7 @@ import pk.qist.customer.ui.payments.HowToPay
 import pk.qist.customer.ui.profile.PrivacyPolicy
 import pk.qist.customer.ui.profile.ServiceAvailabilityScreen
 
-internal enum class CustomerRoute { Welcome, Phone, Password, Verify, SetPassword, Approval, Consent, Home, SessionExpired }
+internal enum class CustomerRoute { Welcome, Methods, Phone, Password, Verify, SetPassword, QuickSignin, VerifyDevice, Consent, Home, SessionExpired }
 internal enum class CustomerTab { Home, Payments, Plan, Profile }
 
 @Composable
@@ -40,21 +40,9 @@ internal fun CustomerShell() {
             overviewCache = BoundOverviewCache(storage), appVersionCode = BuildConfig.VERSION_CODE.toLong()),
             preferences.hasAcceptedPrivacy,
             locker = pk.qist.customer.platform.AndroidLockerAuthenticator(context),
-            allowDeviceAutoSignin = preferences.allowDeviceAutoSignin,
-            setAutoSigninAllowed = preferences::setDeviceAutoSignin,
             privacyAccepted = { preferences.hasAcceptedPrivacy })
     }
     val state by model.state.collectAsStateWithLifecycle()
-    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle, model) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_START) model.authForeground(true)
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) model.authForeground(false)
-        }
-        lifecycle.addObserver(observer)
-        model.authForeground(lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED))
-        onDispose { lifecycle.removeObserver(observer); model.authForeground(false) }
-    }
     CustomerPushBinding(state.route == CustomerRoute.Home, preferences, model)
     var tab by rememberSaveable { mutableStateOf(CustomerTab.Home) }
     var urdu by rememberSaveable { mutableStateOf(preferences.urdu) }
@@ -65,11 +53,17 @@ internal fun CustomerShell() {
     LaunchedEffect(state.route) {
         if (state.route == CustomerRoute.Welcome || state.route == CustomerRoute.SessionExpired) { tab = CustomerTab.Home; paymentHelp = false }
     }
-    BackHandler(state.serviceGate == null && state.route in listOf(CustomerRoute.Phone, CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword, CustomerRoute.Approval), onBack = model::back)
+    BackHandler(state.serviceGate == null && state.route in listOf(CustomerRoute.Phone, CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword, CustomerRoute.QuickSignin, CustomerRoute.VerifyDevice), onBack = model::back)
     BackHandler(state.serviceGate == null && state.route == CustomerRoute.Home && tab != CustomerTab.Home) { tab = CustomerTab.Home }
     BackHandler(state.serviceGate == null && state.route == CustomerRoute.Consent) { if (consentPolicy) consentPolicy = false else model.declinePrivacy() }
     BackHandler(state.serviceGate == null && paymentHelp) { paymentHelp = false }
     CompositionLocalProvider(LocalUrdu provides urdu, LocalLayoutDirection provides if (urdu) LayoutDirection.Rtl else LayoutDirection.Ltr) {
+        if (state.lockerOffer && state.serviceGate == null) CustomerDialog(
+            title = copy("Sign in with this phone?", "اسی فون سے لاگ ان کریں؟"),
+            message = copy("Use Qist Locker to verify +92 ${state.phone}. Continue only if this is the number linked to your financed phone.", "قسط والے فون کے لاکر سے +92 ${state.phone} کی تصدیق کریں۔ صرف اپنے رجسٹرڈ نمبر کے لیے جاری رکھیں۔"),
+            confirmLabel = copy("Verify and continue", "تصدیق کریں اور جاری رکھیں"), dismissLabel = copy("Use another method", "دوسرا طریقہ استعمال کریں"),
+            onConfirm = model::confirmLockerSignin, onDismiss = model::dismissLockerOffer, icon = pk.qist.customer.R.drawable.phone_outline,
+        )
         pk.qist.customer.ui.layout.CustomerViewport(authentication = state.route != CustomerRoute.Home) {
             CustomerUpdateHost(enabled = state.route == CustomerRoute.Home && state.serviceGate == null) {
                 val gate = state.serviceGate
@@ -81,16 +75,14 @@ internal fun CustomerShell() {
                     CustomerRoute.SessionExpired -> SessionExpired(model::signInAgain)
                     CustomerRoute.Welcome -> Welcome({ urdu = !urdu; preferences.setUrdu(urdu) }, model::begin)
                     CustomerRoute.Phone -> PhoneSigninScreen(state, model)
-                    CustomerRoute.Approval -> AuthScreen(
-                        copy("Approve on your financed phone", "اپنے قسط والے فون پر منظوری دیں"),
-                        copy("Open Qist sign-in on that phone. Enter this number there and approve only the request you started.", "اس فون پر Qist sign-in کھولیں۔ یہ نمبر وہاں درج کریں اور صرف اپنی درخواست منظور کریں۔"),
-                        copy("Use password instead", "پاس ورڈ استعمال کریں"), model::back, { model.usePassword(state.phone) },
-                        busy = state.busy, enabled = !state.busy,
+                    CustomerRoute.Methods -> SigninMethodsScreen(state.message, model::continueWithThisPhone, { model.enterPhone(true) }, { model.enterPhone(false) }, { urdu = !urdu; preferences.setUrdu(urdu) })
+                    CustomerRoute.QuickSignin -> PhoneVerificationProgress(state.verifiedName, state.signinStage, model::back, model::useCodeInstead)
+                    CustomerRoute.VerifyDevice -> AuthScreen(
+                        copy("Create your password", "اپنا پاس ورڈ بنائیں"),
+                        copy("First verify +92 ${state.phone} using your financed phone. Then choose your password.", "پہلے اپنے قسط والے فون سے +92 ${state.phone} کی تصدیق کریں، پھر پاس ورڈ بنائیں۔"),
+                        copy("Get code from Locker", "لاکر سے کوڈ لیں"), model::back, { model.requestApproval(state.phone) }, busy = state.busy,
                     ) {
-                        Text(state.signinNumber.orEmpty(), style = MaterialTheme.typography.headlineLarge,
-                            modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        Text(if (state.approvalPending) copy("Waiting for your approval…", "آپ کی منظوری کا انتظار ہے…") else copy("This request has ended.", "یہ درخواست ختم ہو گئی ہے۔"))
-                        TextButton(onClick = { model.useWhatsApp(state.phone) }, enabled = !state.busy) { Text(copy("Use WhatsApp recovery", "واٹس ایپ سے بحالی")) }
+                        TextButton(onClick = model::askLockerSignin, enabled = !state.busy) { Text(copy("Use Locker on this phone", "اسی فون کے لاکر سے تصدیق کریں")) }
                         AuthError(state.message)
                     }
                     CustomerRoute.Password, CustomerRoute.SetPassword -> PasswordSigninScreen(state, model, preferences.hasAcceptedPrivacy)

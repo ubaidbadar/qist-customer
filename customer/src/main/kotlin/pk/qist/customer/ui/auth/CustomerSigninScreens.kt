@@ -1,6 +1,7 @@
 package pk.qist.customer.ui.auth
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -17,15 +18,14 @@ internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
     AuthScreen(
         copy("Enter your phone number", "اپنا فون نمبر درج کریں"),
         copy("Use the number registered with your retailer.", "اپنے دکاندار کے پاس رجسٹرڈ نمبر استعمال کریں۔"),
-        copy("Continue", "جاری رکھیں"), model::back, { model.requestApproval(phone) },
+        copy("Continue", "جاری رکھیں"), model::back, { model.start(phone) },
         footer = copy("Not registered? Contact your retailer.", "رجسٹرڈ نہیں؟ دکاندار سے رابطہ کریں۔"), busy = state.busy,
         enabled = phone.matches(Regex("3[0-9]{9}")) && !state.phoneNotRegistered,
     ) {
         PhoneField(phone, state.phoneNotRegistered) { if (!state.busy) { phone = normalizePhone(it); model.editPhone() } }
         PhoneNumberHint(phone.isEmpty(), !state.busy) { phone = it; model.editPhone() }
-        TextButton(onClick = { model.begin() }, enabled = !state.busy) { Text(copy("Continue on this financed phone", "اس قسط والے فون پر جاری رکھیں")) }
-        TextButton(onClick = { model.usePassword(phone) }, enabled = !state.busy && phone.matches(Regex("3[0-9]{9}"))) { Text(copy("Use password", "پاس ورڈ استعمال کریں")) }
-        TextButton(onClick = { model.useWhatsApp(phone) }, enabled = !state.busy && phone.matches(Regex("3[0-9]{9}"))) { Text(copy("Use WhatsApp recovery", "واٹس ایپ سے بحالی")) }
+
+
         AuthError(state.message)
     }
 }
@@ -42,9 +42,10 @@ internal fun PasswordSigninScreen(state: CustomerState, model: CustomerViewModel
         busy = state.busy, enabled = password.length in 8..128,
     ) {
         PasswordField(password, creating) { if (!state.busy) password = it.take(128) }
-        TextButton(onClick = { model.requestCode(true) }, enabled = !state.busy) {
-            Text(if (creating) copy("Verify again", "دوبارہ تصدیق کریں") else copy("Forgot password?", "پاس ورڈ بھول گئے؟"))
+        TextButton(onClick = { model.requestApproval(state.phone) }, enabled = !state.busy) {
+            Text(if (creating) copy("Verify again", "دوبارہ تصدیق کریں") else copy("Get a code from your financed phone", "قسط والے فون سے کوڈ لیں"))
         }
+        if (!creating) TextButton(onClick = model::askLockerSignin, enabled = !state.busy) { Text(copy("Sign in with Locker on this phone", "اسی فون کے لاکر سے لاگ ان کریں")) }
         AuthError(state.message)
     }
 }
@@ -52,10 +53,27 @@ internal fun PasswordSigninScreen(state: CustomerState, model: CustomerViewModel
 @Composable
 internal fun CodeSigninScreen(state: CustomerState, model: CustomerViewModel) {
     var code by remember { mutableStateOf("") }
+    var clipboardError by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
     LaunchedEffect(state.verifyBlockedUntil) {
         if (state.verifyBlockedUntil > android.os.SystemClock.elapsedRealtime()) code = ""
     }
-    VerificationScreen(state.phone, code, state.busy, state.message, state.codeRejected,
+    VerificationScreen(state.phone, code, state.busy, clipboardError ?: state.message, state.codeRejected,
         state.deadline, state.verifyBlockedUntil, model::back, { model.verify(code) },
-        { code = it; model.editCode() }, { code = ""; model.requestCode() })
+        { code = it; clipboardError = null; model.editCode() }, { code = ""; model.requestCode() }, extra = {
+            OutlinedButton(onClick = {
+                val manager = context.getSystemService(android.content.ClipboardManager::class.java)
+                val pasted = try { manager.primaryClip?.getItemAt(0)?.text?.toString()?.trim() } catch (_: SecurityException) { null }
+                if (pasted?.matches(Regex("[0-9]{6}")) == true) { code = pasted; clipboardError = null; model.editCode() }
+                else clipboardError = "Copy the six-digit code from Qist Locker first."
+            }, enabled = !state.busy) { Text(copy("Paste code", "کوڈ پیسٹ کریں")) }
+            TextButton(onClick = model::askLockerSignin, enabled = !state.busy) {
+                Text(copy("Sign in with Qist Locker on this phone", "اسی فون پر Qist Locker سے لاگ ان کریں"))
+            }
+            if (state.passwordAvailable) {
+                TextButton(onClick = { model.usePassword(state.phone) }, enabled = !state.busy) {
+                    Text(copy("Use password instead", "پاس ورڈ استعمال کریں"))
+                }
+            }
+        })
 }

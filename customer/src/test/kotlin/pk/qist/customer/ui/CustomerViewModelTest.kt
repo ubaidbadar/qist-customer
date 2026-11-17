@@ -14,6 +14,8 @@ class CustomerViewModelTest {
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
     private class Repository : CustomerRepository {
+        var localPhone: String? = null
+        var verifiedPhone = "03001234567"
         var localRequests = 0
         var remoteRequests = 0
         var claims = 0
@@ -22,11 +24,12 @@ class CustomerViewModelTest {
         var remoteState = DeviceClaim("pending")
         var deviceIdentity = DeviceIdentity("password", "03001234567", "proof")
         var lastNonce = ""
-        override suspend fun localChallenge(nonce: String): DeviceChallenge { localRequests++; lastNonce = nonce; return DeviceChallenge("a".repeat(24), "2099-01-01T00:00:00.000Z") }
-        override suspend fun remoteChallenge(phone: String, nonce: String): DeviceChallenge { remoteRequests++; lastNonce = nonce; return DeviceChallenge("b".repeat(24), "2099-01-01T00:00:00.000Z", "123") }
-        override suspend fun claimDevice(requestId: String, nonce: String): DeviceClaim { claims++; return if (requestId.startsWith("a")) DeviceClaim("approved", "t".repeat(43)) else remoteState }
+        override suspend fun localChallenge(nonce: String, phone: String?): DeviceChallenge { localRequests++; localPhone = phone; lastNonce = nonce; return DeviceChallenge("a".repeat(24), "2099-01-01T00:00:00.000Z") }
+        override suspend fun remoteChallenge(phone: String, nonce: String): DeviceChallenge { failure?.let { throw it }; remoteRequests++; lastNonce = nonce; return DeviceChallenge("b".repeat(24), "2099-01-01T00:00:00.000Z", "123") }
+        override suspend fun claimDevice(requestId: String, nonce: String): DeviceClaim { claims++; return if (requestId.startsWith("a")) DeviceClaim("approved", "t".repeat(43), verifiedPhone, "A Customer") else remoteState }
         override suspend fun exchangeDevice(ticket: String, nonce: String): DeviceIdentity { exchanges++; failure?.let { throw it }; return deviceIdentity }
         override suspend fun cancelDevice(requestId: String, nonce: String) { cancellations++ }
+        override suspend fun verifyLockerCode(requestId: String, nonce: String, code: String): DeviceClaim { failure?.let { throw it }; return DeviceClaim("approved", "t".repeat(43), "03001234567") }
         var restored = false
         var status = AppAvailability()
         var deletes = 0
@@ -43,7 +46,7 @@ class CustomerViewModelTest {
             notificationReads += ids
             notificationGate?.await()
         }
-        var next = "otp"
+        var next = "device"
         var reads = 0
         val requestedPlans = mutableListOf<String?>()
         var logins = 0
@@ -53,10 +56,7 @@ class CustomerViewModelTest {
         var gate: CompletableDeferred<Unit>? = null
         override suspend fun restore() = restored
         override suspend fun start(phone: String): AuthStart { starts++; assertEquals("03001234567", phone); gate?.await(); failure?.let { throw it }; return AuthStart(next, 60) }
-        override suspend fun requestCode(phone: String): Int { failure?.let { throw it }; return 60 }
-        override suspend fun verifyCode(phone: String, code: String): String { failure?.let { throw it }; return "proof" }
         override suspend fun setPassword(phone: String, setupToken: String, password: String) { assertEquals("proof", setupToken); failure?.let { throw it }; logins++ }
-        override suspend fun resetPassword(phone: String, code: String, password: String) = Unit
         override suspend fun login(phone: String, password: String) { failure?.let { throw it }; logins++ }
         override suspend fun dashboard(contractId: String?): DashboardSample { reads++; requestedPlans.add(contractId); gate?.await(); failure?.let { throw it }; return parseOverview(overviewFixture()).let { it.copy(contractId = contractId ?: it.id, notifications = notifications) } }
         override suspend fun payments(contractId: String, cursor: String): PaymentPage { failure?.let { throw it }; return PaymentPage(parseOverview(overviewFixture()).payments, null) }
@@ -68,10 +68,72 @@ class CustomerViewModelTest {
         val repo = Repository(); val model = model(repo); runCurrent()
         assertEquals(CustomerRoute.Welcome, model.state.value.route); assertEquals(0, repo.reads)
     }
+    @Test fun `get started opens phone entry and phone back returns to welcome`() = runTest(dispatcher) {
+        val repo = Repository()
+        val model = model(repo); runCurrent()
+        model.begin()
+        assertEquals(CustomerRoute.Phone, model.state.value.route)
+        assertEquals(0, repo.starts)
+        model.back()
+        assertEquals(CustomerRoute.Welcome, model.state.value.route)
+    }
+
+    @Test fun `password customer can switch to Locker code and back to password`() = runTest(dispatcher) {
+        val repo = Repository().apply { next = "password" }
+        val model = model(repo); runCurrent()
+        model.begin()
+        model.start("3001234567"); runCurrent()
+        assertEquals(CustomerRoute.Password, model.state.value.route)
+        assertTrue(model.state.value.passwordAvailable)
+        assertEquals(0, repo.remoteRequests)
+        model.requestApproval("3001234567"); runCurrent()
+        assertEquals(CustomerRoute.Verify, model.state.value.route)
+        assertTrue(model.state.value.passwordAvailable)
+        assertEquals(1, repo.remoteRequests)
+        model.usePassword("3001234567"); runCurrent()
+        assertEquals(CustomerRoute.Password, model.state.value.route)
+        assertEquals(1, repo.starts) // Back from OTP reuses the original account lookup.
+        model.back(); runCurrent()
+        assertEquals(CustomerRoute.Phone, model.state.value.route)
+    }
+
+    @Test fun `new account can use Locker instead of code and still sets password`() = runTest(dispatcher) {
+        val repo = Repository()
+        val model = CustomerViewModel(repo, true, locker = Locker(), clock = { testScheduler.currentTime })
+        runCurrent()
+        model.begin()
+        model.start("3001234567"); runCurrent()
+        assertEquals(CustomerRoute.Verify, model.state.value.route)
+        assertEquals(1, repo.remoteRequests)
+        model.askLockerSignin(); runCurrent()
+        assertTrue(model.state.value.lockerOffer)
+        model.confirmLockerSignin(); runCurrent()
+        assertEquals(CustomerRoute.SetPassword, model.state.value.route)
+        assertEquals("03001234567", repo.localPhone)
+        assertEquals(1, repo.exchanges)
+        assertEquals(1, repo.cancellations) // Prior OTP is invalidated after trusted verification.
+    }
+
+    @Test fun `Locker auto sign in from password returns to password on denial`() = runTest(dispatcher) {
+        val repo = Repository().apply { next = "password" }
+        val model = CustomerViewModel(repo, true, locker = Locker(available = true, approved = false))
+        runCurrent()
+        model.start("3001234567"); runCurrent()
+        model.askLockerSignin(); runCurrent()
+        assertTrue(model.state.value.lockerOffer)
+        model.confirmLockerSignin(); runCurrent()
+        assertEquals(CustomerRoute.Password, model.state.value.route)
+        assertEquals(0, repo.exchanges)
+    }
+
     @Test fun `phone with plan and no password goes to OTP then verified password setup`() = runTest(dispatcher) {
         val repo = Repository(); val model = model(repo); runCurrent()
         model.start("3001234567"); runCurrent()
-        assertEquals(CustomerRoute.Verify, model.state.value.route); assertEquals(61000L, model.state.value.deadline)
+        assertEquals(CustomerRoute.Verify, model.state.value.route)
+        assertFalse(model.state.value.passwordAvailable)
+        assertEquals(1, repo.starts)
+        assertEquals(1, repo.remoteRequests)
+        assertEquals(61000L, model.state.value.deadline)
         model.verify("123456"); runCurrent(); assertEquals(CustomerRoute.SetPassword, model.state.value.route)
         model.savePassword("password123", true); runCurrent()
         assertEquals(CustomerRoute.Home, model.state.value.route); assertEquals(1, repo.logins); assertEquals(1, repo.reads)
@@ -79,6 +141,8 @@ class CustomerViewModelTest {
     @Test fun `existing password bypasses OTP and loads only one overview`() = runTest(dispatcher) {
         val repo = Repository().apply { next = "password" }; val model = model(repo); runCurrent()
         model.start("3001234567"); runCurrent(); assertEquals(CustomerRoute.Password, model.state.value.route)
+        assertTrue(model.state.value.passwordAvailable)
+        assertEquals(0, repo.remoteRequests)
         model.login("password123", true); runCurrent()
         assertEquals(1, repo.reads); assertEquals(CustomerRoute.Home, model.state.value.route)
     }
@@ -88,7 +152,7 @@ class CustomerViewModelTest {
         assertEquals(CustomerRoute.Phone, model.state.value.route); assertNotNull(model.state.value.message); assertEquals(0, repo.reads)
     }
     @Test fun `wrong OTP stays on verification and does not create session`() = runTest(dispatcher) {
-        val repo = Repository(); val model = model(repo); runCurrent(); model.start("3001234567"); runCurrent()
+        val repo = Repository(); val model = model(repo); runCurrent(); model.requestApproval("3001234567"); runCurrent()
         repo.failure = CustomerApiException(400, "Invalid code", "OTP_CODE_INVALID")
         model.verify("000000"); runCurrent(); assertEquals(CustomerRoute.Verify, model.state.value.route)
         assertEquals(0, repo.logins); assertEquals("Invalid code", model.state.value.message); assertTrue(model.state.value.codeRejected)
@@ -119,8 +183,8 @@ class CustomerViewModelTest {
         assertEquals(2, model.state.value.data?.payments?.size); assertNull(model.state.value.data?.nextCursor)
     }
     @Test fun `failed resend does not discard valid setup proof`() = runTest(dispatcher) {
-        val repo = Repository(); val model = model(repo); runCurrent(); model.start("3001234567"); runCurrent(); model.verify("123456"); runCurrent()
-        repo.failure = CustomerApiException(429, "Wait before resending"); model.requestCode(true); runCurrent()
+        val repo = Repository(); val model = model(repo); runCurrent(); model.requestApproval("3001234567"); runCurrent(); model.verify("123456"); runCurrent()
+        repo.failure = CustomerApiException(429, "Wait before resending"); model.requestApproval("3001234567"); runCurrent()
         assertEquals(CustomerRoute.SetPassword, model.state.value.route)
         repo.failure = null; model.savePassword("password123", true); runCurrent(); assertEquals(1, repo.logins)
     }
@@ -159,14 +223,14 @@ class CustomerViewModelTest {
     }
 
     @Test fun `server retry time blocks verification and resending without another request`() = runTest(dispatcher) {
-        val repo = Repository(); val model = model(repo); runCurrent(); model.start("3001234567"); runCurrent()
+        val repo = Repository(); val model = model(repo); runCurrent(); model.requestApproval("3001234567"); runCurrent()
         repo.failure = CustomerApiException(429, "Too many attempts", "OTP_ATTEMPTS_EXCEEDED", 200)
         model.verify("000000"); runCurrent()
         assertEquals(201000L, model.state.value.verifyBlockedUntil)
         repo.failure = null
         model.verify("123456"); model.requestCode(); runCurrent()
         assertEquals(CustomerRoute.Verify, model.state.value.route)
-        assertEquals(1, repo.starts); assertEquals(0, repo.logins)
+        assertEquals(1, repo.remoteRequests); assertEquals(0, repo.logins)
     }
     @Test fun `unregistered number cannot be resubmitted until edited`() = runTest(dispatcher) {
         val repo = Repository().apply { next = "unregistered" }; val model = model(repo); runCurrent()
@@ -420,66 +484,82 @@ class CustomerViewModelTest {
         override suspend fun authenticate(requestId: String, nonce: String): Boolean { calls++; return approved }
     }
 
-    @Test fun `trusted same phone goes directly to first password setup without sending a code`() = runTest(dispatcher) {
+    @Test fun `same phone asks to confirm verified number before first password setup`() = runTest(dispatcher) {
         val repo = Repository(); val locker = Locker()
         val model = CustomerViewModel(repo, true, locker = locker, clock = { testScheduler.currentTime })
-        runCurrent()
-        assertEquals(CustomerRoute.SetPassword, model.state.value.route)
-        assertEquals("3001234567", model.state.value.phone)
-        assertEquals(0, repo.starts); assertEquals(0, repo.logins); assertEquals(1, repo.exchanges)
+        runCurrent(); assertEquals(0, repo.localRequests)
+        model.continueWithThisPhone(); runCurrent()
+        assertEquals(CustomerRoute.QuickSignin, model.state.value.route)
+        assertTrue(model.state.value.lockerOffer); assertEquals("3001234567", model.state.value.phone)
+        assertEquals("A Customer", model.state.value.verifiedName)
+        assertEquals(0, repo.exchanges); assertEquals(0, repo.logins)
+        model.confirmLockerSignin(); runCurrent()
+        assertEquals(CustomerRoute.SetPassword, model.state.value.route); assertEquals(1, repo.exchanges)
         assertTrue(repo.lastNonce.matches(Regex("[A-Za-z0-9_-]{43}")))
         assertFalse(model.state.value.toString().contains(repo.lastNonce))
         model.savePassword("password123", true); runCurrent()
         assertEquals(CustomerRoute.Home, model.state.value.route)
     }
-    @Test fun `existing customer on trusted phone signs in automatically and loads one overview`() = runTest(dispatcher) {
+    @Test fun `declining verified phone never exchanges a session`() = runTest(dispatcher) {
+        val repo = Repository(); val model = CustomerViewModel(repo, true, locker = Locker())
+        runCurrent(); model.continueWithThisPhone(); runCurrent(); model.dismissLockerOffer()
+        assertEquals(CustomerRoute.Phone, model.state.value.route); assertEquals(0, repo.exchanges)
+    }
+    @Test fun `existing customer also confirms phone before session exchange`() = runTest(dispatcher) {
         val repo = Repository().apply { deviceIdentity = DeviceIdentity("session") }
-        val model = CustomerViewModel(repo, true, locker = Locker(), clock = { testScheduler.currentTime })
-        runCurrent()
+        val model = CustomerViewModel(repo, true, locker = Locker())
+        runCurrent(); model.continueWithThisPhone(); runCurrent()
+        assertEquals(0, repo.reads); assertEquals(0, repo.exchanges)
+        model.confirmLockerSignin(); runCurrent()
         assertEquals(CustomerRoute.Home, model.state.value.route); assertEquals(1, repo.reads)
-        assertEquals(0, repo.starts)
     }
-    @Test fun `missing or rejecting Locker fails closed with password and recovery still available`() = runTest(dispatcher) {
-        val missing = Repository()
-        val first = CustomerViewModel(missing, true, locker = Locker(available = false), clock = { testScheduler.currentTime })
-        runCurrent(); assertEquals(0, missing.localRequests); first.begin(); runCurrent()
-        assertEquals(CustomerRoute.Phone, first.state.value.route)
-        val rejected = Repository()
-        val second = CustomerViewModel(rejected, true, locker = Locker(approved = false), clock = { testScheduler.currentTime })
-        runCurrent(); assertEquals(CustomerRoute.Phone, second.state.value.route)
-        assertEquals(0, rejected.exchanges); assertEquals(1, rejected.cancellations); assertNotNull(second.state.value.message)
+    @Test fun `missing or rejecting Locker returns to choices without exchanging`() = runTest(dispatcher) {
+        for (locker in listOf(Locker(available = false), Locker(approved = false))) {
+            val repo = Repository(); val model = CustomerViewModel(repo, true, locker = locker)
+            runCurrent(); model.continueWithThisPhone(); runCurrent()
+            assertEquals(CustomerRoute.Phone, model.state.value.route)
+            assertEquals(0, repo.exchanges); assertNotNull(model.state.value.message)
+        }
     }
-    @Test fun `remote approval does not sign in until backend proof and stops polling in background`() = runTest(dispatcher) {
+    @Test fun `remote OTP does not poll or exchange until code verification`() = runTest(dispatcher) {
         val repo = Repository(); val model = CustomerViewModel(repo, true, clock = { testScheduler.currentTime })
-        runCurrent(); model.authForeground(true); model.requestApproval("3001234567"); runCurrent()
-        assertEquals(CustomerRoute.Approval, model.state.value.route); assertEquals("123", model.state.value.signinNumber)
-        assertEquals(0, repo.exchanges)
-        val before = repo.claims; model.authForeground(false); advanceTimeBy(15_000); runCurrent()
-        assertEquals(before, repo.claims)
-        repo.remoteState = DeviceClaim("approved", "t".repeat(43))
-        model.authForeground(true); runCurrent()
+        runCurrent(); model.requestApproval("3001234567"); runCurrent()
+        assertEquals(CustomerRoute.Verify, model.state.value.route); assertEquals(0, repo.exchanges)
+        advanceTimeBy(15_000); runCurrent(); assertEquals(0, repo.claims)
+        model.verify("123456"); runCurrent()
         assertEquals(CustomerRoute.SetPassword, model.state.value.route); assertEquals(1, repo.exchanges)
-        assertNull(model.state.value.signinNumber)
     }
-    @Test fun `cancelled denied and expired requests never create a session`() = runTest(dispatcher) {
+    @Test fun `cancelled and expired OTP requests never create a session`() = runTest(dispatcher) {
         val repo = Repository(); val model = CustomerViewModel(repo, true, clock = { testScheduler.currentTime })
-        runCurrent(); model.authForeground(true); model.requestApproval("3001234567"); runCurrent(); model.back(); runCurrent()
-        assertEquals(CustomerRoute.Phone, model.state.value.route); assertEquals(1, repo.cancellations)
-        advanceTimeBy(10_000); runCurrent(); assertEquals(0, repo.exchanges)
-        repo.remoteState = DeviceClaim("denied"); model.requestApproval("3001234567"); runCurrent()
-        assertFalse(model.state.value.approvalPending); assertEquals(0, repo.exchanges)
-        repo.remoteState = DeviceClaim("pending"); model.requestApproval("3001234567"); runCurrent()
-        advanceTimeBy(180_001); runCurrent()
-        assertFalse(model.state.value.approvalPending); assertEquals(0, repo.exchanges)
+        runCurrent(); model.requestApproval("3001234567"); runCurrent(); model.back(); runCurrent()
+        model.verify("123456"); runCurrent(); assertEquals(0, repo.exchanges); assertEquals(1, repo.cancellations)
+        model.requestApproval("3001234567"); runCurrent(); advanceTimeBy(180_001); runCurrent()
+        model.verify("123456"); runCurrent(); assertEquals(0, repo.exchanges)
     }
-    @Test fun `explicit logout suppresses automatic sign in on the next launch`() = runTest(dispatcher) {
-        val repo = Repository().apply { deviceIdentity = DeviceIdentity("session") }; val changes = mutableListOf<Boolean>()
-        val model = CustomerViewModel(repo, true, locker = Locker(), setAutoSigninAllowed = { changes += it }, clock = { testScheduler.currentTime })
-        runCurrent(); model.logout(); runCurrent()
-        assertEquals(false, changes.last()); assertEquals(CustomerRoute.Welcome, model.state.value.route)
-        val next = Repository()
-        CustomerViewModel(next, true, locker = Locker(), allowDeviceAutoSignin = false, clock = { testScheduler.currentTime })
-        runCurrent(); assertEquals(0, next.localRequests)
+    @Test fun `password choice routes first time number through verification before creation`() = runTest(dispatcher) {
+        val repo = Repository(); val model = model(repo); runCurrent()
+        model.usePassword("3001234567"); runCurrent(); assertEquals(CustomerRoute.Verify, model.state.value.route)
+        model.savePassword("password123", true); runCurrent(); assertEquals(0, repo.logins)
+    }
+    @Test fun `password screen Locker sign in binds the typed phone and rejects a mismatch`() = runTest(dispatcher) {
+        val repo = Repository().apply { next = "password"; verifiedPhone = "03009999999" }
+        val model = CustomerViewModel(repo, true, locker = Locker())
+        runCurrent(); model.start("3001234567"); runCurrent()
+        model.askLockerSignin(); runCurrent(); model.confirmLockerSignin(); runCurrent()
+        assertEquals("03001234567", repo.localPhone)
+        assertEquals(0, repo.exchanges); assertEquals(CustomerRoute.Password, model.state.value.route)
+    }
+    @Test fun `code fallback from local discovery without number opens number entry`() = runTest(dispatcher) {
+        val repo = Repository(); val gate = CompletableDeferred<Unit>()
+        val locker = object : LockerAuthenticator {
+            override suspend fun available(): Boolean { gate.await(); return true }
+            override suspend fun authenticate(requestId: String, nonce: String) = true
+        }
+        val model = CustomerViewModel(repo, true, locker = locker)
+        runCurrent(); model.continueWithThisPhone(); runCurrent()
+        assertTrue(model.state.value.busy); model.useCodeInstead(); runCurrent()
+        assertEquals(CustomerRoute.Phone, model.state.value.route); assertFalse(model.state.value.busy)
+        gate.complete(Unit); runCurrent(); assertEquals(0, repo.exchanges)
     }
 
 }

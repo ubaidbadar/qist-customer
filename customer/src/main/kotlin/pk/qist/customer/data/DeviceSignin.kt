@@ -4,7 +4,7 @@ import java.security.SecureRandom
 import okio.ByteString.Companion.toByteString
 
 internal data class DeviceChallenge(val requestId: String, val expiresAt: String, val number: String? = null)
-internal data class DeviceClaim(val state: String, val ticket: String? = null) {
+internal data class DeviceClaim(val state: String, val ticket: String? = null, val phone: String? = null, val name: String? = null) {
     override fun toString() = "DeviceClaim(state=$state)"
 }
 internal data class DeviceIdentity(val next: String, val phone: String? = null, val setupToken: String? = null) {
