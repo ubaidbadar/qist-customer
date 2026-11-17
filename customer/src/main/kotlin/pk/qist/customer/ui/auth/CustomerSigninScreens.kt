@@ -11,7 +11,6 @@ import pk.qist.customer.ui.CustomerState
 import pk.qist.customer.ui.CustomerViewModel
 import pk.qist.customer.ui.customerPhonePattern
 import pk.qist.customer.ui.customerVerificationCodePattern
-import pk.qist.customer.ui.customerVerificationCodePattern
 import pk.qist.customer.ui.localization.copy
 
 /** Text entry invalidates only this screen; secrets are never saved with instance state. */
