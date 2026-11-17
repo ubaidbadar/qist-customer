@@ -90,6 +90,9 @@ class CustomerViewModelTest {
         assertEquals(CustomerRoute.Verify, model.state.value.route)
         assertTrue(model.state.value.passwordAvailable)
         assertEquals(1, repo.remoteRequests)
+        model.usePassword("3001234567"); runCurrent()
+        assertEquals(CustomerRoute.Password, model.state.value.route)
+        assertEquals(1, repo.starts) // Back from OTP reuses the original account lookup.
         model.back(); runCurrent()
         assertEquals(CustomerRoute.Phone, model.state.value.route)
     }
