@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
+      - name: Verify lossless image and logo assets
+        run: python3 qa/verify_lossless_assets.py
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
