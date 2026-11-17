@@ -14,9 +14,6 @@ internal class CustomerPreferences(context: Context) {
     val customerActive: Boolean get() = notifications.getBoolean("active", false)
     fun setCustomerActive(active: Boolean) { notifications.edit().putBoolean("active", active).apply() }
 
-    val allowDeviceAutoSignin: Boolean get() = privacy.getBoolean("device_auto_signin", true)
-    fun setDeviceAutoSignin(allowed: Boolean) { privacy.edit().putBoolean("device_auto_signin", allowed).apply() }
-
     val urdu: Boolean get() = privacy.getBoolean("urdu", java.util.Locale.getDefault().language == "ur")
     fun setUrdu(urdu: Boolean) { privacy.edit().putBoolean("urdu", urdu).apply() }
 
