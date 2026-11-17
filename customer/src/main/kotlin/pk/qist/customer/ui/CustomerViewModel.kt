@@ -209,7 +209,7 @@ internal class CustomerViewModel(
             return
         }
         if (!authenticator.available()) {
-            mutable.value = mutable.value.copy(route = CustomerRoute.Methods, message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.")
+            mutable.value = mutable.value.copy(route = localFallbackRoute, message = "Qist Locker is not available on this phone. Use a code from your financed phone or your password.")
             return
         }
         mutable.value = mutable.value.copy(signinStage = 1)
@@ -298,7 +298,12 @@ internal class CustomerViewModel(
         if (mutable.value.busy || !phone.matches(Regex("3[0-9]{9}"))) return
         preferCode = false
         abandonSignin()
-        start(phone)
+        if (mutable.value.phone == phone && mutable.value.passwordAvailable) {
+            // Account status was already checked. Don't repeat the lookup when leaving OTP.
+            mutable.value = mutable.value.copy(route = CustomerRoute.Password, message = null)
+        } else {
+            start(phone)
+        }
     }
 
     fun back() {
