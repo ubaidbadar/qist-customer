@@ -22,7 +22,6 @@ import pk.qist.customer.ui.theme.Blue
 import pk.qist.customer.ui.theme.BrandGradientStart
 import pk.qist.customer.ui.theme.Muted
 import pk.qist.customer.ui.theme.Navy
-import pk.qist.customer.ui.theme.QistSpacing
 
 /**
  * Preserve the original Qist welcome design, while keeping the newer Locker,
@@ -31,10 +30,8 @@ import pk.qist.customer.ui.theme.QistSpacing
 @Composable
 internal fun SigninMethodsScreen(
     message: String?,
-    onPhone: () -> Unit,
-    onCode: () -> Unit,
-    onPassword: () -> Unit,
-    onLanguage: () -> Unit = {},
+    onContinue: () -> Unit,
+    onLanguage: () -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().background(Navy).systemBarsPadding()
@@ -79,24 +76,11 @@ internal fun SigninMethodsScreen(
                 textAlign = TextAlign.Center,
             )
             if (message != null) {
-                Spacer(Modifier.height(QistSpacing.Item))
+                Spacer(Modifier.height(16.dp))
                 AuthError(message)
             }
-            Spacer(Modifier.height(20.dp))
-            TextButton(
-                onClick = onCode,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text(copy("Get a code on your financed phone", "اپنے قسط والے فون پر کوڈ لیں"), color = Color.White, textAlign = TextAlign.Center)
-            }
-            TextButton(
-                onClick = onPassword,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text(copy("Use your password", "اپنا پاس ورڈ استعمال کریں"), color = Color.White)
-            }
         }
-        Pill(copy("Continue with this phone", "اسی فون سے جاری رکھیں"), onPhone, true)
+        Pill(copy("Get started", "شروع کریں"), onContinue, true)
         Spacer(Modifier.height(12.dp))
         Text(
             copy("New here? Your retailer adds you to Qist.", "نئے ہیں؟ آپ کا دکاندار آپ کو قسط میں شامل کرتا ہے۔"),
