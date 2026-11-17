@@ -69,7 +69,7 @@ android {
                 }
             )
             .get()
-        versionName = "0.2.1"
+        versionName = "0.2.2"
         val customerApiUrl = resolveEnv("CUSTOMER_API_URL", "qist.customer.apiUrl")
             ?: resolveEnv("API_URL")?.trimEnd('/')?.let { "$it/customer-app/" }
             ?: "https://qist.restora.live/api/v1/customer-app/"
@@ -149,6 +149,7 @@ dependencies {
     implementation(libs.play.app.update)
     implementation(libs.play.auth)
     implementation(libs.coroutines.android)
+    implementation(libs.work.runtime)
     implementation(libs.okhttp)
     implementation(libs.serialization.json)
     androidTestImplementation(platform(libs.compose.bom))

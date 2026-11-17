@@ -20,7 +20,7 @@ import pk.qist.customer.ui.plan.PlanDetails
 import pk.qist.customer.ui.profile.*
 import pk.qist.customer.ui.theme.*
 
-private enum class DashboardPage { Content, Phones, Contact, Inbox, Receipt, About, Terms, Privacy, AboutPrivacy, Help }
+private enum class DashboardPage { Content, Phones, Contact, Inbox, Receipt, About, Terms, Privacy, AboutPrivacy, Help, Documents }
 
 @Composable
 internal fun Dashboard(
@@ -54,6 +54,7 @@ internal fun Dashboard(
     fun back() { page = if (page == DashboardPage.Terms || page == DashboardPage.AboutPrivacy) DashboardPage.About else DashboardPage.Content }
     BackHandler(page !in listOf(DashboardPage.Content, DashboardPage.Phones, DashboardPage.Contact), onBack = ::back)
     when (page) {
+        DashboardPage.Documents -> { data.id?.let { pk.qist.customer.documents.DocumentsScreen(it, data.retailer, ::back) }; return }
         DashboardPage.About -> { AboutScreen(busy, message, ::back, { page = DashboardPage.Terms }, { page = DashboardPage.AboutPrivacy }, onDeleteAccount); return }
         DashboardPage.Terms -> { TermsOfService(::back); return }
         DashboardPage.Privacy, DashboardPage.AboutPrivacy, DashboardPage.Help -> {
@@ -90,7 +91,7 @@ internal fun Dashboard(
                     CustomerTab.Home -> HomeOverview(data, visibleMessage, data.notifications.any { !it.read }, onHelp,
                         { onTab(CustomerTab.Payments) }, { page = DashboardPage.Phones }, { page = DashboardPage.Inbox }, { page = DashboardPage.Contact })
                     CustomerTab.Payments -> PaymentHistory(data, busy, visibleMessage, onMore) { receiptId = it.id; page = DashboardPage.Receipt }
-                    CustomerTab.Plan -> PlanDetails(data, visibleMessage) { page = DashboardPage.Phones }
+                    CustomerTab.Plan -> PlanDetails(data, visibleMessage, onDocuments = { page = DashboardPage.Documents }) { page = DashboardPage.Phones }
                     CustomerTab.Profile -> ProfileTab(data, phone, preferences, notificationStatus, visibleMessage, onLanguage, onLogout) { route ->
                         page = when (route) { "about" -> DashboardPage.About; "privacy" -> DashboardPage.Privacy; "help" -> DashboardPage.Help; else -> DashboardPage.Content }
                     }
