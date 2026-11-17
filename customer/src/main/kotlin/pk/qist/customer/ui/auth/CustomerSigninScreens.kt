@@ -9,6 +9,9 @@ import pk.qist.customer.platform.PhoneNumberHint
 import pk.qist.customer.ui.CustomerRoute
 import pk.qist.customer.ui.CustomerState
 import pk.qist.customer.ui.CustomerViewModel
+import pk.qist.customer.ui.customerPhonePattern
+import pk.qist.customer.ui.customerVerificationCodePattern
+import pk.qist.customer.ui.customerVerificationCodePattern
 import pk.qist.customer.ui.localization.copy
 
 /** Text entry invalidates only this screen; secrets are never saved with instance state. */
@@ -20,7 +23,7 @@ internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
         copy("Use the number registered with your retailer.", "اپنے دکاندار کے پاس رجسٹرڈ نمبر استعمال کریں۔"),
         copy("Continue", "جاری رکھیں"), model::back, { model.start(phone) },
         footer = copy("Not registered? Contact your retailer.", "رجسٹرڈ نہیں؟ دکاندار سے رابطہ کریں۔"), busy = state.busy,
-        enabled = phone.matches(Regex("3[0-9]{9}")) && !state.phoneNotRegistered,
+        enabled = phone.matches(customerPhonePattern) && !state.phoneNotRegistered,
     ) {
         PhoneField(phone, state.phoneNotRegistered) { if (!state.busy) { phone = normalizePhone(it); model.editPhone() } }
         PhoneNumberHint(phone.isEmpty(), !state.busy) { phone = it; model.editPhone() }
@@ -64,7 +67,7 @@ internal fun CodeSigninScreen(state: CustomerState, model: CustomerViewModel) {
             OutlinedButton(onClick = {
                 val manager = context.getSystemService(android.content.ClipboardManager::class.java)
                 val pasted = try { manager.primaryClip?.getItemAt(0)?.text?.toString()?.trim() } catch (_: SecurityException) { null }
-                if (pasted?.matches(Regex("[0-9]{6}")) == true) { code = pasted; clipboardError = null; model.editCode() }
+                if (pasted?.matches(customerVerificationCodePattern) == true) { code = pasted; clipboardError = null; model.editCode() }
                 else clipboardError = "Copy the six-digit code from Qist Locker first."
             }, enabled = !state.busy) { Text(copy("Paste code", "کوڈ پیسٹ کریں")) }
             TextButton(onClick = model::askLockerSignin, enabled = !state.busy) {
