@@ -9,6 +9,7 @@ import pk.qist.customer.platform.PhoneNumberHint
 import pk.qist.customer.ui.CustomerRoute
 import pk.qist.customer.ui.CustomerState
 import pk.qist.customer.ui.CustomerViewModel
+import pk.qist.customer.ui.customerPhonePattern
 import pk.qist.customer.ui.localization.copy
 
 /** Text entry invalidates only this screen; secrets are never saved with instance state. */
@@ -20,7 +21,7 @@ internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
         copy("Use the number registered with your retailer.", "اپنے دکاندار کے پاس رجسٹرڈ نمبر استعمال کریں۔"),
         copy("Continue", "جاری رکھیں"), model::back, { model.start(phone) },
         footer = copy("Not registered? Contact your retailer.", "رجسٹرڈ نہیں؟ دکاندار سے رابطہ کریں۔"), busy = state.busy,
-        enabled = phone.matches(Regex("3[0-9]{9}")) && !state.phoneNotRegistered,
+        enabled = phone.matches(customerPhonePattern) && !state.phoneNotRegistered,
     ) {
         PhoneField(phone, state.phoneNotRegistered) { if (!state.busy) { phone = normalizePhone(it); model.editPhone() } }
         PhoneNumberHint(phone.isEmpty(), !state.busy) { phone = it; model.editPhone() }
