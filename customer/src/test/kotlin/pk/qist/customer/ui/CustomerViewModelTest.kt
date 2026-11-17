@@ -36,7 +36,13 @@ class CustomerViewModelTest {
         var pushGate: CompletableDeferred<Unit>? = null
         override suspend fun registerPush(token: String) { pushCalls++; pushGate?.await(); failure?.let { throw it } }
         override suspend fun unregisterPush() { pushCalls++; failure?.let { throw it } }
-        override suspend fun readNotifications(ids: List<String>) = Unit
+        val notificationReads = mutableListOf<List<String>>()
+        var notifications: List<CustomerNotice> = emptyList()
+        var notificationGate: CompletableDeferred<Unit>? = null
+        override suspend fun readNotifications(ids: List<String>) {
+            notificationReads += ids
+            notificationGate?.await()
+        }
         var next = "otp"
         var reads = 0
         val requestedPlans = mutableListOf<String?>()
@@ -52,7 +58,7 @@ class CustomerViewModelTest {
         override suspend fun setPassword(phone: String, setupToken: String, password: String) { assertEquals("proof", setupToken); failure?.let { throw it }; logins++ }
         override suspend fun resetPassword(phone: String, code: String, password: String) = Unit
         override suspend fun login(phone: String, password: String) { failure?.let { throw it }; logins++ }
-        override suspend fun dashboard(contractId: String?): DashboardSample { reads++; requestedPlans.add(contractId); gate?.await(); failure?.let { throw it }; return parseOverview(overviewFixture()).let { it.copy(contractId = contractId ?: it.id) } }
+        override suspend fun dashboard(contractId: String?): DashboardSample { reads++; requestedPlans.add(contractId); gate?.await(); failure?.let { throw it }; return parseOverview(overviewFixture()).let { it.copy(contractId = contractId ?: it.id, notifications = notifications) } }
         override suspend fun payments(contractId: String, cursor: String): PaymentPage { failure?.let { throw it }; return PaymentPage(parseOverview(overviewFixture()).payments, null) }
         override suspend fun logout() = Unit
         override suspend fun clearSession() { clears++ }
@@ -248,6 +254,54 @@ class CustomerViewModelTest {
         model.onForeground(); model.onForeground(); runCurrent(); assertEquals(2, repo.reads)
         gate.complete(Unit); runCurrent(); assertFalse(model.state.value.busy); assertFalse(model.state.value.refreshing)
     }
+    @Test fun `opening a notification for the active plan never reloads the dashboard or shows skeleton`() = runTest(dispatcher) {
+        val notice = CustomerNotice("notice-a", "plan-a", "payment_received", "Payment", "Paid", "today", false)
+        val repo = Repository().apply { restored = true; notifications = listOf(notice) }
+        val model = model(repo); runCurrent()
+        assertEquals("plan-a", model.state.value.data?.id)
+        assertEquals(1, repo.reads)
+
+        repo.notificationGate = CompletableDeferred()
+        model.openNotification("notice-a"); runCurrent()
+        assertEquals(listOf(listOf("notice-a")), repo.notificationReads)
+        assertEquals(1, repo.reads)
+        assertFalse(model.state.value.switchingPlan)
+        assertEquals("plan-a", model.state.value.data?.id)
+
+        repo.notificationGate!!.complete(Unit); runCurrent()
+        assertTrue(model.state.value.data!!.notifications.single().read)
+        assertEquals(1, repo.reads)
+        assertFalse(model.state.value.switchingPlan)
+        assertFalse(model.state.value.refreshing)
+    }
+
+    @Test fun `opening an already read active plan notification does not request anything`() = runTest(dispatcher) {
+        val notice = CustomerNotice("notice-a", "plan-a", "payment_received", "Payment", "Paid", "today", true)
+        val repo = Repository().apply { restored = true; notifications = listOf(notice) }
+        val model = model(repo); runCurrent()
+        model.openNotification("notice-a"); runCurrent()
+        assertTrue(repo.notificationReads.isEmpty())
+        assertEquals(1, repo.reads)
+        assertFalse(model.state.value.switchingPlan)
+    }
+
+    @Test fun `opening a notification for another plan switches only to the target plan`() = runTest(dispatcher) {
+        val notice = CustomerNotice("notice-b", "plan-b", "payment_received", "Payment", "Paid", "today", false)
+        val repo = Repository().apply { restored = true; notifications = listOf(notice) }
+        val model = model(repo); runCurrent()
+        repo.gate = CompletableDeferred()
+        model.openNotification("notice-b"); runCurrent()
+        assertEquals(listOf(listOf("notice-b")), repo.notificationReads)
+        assertEquals(listOf(null, "plan-b"), repo.requestedPlans)
+        assertTrue(model.state.value.switchingPlan)
+        assertEquals("plan-a", model.state.value.data?.id)
+
+        repo.gate!!.complete(Unit); runCurrent()
+        assertEquals("plan-b", model.state.value.data?.id)
+        assertFalse(model.state.value.switchingPlan)
+        assertEquals(2, repo.reads)
+    }
+
     @Test fun `notification update keeps content visible without pull indicator`() = runTest(dispatcher) {
         val repo = Repository().apply { restored = true }; val model = model(repo); runCurrent()
         val old = model.state.value.data; val gate = CompletableDeferred<Unit>(); repo.gate = gate
