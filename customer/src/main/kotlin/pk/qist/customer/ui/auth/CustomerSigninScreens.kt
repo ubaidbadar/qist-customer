@@ -10,6 +10,7 @@ import pk.qist.customer.ui.CustomerRoute
 import pk.qist.customer.ui.CustomerState
 import pk.qist.customer.ui.CustomerViewModel
 import pk.qist.customer.ui.customerPhonePattern
+import pk.qist.customer.ui.customerVerificationCodePattern
 import pk.qist.customer.ui.localization.copy
 
 /** Text entry invalidates only this screen; secrets are never saved with instance state. */
@@ -65,7 +66,7 @@ internal fun CodeSigninScreen(state: CustomerState, model: CustomerViewModel) {
             OutlinedButton(onClick = {
                 val manager = context.getSystemService(android.content.ClipboardManager::class.java)
                 val pasted = try { manager.primaryClip?.getItemAt(0)?.text?.toString()?.trim() } catch (_: SecurityException) { null }
-                if (pasted?.matches(Regex("[0-9]{6}")) == true) { code = pasted; clipboardError = null; model.editCode() }
+                if (pasted?.matches(customerVerificationCodePattern) == true) { code = pasted; clipboardError = null; model.editCode() }
                 else clipboardError = "Copy the six-digit code from Qist Locker first."
             }, enabled = !state.busy) { Text(copy("Paste code", "کوڈ پیسٹ کریں")) }
             TextButton(onClick = model::askLockerSignin, enabled = !state.busy) {
