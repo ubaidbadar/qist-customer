@@ -510,7 +510,7 @@ class CustomerViewModelTest {
 
     @Test fun `first time customer sees OTP immediately and can choose local Locker verification`() = runTest(dispatcher) {
         val repo = Repository()
-        val model = CustomerViewModel(repo, true, locker = Locker())
+        val model = CustomerViewModel(repo, true, locker = Locker(), clock = { testScheduler.currentTime })
         runCurrent()
         model.begin()
         model.start("3001234567"); runCurrent()
