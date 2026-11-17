@@ -479,48 +479,65 @@ class CustomerViewModelTest {
     }
 
     private class Locker(private val available: Boolean = true, private val approved: Boolean = true) : LockerAuthenticator {
-        var calls = 0
         override suspend fun available() = available
-        override suspend fun authenticate(requestId: String, nonce: String): Boolean { calls++; return approved }
+        override suspend fun authenticate(requestId: String, nonce: String): Boolean = approved
     }
 
-    @Test fun `same phone asks to confirm verified number before first password setup`() = runTest(dispatcher) {
-        val repo = Repository(); val locker = Locker()
-        val model = CustomerViewModel(repo, true, locker = locker, clock = { testScheduler.currentTime })
-        runCurrent(); assertEquals(0, repo.localRequests)
-        model.continueWithThisPhone(); runCurrent()
-        assertEquals(CustomerRoute.QuickSignin, model.state.value.route)
-        assertTrue(model.state.value.lockerOffer); assertEquals("3001234567", model.state.value.phone)
-        assertEquals("A Customer", model.state.value.verifiedName)
-        assertEquals(0, repo.exchanges); assertEquals(0, repo.logins)
+    @Test fun `dismissing Locker confirmation keeps OTP verification available`() = runTest(dispatcher) {
+        val repo = Repository()
+        val model = CustomerViewModel(repo, true, locker = Locker(), clock = { testScheduler.currentTime })
+        runCurrent()
+        model.start("3001234567"); runCurrent()
+        model.askLockerSignin(); runCurrent()
+        assertTrue(model.state.value.lockerOffer)
+        model.dismissLockerOffer()
+        assertEquals(CustomerRoute.Verify, model.state.value.route)
+        assertFalse(model.state.value.lockerOffer)
+        assertEquals(0, repo.localRequests)
+        assertEquals(0, repo.exchanges)
+        model.verify("123456"); runCurrent()
+        assertEquals(CustomerRoute.SetPassword, model.state.value.route)
+    }
+
+    @Test fun `existing customer can sign in with Locker after phone lookup`() = runTest(dispatcher) {
+        val repo = Repository().apply {
+            next = "password"
+            deviceIdentity = DeviceIdentity("session")
+        }
+        val model = CustomerViewModel(repo, true, locker = Locker())
+        runCurrent()
+        model.start("3001234567"); runCurrent()
+        assertEquals(CustomerRoute.Password, model.state.value.route)
+        model.askLockerSignin(); runCurrent()
         model.confirmLockerSignin(); runCurrent()
-        assertEquals(CustomerRoute.SetPassword, model.state.value.route); assertEquals(1, repo.exchanges)
-        assertTrue(repo.lastNonce.matches(Regex("[A-Za-z0-9_-]{43}")))
-        assertFalse(model.state.value.toString().contains(repo.lastNonce))
-        model.savePassword("password123", true); runCurrent()
+        assertEquals("03001234567", repo.localPhone)
+        assertEquals(1, repo.exchanges)
+        assertEquals(1, repo.reads)
         assertEquals(CustomerRoute.Home, model.state.value.route)
     }
-    @Test fun `declining verified phone never exchanges a session`() = runTest(dispatcher) {
-        val repo = Repository(); val model = CustomerViewModel(repo, true, locker = Locker())
-        runCurrent(); model.continueWithThisPhone(); runCurrent(); model.dismissLockerOffer()
-        assertEquals(CustomerRoute.Phone, model.state.value.route); assertEquals(0, repo.exchanges)
+
+    @Test fun `unavailable or rejecting Locker keeps the current sign in route`() = runTest(dispatcher) {
+        val unavailableRepo = Repository()
+        val unavailableModel = CustomerViewModel(unavailableRepo, true, locker = Locker(available = false))
+        runCurrent()
+        unavailableModel.start("3001234567"); runCurrent()
+        unavailableModel.askLockerSignin(); runCurrent()
+        assertEquals(CustomerRoute.Verify, unavailableModel.state.value.route)
+        assertFalse(unavailableModel.state.value.lockerOffer)
+        assertNotNull(unavailableModel.state.value.message)
+        assertEquals(0, unavailableRepo.exchanges)
+
+        val rejectingRepo = Repository()
+        val rejectingModel = CustomerViewModel(rejectingRepo, true, locker = Locker(approved = false))
+        runCurrent()
+        rejectingModel.start("3001234567"); runCurrent()
+        rejectingModel.askLockerSignin(); runCurrent()
+        rejectingModel.confirmLockerSignin(); runCurrent()
+        assertEquals(CustomerRoute.Verify, rejectingModel.state.value.route)
+        assertNotNull(rejectingModel.state.value.message)
+        assertEquals(0, rejectingRepo.exchanges)
     }
-    @Test fun `existing customer also confirms phone before session exchange`() = runTest(dispatcher) {
-        val repo = Repository().apply { deviceIdentity = DeviceIdentity("session") }
-        val model = CustomerViewModel(repo, true, locker = Locker())
-        runCurrent(); model.continueWithThisPhone(); runCurrent()
-        assertEquals(0, repo.reads); assertEquals(0, repo.exchanges)
-        model.confirmLockerSignin(); runCurrent()
-        assertEquals(CustomerRoute.Home, model.state.value.route); assertEquals(1, repo.reads)
-    }
-    @Test fun `missing or rejecting Locker returns to choices without exchanging`() = runTest(dispatcher) {
-        for (locker in listOf(Locker(available = false), Locker(approved = false))) {
-            val repo = Repository(); val model = CustomerViewModel(repo, true, locker = locker)
-            runCurrent(); model.continueWithThisPhone(); runCurrent()
-            assertEquals(CustomerRoute.Phone, model.state.value.route)
-            assertEquals(0, repo.exchanges); assertNotNull(model.state.value.message)
-        }
-    }
+
     @Test fun `remote OTP does not poll or exchange until code verification`() = runTest(dispatcher) {
         val repo = Repository(); val model = CustomerViewModel(repo, true, clock = { testScheduler.currentTime })
         runCurrent(); model.requestApproval("3001234567"); runCurrent()
@@ -549,17 +566,31 @@ class CustomerViewModelTest {
         assertEquals("03001234567", repo.localPhone)
         assertEquals(0, repo.exchanges); assertEquals(CustomerRoute.Password, model.state.value.route)
     }
-    @Test fun `code fallback from local discovery without number opens number entry`() = runTest(dispatcher) {
-        val repo = Repository(); val gate = CompletableDeferred<Unit>()
+    @Test fun `use code instead cancels Locker sign in and requests a fresh challenge`() = runTest(dispatcher) {
+        val repo = Repository()
+        val gate = CompletableDeferred<Unit>()
         val locker = object : LockerAuthenticator {
-            override suspend fun available(): Boolean { gate.await(); return true }
-            override suspend fun authenticate(requestId: String, nonce: String) = true
+            override suspend fun available() = true
+            override suspend fun authenticate(requestId: String, nonce: String): Boolean {
+                gate.await()
+                return true
+            }
         }
-        val model = CustomerViewModel(repo, true, locker = locker)
-        runCurrent(); model.continueWithThisPhone(); runCurrent()
-        assertTrue(model.state.value.busy); model.useCodeInstead(); runCurrent()
-        assertEquals(CustomerRoute.Phone, model.state.value.route); assertFalse(model.state.value.busy)
-        gate.complete(Unit); runCurrent(); assertEquals(0, repo.exchanges)
+        val model = CustomerViewModel(repo, true, locker = locker, clock = { testScheduler.currentTime })
+        runCurrent()
+        model.start("3001234567"); runCurrent()
+        model.askLockerSignin(); runCurrent()
+        model.confirmLockerSignin(); runCurrent()
+        assertEquals(CustomerRoute.QuickSignin, model.state.value.route)
+        assertTrue(model.state.value.busy)
+        model.useCodeInstead(); runCurrent()
+        assertEquals(CustomerRoute.Verify, model.state.value.route)
+        assertFalse(model.state.value.busy)
+        assertEquals(2, repo.remoteRequests)
+        assertEquals(1, repo.localRequests)
+        assertEquals(0, repo.exchanges)
+        gate.complete(Unit); runCurrent()
+        assertEquals(0, repo.exchanges)
     }
 
 }
