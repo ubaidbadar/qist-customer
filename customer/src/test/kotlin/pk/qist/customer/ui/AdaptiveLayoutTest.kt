@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -53,7 +54,14 @@ class AdaptiveLayoutTest {
             compose.onNodeWithTag(tag).assertIsDisplayed().performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertTrue(layouts.isNotEmpty())
             val layout = layouts.single()
-            assertFalse("$tag: size=${layout.size}, lines=${layout.lineCount}, width=${layout.didOverflowWidth}, height=${layout.didOverflowHeight}, constraints=${layout.layoutInput.constraints}", layout.hasVisualOverflow)
+            // Paragraph.width includes the allocated wrapping width, not the painted glyph width.
+            // Check every rendered line and its last character against the actual available space.
+            assertFalse("$tag loses text vertically", layout.didOverflowHeight)
+            assertEquals(layout.layoutInput.text.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
+            for (line in 0 until layout.lineCount) {
+                val width = layout.getLineRight(line) - layout.getLineLeft(line)
+                assertTrue("$tag line $line exceeds its content width: $width", width <= layout.layoutInput.constraints.maxWidth + 1f)
+            }
         }
     }
 
