@@ -61,7 +61,7 @@ internal fun HomeOverview(data: DashboardSample, message: String?, unread: Boole
                     Pill(copy("Contact your retailer", "اپنے دکاندار سے رابطہ کریں"), onContact)
                 }
             }
-            if (data.id != null) Panel(Modifier.clickable(onClickLabel = copy("Switch phone", "فون بدلیں"), onClick = onPhones)) {
+            if (data.id != null) Panel(Modifier.testTag("home-phone-card").clickable(onClickLabel = copy("Switch phone", "فون بدلیں"), onClick = onPhones)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(QistSpacing.Item)) {
                     ScreenBadge(R.drawable.phone_outline, Blue, Blue.copy(alpha = 0.08f), 44)
                     Column(Modifier.weight(1f)) {
@@ -157,7 +157,7 @@ private fun InstallmentCard(data: DashboardSample, onHelp: () -> Unit, onReceipt
 
 @Composable
 private fun PaymentsCard(payments: List<PaymentSample>, onViewAll: (() -> Unit)? = null) {
-    Panel {
+    Panel(Modifier.testTag("home-payments-card")) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(copy("Recent payments", "حالیہ ادائیگیاں"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
             if (onViewAll != null) TextButton(onClick = onViewAll) { Text(copy("View all", "تمام دیکھیں")) }
