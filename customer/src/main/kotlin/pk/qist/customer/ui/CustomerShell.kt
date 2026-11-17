@@ -27,7 +27,7 @@ import pk.qist.customer.ui.payments.HowToPay
 import pk.qist.customer.ui.profile.PrivacyPolicy
 import pk.qist.customer.ui.profile.ServiceAvailabilityScreen
 
-internal enum class CustomerRoute { Welcome, Methods, Phone, Password, Verify, SetPassword, QuickSignin, VerifyDevice, Consent, Home, SessionExpired }
+internal enum class CustomerRoute { Welcome, Phone, Password, Verify, SetPassword, QuickSignin, Consent, Home, SessionExpired }
 internal enum class CustomerTab { Home, Payments, Plan, Profile }
 
 @Composable
@@ -53,7 +53,7 @@ internal fun CustomerShell() {
     LaunchedEffect(state.route) {
         if (state.route == CustomerRoute.Welcome || state.route == CustomerRoute.SessionExpired) { tab = CustomerTab.Home; paymentHelp = false }
     }
-    BackHandler(state.serviceGate == null && state.route in listOf(CustomerRoute.Phone, CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword, CustomerRoute.QuickSignin, CustomerRoute.VerifyDevice), onBack = model::back)
+    BackHandler(state.serviceGate == null && state.route in listOf(CustomerRoute.Phone, CustomerRoute.Password, CustomerRoute.Verify, CustomerRoute.SetPassword, CustomerRoute.QuickSignin), onBack = model::back)
     BackHandler(state.serviceGate == null && state.route == CustomerRoute.Home && tab != CustomerTab.Home) { tab = CustomerTab.Home }
     BackHandler(state.serviceGate == null && state.route == CustomerRoute.Consent) { if (consentPolicy) consentPolicy = false else model.declinePrivacy() }
     BackHandler(state.serviceGate == null && paymentHelp) { paymentHelp = false }
@@ -75,16 +75,7 @@ internal fun CustomerShell() {
                     CustomerRoute.SessionExpired -> SessionExpired(model::signInAgain)
                     CustomerRoute.Welcome -> Welcome({ urdu = !urdu; preferences.setUrdu(urdu) }, model::begin)
                     CustomerRoute.Phone -> PhoneSigninScreen(state, model)
-                    CustomerRoute.Methods -> SigninMethodsScreen(state.message, model::continueWithThisPhone, { model.enterPhone(true) }, { model.enterPhone(false) }, { urdu = !urdu; preferences.setUrdu(urdu) })
                     CustomerRoute.QuickSignin -> PhoneVerificationProgress(state.verifiedName, state.signinStage, model::back, model::useCodeInstead)
-                    CustomerRoute.VerifyDevice -> AuthScreen(
-                        copy("Create your password", "اپنا پاس ورڈ بنائیں"),
-                        copy("First verify +92 ${state.phone} using your financed phone. Then choose your password.", "پہلے اپنے قسط والے فون سے +92 ${state.phone} کی تصدیق کریں، پھر پاس ورڈ بنائیں۔"),
-                        copy("Get code from Locker", "لاکر سے کوڈ لیں"), model::back, { model.requestApproval(state.phone) }, busy = state.busy,
-                    ) {
-                        TextButton(onClick = model::askLockerSignin, enabled = !state.busy) { Text(copy("Use Locker on this phone", "اسی فون کے لاکر سے تصدیق کریں")) }
-                        AuthError(state.message)
-                    }
                     CustomerRoute.Password, CustomerRoute.SetPassword -> PasswordSigninScreen(state, model, preferences.hasAcceptedPrivacy)
                     CustomerRoute.Verify -> CodeSigninScreen(state, model)
                     CustomerRoute.Consent -> if (consentPolicy) {
