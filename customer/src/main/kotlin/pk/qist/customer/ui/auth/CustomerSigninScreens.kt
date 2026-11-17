@@ -25,7 +25,6 @@ internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
         PhoneField(phone, state.phoneNotRegistered) { if (!state.busy) { phone = normalizePhone(it); model.editPhone() } }
         PhoneNumberHint(phone.isEmpty(), !state.busy) { phone = it; model.editPhone() }
 
-        TextButton(onClick = { model.usePassword(phone) }, enabled = !state.busy && phone.matches(Regex("3[0-9]{9}"))) { Text(copy("Use password", "پاس ورڈ استعمال کریں")) }
 
         AuthError(state.message)
     }
@@ -68,6 +67,13 @@ internal fun CodeSigninScreen(state: CustomerState, model: CustomerViewModel) {
                 if (pasted?.matches(Regex("[0-9]{6}")) == true) { code = pasted; clipboardError = null; model.editCode() }
                 else clipboardError = "Copy the six-digit code from Qist Locker first."
             }, enabled = !state.busy) { Text(copy("Paste code", "کوڈ پیسٹ کریں")) }
-            TextButton(onClick = { model.usePassword(state.phone) }, enabled = !state.busy) { Text(copy("Use password instead", "پاس ورڈ استعمال کریں")) }
+            TextButton(onClick = model::askLockerSignin, enabled = !state.busy) {
+                Text(copy("Sign in with Qist Locker on this phone", "اسی فون پر Qist Locker سے لاگ ان کریں"))
+            }
+            if (state.passwordAvailable) {
+                TextButton(onClick = { model.usePassword(state.phone) }, enabled = !state.busy) {
+                    Text(copy("Use password instead", "پاس ورڈ استعمال کریں"))
+                }
+            }
         })
 }
