@@ -15,7 +15,7 @@ import pk.qist.customer.ui.localization.copy
 
 /** User selects a SIM hint; never needs phone/SMS/contact permissions and never submits it automatically. */
 @Composable
-internal fun PhoneNumberHint(empty: Boolean, enabled: Boolean, onNumber: (String) -> Unit) {
+internal fun PhoneNumberHint(empty: Boolean, enabled: Boolean, showAction: Boolean = true, onNumber: (String) -> Unit) {
     val activity = LocalActivity.current ?: return
     val currentOnNumber by rememberUpdatedState(onNumber)
     val currentEnabled by rememberUpdatedState(enabled)
@@ -46,7 +46,7 @@ internal fun PhoneNumberHint(empty: Boolean, enabled: Boolean, onNumber: (String
             }.addOnFailureListener { pending = false; available = false }
     }
     LaunchedEffect(empty, enabled) { if (empty && enabled && !offered) requestHint(automatic = true) }
-    if (available) TextButton(onClick = { requestHint() }, enabled = enabled && !pending) {
+    if (available && showAction) TextButton(onClick = { requestHint() }, enabled = enabled && !pending) {
         Text(copy("Use phone number from SIM", "سم کا فون نمبر استعمال کریں"))
     }
 }
