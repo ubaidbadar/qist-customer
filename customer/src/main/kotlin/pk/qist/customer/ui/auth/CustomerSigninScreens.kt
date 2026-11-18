@@ -103,6 +103,7 @@ internal fun PasswordSigninScreen(state: CustomerState, model: CustomerViewModel
             if (!state.busy) password = it.take(128)
         }
         if (!creating) {
+            Spacer(Modifier.height(24.dp))
             TextButton(
                 onClick = { model.requestApproval(state.phone) },
                 modifier = Modifier.align(Alignment.End),
