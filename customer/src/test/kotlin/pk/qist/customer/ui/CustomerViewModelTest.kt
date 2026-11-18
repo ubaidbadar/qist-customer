@@ -517,6 +517,26 @@ class CustomerViewModelTest {
         assertEquals(CustomerRoute.Home, model.state.value.route)
     }
 
+    @Test fun `same phone Locker sign in resolves the linked number without manual entry`() = runTest(dispatcher) {
+        val repo = Repository()
+        val model = CustomerViewModel(repo, true, locker = Locker(), clock = { testScheduler.currentTime })
+        runCurrent()
+        model.begin()
+        model.checkLockerAvailability()
+        runCurrent()
+        assertEquals(true, model.state.value.lockerAvailable)
+        model.askLockerSignin()
+        runCurrent()
+        assertTrue(model.state.value.lockerOffer)
+        model.confirmLockerSignin()
+        runCurrent()
+        assertNull(repo.localPhone)
+        assertEquals("3001234567", model.state.value.phone)
+        assertEquals(CustomerRoute.SetPassword, model.state.value.route)
+        assertEquals(0, repo.starts)
+        assertEquals(0, repo.remoteRequests)
+    }
+
     @Test fun `unavailable or rejecting Locker keeps the current sign in route`() = runTest(dispatcher) {
         val unavailableRepo = Repository()
         val unavailableModel = CustomerViewModel(unavailableRepo, true, locker = Locker(available = false), clock = { testScheduler.currentTime })
