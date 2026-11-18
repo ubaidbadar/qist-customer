@@ -15,6 +15,7 @@ class LockerAuthenticatorTest {
     @Test fun `missing enrolled Locker cannot approve a local sign in`() = runBlocking {
         val authenticator = AndroidLockerAuthenticator(ApplicationProvider.getApplicationContext())
         assertFalse(authenticator.available())
+        assertFalse(authenticator.openReview())
         assertFalse(authenticator.authenticate("a".repeat(24), "n".repeat(43)))
     }
 }
