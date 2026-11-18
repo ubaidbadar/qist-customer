@@ -2,7 +2,7 @@
 
 The security protocol and rollout plan live in [the backend plan](https://github.com/ubaidbadar/qist-backend/blob/main/docs/TRUSTED_DEVICE_AUTH.md).
 
-The Customer app restores existing sessions first. Otherwise it can prove local presence through the explicitly bound, signature-verified Locker service. The backend creates either a normal customer session or a password-setup proof for a first login. On another phone, enter the registered number, then enter the displayed three-digit number in **Qist sign-in** on the financed phone and approve. Password and WhatsApp recovery remain available.
+The Customer app restores existing sessions first. Otherwise it can prove local presence through the explicitly bound, signature-verified Locker service. The backend creates either a normal customer session or a password-setup proof for a first login. For remote sign-in, the Customer app requests a six-digit code that the enrolled Locker can display only after the financed phone is unlocked. The customer opens its temporary review screen from a notification or from the Qist Customer sign-in/Profile screens on that financed phone; Locker has no launcher icon. The old three-digit approval path is retained only for compatible older clients. Password sign-in remains available; WhatsApp recovery is disabled.
 
 Nonce and password-setup proof stay in ViewModel memory. Binder receives only a request ID and nonce and returns a boolean. Only an HTTPS ticket exchange can create a session. Approval polling stops while the app is in the background, and explicit logout suppresses automatic sign-in on the next launch.
 
