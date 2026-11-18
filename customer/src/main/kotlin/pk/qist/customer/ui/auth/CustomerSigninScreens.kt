@@ -83,7 +83,7 @@ internal fun PasswordSigninScreen(state: CustomerState, model: CustomerViewModel
                     AuthSecondaryAction(
                         label = copy("Sign in with Qist Lock app", "Qist Lock ایپ سے لاگ ان کریں"),
                         icon = R.drawable.phone_outline,
-                        onClick = model::askLockerSignin,
+                        onClick = { model.askLockerSignin() },
                         enabled = !state.busy,
                     )
                     Spacer(Modifier.height(12.dp))
