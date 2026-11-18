@@ -9,7 +9,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -24,7 +23,6 @@ import pk.qist.customer.ui.auth.PasswordField
 import pk.qist.customer.ui.auth.PhoneField
 import pk.qist.customer.ui.auth.VerificationScreen
 import pk.qist.customer.ui.layout.CustomerViewport
-import pk.qist.customer.ui.localization.LocalUrdu
 import pk.qist.customer.ui.theme.QistTheme
 
 @RunWith(AndroidJUnit4::class)
