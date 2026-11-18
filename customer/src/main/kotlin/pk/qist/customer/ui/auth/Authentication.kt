@@ -81,25 +81,60 @@ internal fun AuthScreen(
     onBack: () -> Unit,
     onAction: () -> Unit,
     footer: String? = null,
+    bottomContent: @Composable ColumnScope.() -> Unit = {},
     busy: Boolean = false,
     enabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Canvas).systemBarsPadding().imePadding().padding(QistSpacing.AuthScreen)) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            CustomerBackButton(onBack, enabled = !busy)
-            Spacer(Modifier.height(28.dp))
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+            CustomerBackButton(onBack, enabled = !busy, size = 44.dp)
+            Spacer(Modifier.height(32.dp))
             Text(title, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(10.dp))
-            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(22.dp))
             content()
         }
-        Pill(if (busy) copy("Please wait…", "انتظار کریں…") else action, onAction, enabled = enabled, busy = busy)
+        Pill(if (busy) copy("Please wait…", "انتظار کریں…") else action, onAction,
+            enabled = enabled, busy = busy, minHeight = 56.dp)
+        bottomContent()
         if (footer != null) {
             Spacer(Modifier.height(12.dp))
-            Text(footer, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(footer, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
         }
+    }
+}
+
+@Composable
+internal fun AuthDivider() {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f).height(1.dp).background(InputBorder))
+        Text(copy("or", "یا"), modifier = Modifier.padding(horizontal = 12.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+        Box(Modifier.weight(1f).height(1.dp).background(InputBorder))
+    }
+}
+
+@Composable
+internal fun AuthSecondaryAction(
+    label: String,
+    icon: Int,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+        shape = CircleShape,
+        border = BorderStroke(1.5.dp, Blue),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Blue),
+    ) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label, style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -115,19 +150,32 @@ internal fun PhoneField(phone: String, error: Boolean, onChange: (String) -> Uni
     Spacer(Modifier.height(8.dp))
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = QistShapes.Input, border = BorderStroke(1.dp, InputBorder)) {
-                Text("+92", modifier = Modifier.padding(horizontal = 20.dp, vertical = 17.dp), style = MaterialTheme.typography.titleMedium)
+            Surface(
+                modifier = Modifier.width(84.dp).heightIn(min = 56.dp),
+                shape = QistShapes.Input,
+                color = Color.White,
+                border = BorderStroke(1.dp, InputBorder),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text("+92", style = MaterialTheme.typography.titleMedium)
+                }
             }
             OutlinedTextField(
                 value = phone,
                 onValueChange = onChange,
-                modifier = Modifier.weight(1f).semantics { contentDescription = label; contentType = ContentType.PhoneNumber + ContentType.Username },
+                modifier = Modifier.weight(1f).heightIn(min = 56.dp)
+                    .semantics { contentDescription = label; contentType = ContentType.PhoneNumber + ContentType.Username },
                 singleLine = true,
                 placeholder = { Text("3XX XXXXXXX") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 shape = QistShapes.Input,
                 isError = error,
-                colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White,
+                    unfocusedBorderColor = InputBorder,
+                    focusedBorderColor = Blue,
+                ),
             )
         }
     }
@@ -147,10 +195,10 @@ internal fun CodeField(code: String, error: Boolean = false, enabled: Boolean = 
             cursorBrush = SolidColor(Color.Transparent),
             decorationBox = { field ->
                 Box {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         repeat(6) { index ->
                             Surface(
-                                Modifier.weight(1f).heightIn(min = 56.dp),
+                                Modifier.weight(1f).heightIn(min = 60.dp),
                                 shape = QistShapes.CodeCell,
                                 color = if (!enabled) pk.qist.customer.ui.theme.Divider else if (error) pk.qist.customer.ui.theme.DestructiveBackground.copy(alpha = 0.4f) else Color.White,
                                 border = BorderStroke(if (error || (enabled && index == code.length)) 2.dp else 1.dp,
@@ -183,21 +231,41 @@ internal fun Resend(deadline: Long, onResend: () -> Unit, enabled: Boolean = tru
 
 /** Visibility stays local; passwords never enter saved instance state. */
 @Composable
-internal fun PasswordField(password: String, creating: Boolean = false, onChange: (String) -> Unit) {
+internal fun PasswordField(
+    password: String,
+    creating: Boolean = false,
+    enabled: Boolean = true,
+    onChange: (String) -> Unit,
+) {
     var visible by remember { mutableStateOf(false) }
-    OutlinedTextField(
-        value = password, onValueChange = onChange, modifier = Modifier.fillMaxWidth().semantics { contentType = if (creating) ContentType.NewPassword else ContentType.Password }, singleLine = true,
-        label = { Text(copy("Password", "پاس ورڈ")) }, shape = QistShapes.Input,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-        trailingIcon = {
-            IconButton(onClick = { visible = !visible }) {
-                Icon(painterResource(if (visible) R.drawable.password_eye_off else R.drawable.password_eye),
-                    contentDescription = if (visible) copy("Hide password", "پاس ورڈ چھپائیں") else copy("Show password", "پاس ورڈ دکھائیں"))
-            }
-        },
-        colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White),
-    )
+    Column {
+        Text(copy("Password", "پاس ورڈ"), style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = password,
+            onValueChange = onChange,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                .semantics { contentType = if (creating) ContentType.NewPassword else ContentType.Password },
+            enabled = enabled,
+            singleLine = true,
+            placeholder = { Text(if (creating) copy("Create a password", "پاس ورڈ بنائیں") else copy("Enter your password", "اپنا پاس ورڈ درج کریں")) },
+            shape = QistShapes.Input,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { visible = !visible }, enabled = enabled) {
+                    Icon(painterResource(if (visible) R.drawable.password_eye_off else R.drawable.password_eye),
+                        contentDescription = if (visible) copy("Hide password", "پاس ورڈ چھپائیں") else copy("Show password", "پاس ورڈ دکھائیں"))
+                }
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = Color.White,
+                focusedContainerColor = Color.White,
+                unfocusedBorderColor = Blue,
+                focusedBorderColor = Blue,
+            ),
+        )
+    }
 }
 
 /** The timer writes only this state; readers choose whether they need seconds or just expiry. */
@@ -217,9 +285,10 @@ internal fun VerificationScreen(phone: String, code: String, busy: Boolean, mess
     val remaining = rememberRemainingSeconds(blockedUntil, clock)
     val blocked by remember(remaining) { derivedStateOf { remaining.value > 0 } }
     AuthScreen(copy("Enter your code", "اپنا کوڈ درج کریں"),
-        copy("Open Qist Locker on the financed phone for +92 $phone, tap Show sign-in code, and enter its 6-digit code here.", "+92 $phone کے قسط والے فون پر Qist Locker کھولیں، لاگ ان کوڈ دکھائیں اور وہ ۶ ہندسوں کا کوڈ یہاں درج کریں۔"),
+        copy("Enter the 6-digit code shown in Qist Lock on your financed phone.", "اپنے قسط والے فون پر Qist Lock میں دکھایا گیا ۶ ہندسوں کا کوڈ درج کریں۔"),
         copy("Verify", "تصدیق کریں"), onBack, onVerify, busy = busy, enabled = code.length == 6 && !blocked) {
         CodeField(code, error = codeRejected, enabled = !busy && !blocked, onChange = onCode)
+        Spacer(Modifier.height(20.dp))
         extra()
         if (blocked) VerificationWait(remaining) else {
             AuthError(message)
