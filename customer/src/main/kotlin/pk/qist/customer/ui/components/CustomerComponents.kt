@@ -31,10 +31,10 @@ internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnSco
 }
 
 @Composable
-internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false, icon: Int? = null, enabled: Boolean = true, busy: Boolean = false, destructive: Boolean = false) {
+internal fun Pill(label: String, onClick: () -> Unit, cyan: Boolean = false, icon: Int? = null, enabled: Boolean = true, busy: Boolean = false, destructive: Boolean = false, minHeight: Dp = 54.dp) {
     Button(
         onClick = onClick, enabled = enabled && !busy,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = minHeight),
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = when { destructive -> Destructive; cyan -> Cyan; else -> Blue }, contentColor = if (cyan && !destructive) Navy else Color.White),
     ) { ActionLabel(label, icon, busy) }
@@ -143,10 +143,10 @@ internal fun money(amount: Long): String {
 }
 
 @Composable
-internal fun CustomerBackButton(onBack: () -> Unit, enabled: Boolean = true) {
+internal fun CustomerBackButton(onBack: () -> Unit, enabled: Boolean = true, size: Dp = 48.dp) {
     FilledIconButton(
         onClick = onBack, enabled = enabled,
-        modifier = Modifier.size(48.dp),
+        modifier = Modifier.size(size),
         colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White, contentColor = Navy),
     ) {
         Icon(painterResource(pk.qist.customer.R.drawable.notice_back), contentDescription = copy("Back", "واپس"))
