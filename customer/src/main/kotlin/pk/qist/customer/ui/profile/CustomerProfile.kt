@@ -10,6 +10,7 @@ import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
 import pk.qist.customer.R
+import pk.qist.customer.platform.AndroidLockerAuthenticator
 import pk.qist.customer.ui.components.Badge
 import pk.qist.customer.ui.components.Caption
 import pk.qist.customer.ui.components.Chevron
@@ -24,6 +25,10 @@ import pk.qist.customer.ui.theme.Navy
 @Composable
 internal fun CustomerProfile(name: String, phone: String, onLanguage: () -> Unit, onLogout: () -> Unit, notifications: Boolean, onNotifications: (Boolean) -> Unit, notificationStatus: String?, onOpenPage: (String) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val locker = remember(context) { AndroidLockerAuthenticator(context) }
+    var lockerAvailable by remember { mutableStateOf(false) }
+    var lockerReviewError by remember { mutableStateOf(false) }
+    LaunchedEffect(locker) { lockerAvailable = locker.available() }
     var dialog by rememberSaveable { mutableStateOf("") }
     val language = copy("English", "اردو")
     Panel {
@@ -54,6 +59,18 @@ internal fun CustomerProfile(name: String, phone: String, onLanguage: () -> Unit
             try { context.startActivity(intent) } catch (_: android.content.ActivityNotFoundException) { /* The switch still controls in-app opt-in. */ }
         }) { Text(copy("Android notification settings", "اینڈرائیڈ اطلاعات کی سیٹنگز")) }
 
+        if (lockerAvailable) {
+            HorizontalDivider(color = Divider)
+            SettingsRow(
+                copy("Review sign-in requests", "سائن ان درخواستیں دیکھیں"),
+                R.drawable.detail_bell,
+                onClick = { lockerReviewError = !locker.openReview() },
+            ) { Chevron() }
+            if (lockerReviewError) Caption(copy(
+                "Could not open Qist Lock. Try its notification or update Qist Lock.",
+                "Qist Lock نہیں کھل سکا۔ اطلاع استعمال کریں یا Qist Lock اپ ڈیٹ کریں۔",
+            ))
+        }
         HorizontalDivider(color = Divider)
         SettingsRow(copy("Help and support", "مدد اور معاونت"), R.drawable.detail_help, onClick = { onOpenPage("help") }) { Chevron() }
         HorizontalDivider(color = Divider)
