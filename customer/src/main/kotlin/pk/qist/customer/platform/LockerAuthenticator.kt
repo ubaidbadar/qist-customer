@@ -3,6 +3,7 @@ package pk.qist.customer.platform
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
@@ -22,10 +23,27 @@ import pk.qist.device.auth.ICustomerSigninCallback
 internal class AndroidLockerAuthenticator(context: Context) : LockerAuthenticator {
     private val context = context.applicationContext
     private val component = ComponentName(LOCKER, "pk.qist.device.auth.CustomerSigninService")
+    private val review = ComponentName(LOCKER, "pk.qist.device.auth.SigninActivity")
+
+    private fun trustedLocker(): Boolean =
+        context.packageManager.checkSignatures(context.packageName, LOCKER) == PackageManager.SIGNATURE_MATCH
+
+    /** User-initiated review on the enrolled phone. No launcher icon, codes or approvals in intents. */
+    fun openReview(): Boolean {
+        if (!trustedLocker()) return false
+        return try {
+            context.startActivity(Intent().setComponent(review).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            true
+        } catch (_: SecurityException) {
+            false
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
+    }
 
     override suspend fun available(): Boolean = withContext(Dispatchers.IO) {
         val packages = context.packageManager
-        packages.checkSignatures(context.packageName, LOCKER) == PackageManager.SIGNATURE_MATCH &&
+        trustedLocker() &&
             packages.resolveService(Intent().setComponent(component), 0)?.serviceInfo?.let {
                 it.exported && it.packageName == LOCKER && it.permission == PERMISSION
             } == true
