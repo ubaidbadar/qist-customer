@@ -60,7 +60,13 @@ internal fun CustomerShell() {
     CompositionLocalProvider(LocalUrdu provides urdu, LocalLayoutDirection provides if (urdu) LayoutDirection.Rtl else LayoutDirection.Ltr) {
         if (state.lockerOffer && state.serviceGate == null) CustomerDialog(
             title = copy("Sign in with this phone?", "اسی فون سے لاگ ان کریں؟"),
-            message = copy("Use Qist Locker to verify +92 ${state.phone}. Continue only if this is the number linked to your financed phone.", "قسط والے فون کے لاکر سے +92 ${state.phone} کی تصدیق کریں۔ صرف اپنے رجسٹرڈ نمبر کے لیے جاری رکھیں۔"),
+            message = if (state.phone.isBlank()) {
+                copy("Use Qist Lock to verify the number linked to your financed phone. Continue only if this is your financed phone.",
+                    "قسط والے فون سے منسلک نمبر کی تصدیق کے لیے Qist Lock استعمال کریں۔ صرف اسی صورت جاری رکھیں جب یہ آپ کا قسط والا فون ہے۔")
+            } else {
+                copy("Use Qist Lock to verify +92 ${state.phone}. Continue only if this is the number linked to your financed phone.",
+                    "قسط والے فون کے لاکر سے +92 ${state.phone} کی تصدیق کریں۔ صرف اپنے رجسٹرڈ نمبر کے لیے جاری رکھیں۔")
+            },
             confirmLabel = copy("Verify and continue", "تصدیق کریں اور جاری رکھیں"), dismissLabel = copy("Use another method", "دوسرا طریقہ استعمال کریں"),
             onConfirm = model::confirmLockerSignin, onDismiss = model::dismissLockerOffer, icon = pk.qist.customer.R.drawable.phone_outline,
         )
