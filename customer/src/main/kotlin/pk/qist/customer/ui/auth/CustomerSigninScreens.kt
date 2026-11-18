@@ -24,6 +24,10 @@ internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
     var phone by rememberSaveable { mutableStateOf(state.phone) }
     var lockerReviewError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current.applicationContext
+    val unavailableReviewMessage = copy(
+        "Qist Lock review is unavailable. Use the sign-in notification or update Qist Lock.",
+        "Qist Lock کی تصدیق دستیاب نہیں۔ اطلاع استعمال کریں یا Qist Lock اپ ڈیٹ کریں۔",
+    )
     LaunchedEffect(model) { model.checkLockerAvailability() }
     val footer = if (state.lockerAvailable == true) {
         copy("Qist Lock found on this phone. Not registered? Ask your retailer to add you.",
@@ -50,9 +54,9 @@ internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
                     enabled = !state.busy,
                 )
                 TextButton(
-                    onClick = { lockerReviewError = if (AndroidLockerAuthenticator(context).openReview()) null else
-                        copy("Qist Lock review is unavailable. Use the sign-in notification or update Qist Lock.",
-                            "Qist Lock کی تصدیق دستیاب نہیں۔ اطلاع استعمال کریں یا Qist Lock اپ ڈیٹ کریں۔") },
+                    onClick = {
+                        lockerReviewError = if (AndroidLockerAuthenticator(context).openReview()) null else unavailableReviewMessage
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.busy,
                 ) {
