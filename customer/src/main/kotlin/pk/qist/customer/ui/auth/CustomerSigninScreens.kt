@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import pk.qist.customer.R
 import pk.qist.customer.platform.PhoneNumberHint
+import pk.qist.customer.platform.AndroidLockerAuthenticator
 import pk.qist.customer.ui.CustomerRoute
 import pk.qist.customer.ui.CustomerState
 import pk.qist.customer.ui.CustomerViewModel
@@ -21,6 +22,8 @@ import pk.qist.customer.ui.localization.copy
 @Composable
 internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
     var phone by rememberSaveable { mutableStateOf(state.phone) }
+    var lockerReviewError by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current.applicationContext
     LaunchedEffect(model) { model.checkLockerAvailability() }
     val footer = if (state.lockerAvailable == true) {
         copy("Qist Lock found on this phone. Not registered? Ask your retailer to add you.",
@@ -46,6 +49,16 @@ internal fun PhoneSigninScreen(state: CustomerState, model: CustomerViewModel) {
                     onClick = { model.askLockerSignin(phone) },
                     enabled = !state.busy,
                 )
+                TextButton(
+                    onClick = { lockerReviewError = if (AndroidLockerAuthenticator(context).openReview()) null else
+                        copy("Qist Lock review is unavailable. Use the sign-in notification or update Qist Lock.",
+                            "Qist Lock کی تصدیق دستیاب نہیں۔ اطلاع استعمال کریں یا Qist Lock اپ ڈیٹ کریں۔") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.busy,
+                ) {
+                    Text(copy("Review sign-in requests on this phone", "اس فون پر سائن ان درخواستیں دیکھیں"))
+                }
+                AuthError(lockerReviewError)
             }
         },
         busy = state.busy,
