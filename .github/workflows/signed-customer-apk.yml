@@ -1,11 +1,17 @@
 name: Signed Qist customer APK
 
-# Initial run when this trusted workflow lands on main; subsequent builds can
-# be started manually from GitHub Actions without committing any app changes.
+# Build a signed validation APK for customer app changes merged to main.
+# This workflow never publishes to Google Play.
 on:
   push:
     branches: [main]
-    paths: [.github/workflows/signed-customer-apk.yml]
+    paths:
+      - .github/workflows/signed-customer-apk.yml
+      - customer/**
+      - gradle/**
+      - build.gradle.kts
+      - settings.gradle.kts
+      - gradle.properties
   workflow_dispatch:
 
 permissions:

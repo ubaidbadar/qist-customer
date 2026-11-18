@@ -45,6 +45,7 @@ internal data class CustomerState(
     val notificationStatus: String? = null,
     val serviceGate: ServiceGate? = null,
     val checkingService: Boolean = false,
+    val lockerAvailable: Boolean? = null,
 )
 
 private data class PushRegistration(val token: String?)
@@ -65,6 +66,7 @@ internal class CustomerViewModel(
     private var pendingRealtime = false
     private var operation: Job? = null
     private var operationVersion = 0L
+    private var lockerAvailabilityJob: Job? = null
     private var backgroundOperation = false
     private val pushSync = Mutex()
     private var pushRegistration: PushRegistration? = null
@@ -159,9 +161,40 @@ internal class CustomerViewModel(
     fun begin() {
         if (!mutable.value.busy) mutable.value = mutable.value.copy(route = CustomerRoute.Phone, message = null)
     }
-    fun askLockerSignin() = perform {
-        if (locker?.available() == true) mutable.value = mutable.value.copy(lockerOffer = true)
-        else mutable.value = mutable.value.copy(message = "Qist Locker is not available on this phone. Get a code from your financed phone instead.")
+    /** Package/signature check only; this does not contact the backend or grant access. */
+    fun checkLockerAvailability() {
+        if (mutable.value.lockerAvailable != null || lockerAvailabilityJob?.isActive == true) return
+        val authenticator = locker
+        if (authenticator == null) {
+            mutable.value = mutable.value.copy(lockerAvailable = false)
+            return
+        }
+        lockerAvailabilityJob = viewModelScope.launch {
+            val available = try { authenticator.available() }
+            catch (error: CancellationException) { throw error }
+            catch (_: IOException) { false }
+            catch (_: SecurityException) { false }
+            mutable.value = mutable.value.copy(lockerAvailable = available)
+        }
+    }
+
+    fun askLockerSignin(phone: String? = null) {
+        if (phone != null) {
+            if (phone.isNotEmpty() && !phone.matches(customerPhonePattern)) {
+                mutable.value = mutable.value.copy(message = "Enter a valid mobile number starting with 3.")
+                return
+            }
+            mutable.value = mutable.value.copy(phone = phone, phoneNotRegistered = false, message = null)
+        }
+        perform {
+            val available = try { locker?.available() == true }
+            catch (error: CancellationException) { throw error }
+            catch (_: IOException) { false }
+            catch (_: SecurityException) { false }
+            mutable.value = mutable.value.copy(lockerAvailable = available)
+            if (available) mutable.value = mutable.value.copy(lockerOffer = true)
+            else mutable.value = mutable.value.copy(message = "Qist Locker is not available on this phone. Get a code from your financed phone instead.")
+        }
     }
     fun dismissLockerOffer() {
         if (!mutable.value.busy) mutable.value = mutable.value.copy(lockerOffer = false)
@@ -169,7 +202,7 @@ internal class CustomerViewModel(
 
     fun confirmLockerSignin() {
         val phone = mutable.value.phone
-        if (mutable.value.busy || !phone.matches(customerPhonePattern)) return
+        if (mutable.value.busy || (phone.isNotEmpty() && !phone.matches(customerPhonePattern))) return
         mutable.value = mutable.value.copy(lockerOffer = false)
         perform { attemptLocal(privacyAccepted()) }
     }
@@ -198,7 +231,8 @@ internal class CustomerViewModel(
         var requestId: String? = null
         var identity: DeviceIdentity? = null
         try {
-            val challenge = repository.localChallenge(nonce, "0${mutable.value.phone}")
+            val requestedPhone = mutable.value.phone.takeIf { it.matches(customerPhonePattern) }?.let { "0$it" }
+            val challenge = repository.localChallenge(nonce, requestedPhone)
             requestId = challenge.requestId
             if (!authenticator.authenticate(challenge.requestId, nonce)) {
                 mutable.value = mutable.value.copy(route = localFallbackRoute, message = "Quick sign-in is unavailable. Unlock your financed phone, or use a code or password.")
@@ -206,7 +240,7 @@ internal class CustomerViewModel(
             }
             val claim = repository.claimDevice(challenge.requestId, nonce)
             val verifiedPhone = claim.phone ?: throw CustomerResponseException("The linked number could not be verified.")
-            if (verifiedPhone != "0${mutable.value.phone}") throw CustomerResponseException("The financed phone is linked to another number.")
+            if (requestedPhone != null && verifiedPhone != requestedPhone) throw CustomerResponseException("The financed phone is linked to another number.")
             val ticket = claim.ticket ?: throw CustomerResponseException("The phone did not approve sign-in.")
             if (!verifiedPhone.matches(verifiedPhonePattern)) throw CustomerResponseException("Invalid verified number.")
             mutable.value = mutable.value.copy(phone = verifiedPhone.removePrefix("0"), verifiedName = claim.name, signinStage = 2)
